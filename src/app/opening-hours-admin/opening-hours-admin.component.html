@@ -156,8 +156,21 @@
             </div>
           </label>
         </div>
+        <div class="weekday-pills" *ngIf="holiday.controls.rule.value === 'date-range'">
+          <label class="weekday-pill" *ngFor="let weekday of weekdays">
+            <input
+              type="checkbox"
+              [checked]="hasHolidayWeekday(holidayIndex, weekday.key)"
+              (change)="toggleHolidayWeekday(holidayIndex, weekday.key, $any($event.target).checked)"
+            />
+            {{ weekday.label }}
+          </label>
+        </div>
         <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['dateRangeRequired']">
           Start and end dates are required.
+        </p>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['dateRangeWeekdaysRequired']">
+          Select at least one weekday for this date range.
         </p>
         <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['dateRangeFormat']">
           Use a valid date format: DD.MM.YYYY.

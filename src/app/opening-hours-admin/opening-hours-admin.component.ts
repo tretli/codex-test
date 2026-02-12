@@ -43,6 +43,7 @@ type HolidayForm = FormGroup<{
   offsetDays: import('@angular/forms').FormControl<number | null>;
   rangeStart: import('@angular/forms').FormControl<string | null>;
   rangeEnd: import('@angular/forms').FormControl<string | null>;
+  weekdays: import('@angular/forms').FormControl<Weekday[]>;
   lengthDays: import('@angular/forms').FormControl<number>;
   closed: import('@angular/forms').FormControl<boolean>;
   slots: FormArray<SlotForm>;
@@ -56,6 +57,7 @@ type HolidayFormValue = {
   offsetDays: number | null;
   rangeStart: string | null;
   rangeEnd: string | null;
+  weekdays: Weekday[];
   lengthDays: number;
   closed: boolean;
   slots: { opensAt: string; closesAt: string }[];
@@ -268,6 +270,7 @@ export class OpeningHoursAdminComponent {
         rule: 'date-range',
         rangeStart: start,
         rangeEnd: end,
+        weekdays: [],
         lengthDays: 1,
         closed: true,
         slots: []
@@ -278,6 +281,27 @@ export class OpeningHoursAdminComponent {
 
   removeHoliday(index: number): void {
     this.holidayForms.removeAt(index);
+  }
+
+  hasHolidayWeekday(holidayIndex: number, day: Weekday): boolean {
+    return this.holidayForms.at(holidayIndex).controls.weekdays.value.includes(day);
+  }
+
+  toggleHolidayWeekday(
+    holidayIndex: number,
+    day: Weekday,
+    checked: boolean
+  ): void {
+    const control = this.holidayForms.at(holidayIndex).controls.weekdays;
+    const current = control.value;
+    if (checked) {
+      if (!current.includes(day)) {
+        control.setValue([...current, day]);
+      }
+      return;
+    }
+
+    control.setValue(current.filter((selectedDay) => selectedDay !== day));
   }
 
   holidaySlotForms(holidayIndex: number): FormArray<SlotForm> {
@@ -439,6 +463,7 @@ export class OpeningHoursAdminComponent {
       ]),
       rangeStart: this.fb.control(rangeStartValue),
       rangeEnd: this.fb.control(rangeEndValue),
+      weekdays: this.fb.nonNullable.control(holiday.weekdays ?? []),
       lengthDays: this.fb.nonNullable.control(holiday.lengthDays, [
         Validators.min(1)
       ]),
@@ -482,6 +507,7 @@ export class OpeningHoursAdminComponent {
         rule: holiday.rule,
         rangeStart,
         rangeEnd,
+        weekdays: holiday.weekdays,
         lengthDays: this.calculateDateRangeLength(rangeStart, rangeEnd),
         closed: holiday.closed,
         slots: holiday.closed ? [] : holiday.slots

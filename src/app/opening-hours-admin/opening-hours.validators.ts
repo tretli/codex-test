@@ -86,8 +86,12 @@ export function holidayFormValidator(parseDateInput: DateParser): ValidatorFn {
     if (rule === 'date-range') {
       const rangeStartRaw = control.get('rangeStart')?.value as string | null;
       const rangeEndRaw = control.get('rangeEnd')?.value as string | null;
+      const weekdays = (control.get('weekdays')?.value as Weekday[] | null) ?? [];
       if (!rangeStartRaw || !rangeEndRaw) {
         return { dateRangeRequired: true };
+      }
+      if (weekdays.length === 0) {
+        return { dateRangeWeekdaysRequired: true };
       }
 
       const start = parseDateInput(rangeStartRaw);

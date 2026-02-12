@@ -32,6 +32,7 @@ export interface RecurringHoliday {
   offsetDays?: number; // day offset from Easter Sunday for easter rules
   rangeStart?: string; // ISO date for date-range rules
   rangeEnd?: string; // ISO date for date-range rules
+  weekdays?: Weekday[]; // selected weekdays for date-range rules
   lengthDays: number; // number of consecutive days the holiday applies
   closed: boolean;
   slots: OpeningHoursSlot[];
@@ -41,6 +42,7 @@ export interface DateRangeHoliday extends RecurringHoliday {
   rule: 'date-range';
   rangeStart: string; // ISO date
   rangeEnd: string; // ISO date
+  weekdays: Weekday[];
 }
 
 export interface OpeningHoursSchedule {
