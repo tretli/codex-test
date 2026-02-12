@@ -1,13 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
 import {
-  AbstractControl,
   FormArray,
   FormBuilder,
   FormGroup,
   ReactiveFormsModule,
-  ValidationErrors,
-  ValidatorFn,
   Validators
 } from '@angular/forms';
 import {
@@ -20,6 +17,12 @@ import {
   Weekday
 } from './opening-hours.model';
 import { OpeningHoursService } from './opening-hours.service';
+import {
+  dateRangeOverlapValidator,
+  dayFormValidator,
+  holidayFormValidator,
+  slotFormValidator
+} from './opening-hours.validators';
 
 type SlotForm = FormGroup<{
   opensAt: import('@angular/forms').FormControl<string>;
@@ -163,7 +166,7 @@ export class OpeningHoursAdminComponent {
     timezone: ['Europe/London', Validators.required],
     days: this.fb.array<DayForm>([]),
     recurringHolidays: this.fb.array<HolidayForm>([], {
-      validators: this.dateRangeOverlapValidator()
+      validators: dateRangeOverlapValidator((value) => this.parseDateInput(value))
     })
   });
 
@@ -362,14 +365,14 @@ export class OpeningHoursAdminComponent {
       day: [day.day],
       enabled: [day.enabled],
       slots: this.fb.array(day.slots.map((slot) => this.createSlotForm(slot.opensAt, slot.closesAt)))
-    }, { validators: this.dayFormValidator() });
+    }, { validators: dayFormValidator() });
   }
 
   private createSlotForm(opensAt: string, closesAt: string): SlotForm {
     return this.fb.nonNullable.group({
       opensAt: [opensAt, Validators.required],
       closesAt: [closesAt, Validators.required]
-    }, { validators: this.slotFormValidator() });
+    }, { validators: slotFormValidator() });
   }
 
   private createHolidayForm(holiday: RecurringHoliday): HolidayForm {
@@ -406,7 +409,7 @@ export class OpeningHoursAdminComponent {
       slots: this.fb.array(
         holiday.slots.map((slot) => this.createSlotForm(slot.opensAt, slot.closesAt))
       )
-    }, { validators: this.holidayFormValidator() });
+    }, { validators: holidayFormValidator((value) => this.parseDateInput(value)) });
   }
 
   private normalizeHoliday(holiday: HolidayFormValue): RecurringHoliday {
@@ -745,155 +748,4 @@ export class OpeningHoursAdminComponent {
     };
   }
 
-  private slotFormValidator(): ValidatorFn {
-    return (control: AbstractControl): ValidationErrors | null => {
-      const opensAt = control.get('opensAt')?.value as string | null;
-      const closesAt = control.get('closesAt')?.value as string | null;
-      const start = this.parseTimeToMinutes(opensAt);
-      const end = this.parseTimeToMinutes(closesAt);
-
-      if (start === null || end === null) {
-        return { timeFormat: true };
-      }
-
-      if (start >= end) {
-        return { timeOrder: true };
-      }
-
-      return null;
-    };
-  }
-
-  private dayFormValidator(): ValidatorFn {
-    return (control: AbstractControl): ValidationErrors | null => {
-      const enabled = control.get('enabled')?.value as boolean | null;
-      if (!enabled) {
-        return null;
-      }
-
-      const slots = (control.get('slots') as FormArray<SlotForm> | null)?.controls ?? [];
-      if (slots.length === 0) {
-        return { slotRequired: true };
-      }
-
-      if (slots.some((slot) => slot.invalid)) {
-        return { slotInvalid: true };
-      }
-
-      const ranges = slots
-        .map((slot) => this.slotRange(slot))
-        .filter((value): value is { start: number; end: number } => value !== null)
-        .sort((a, b) => a.start - b.start);
-
-      for (let i = 1; i < ranges.length; i += 1) {
-        if (ranges[i].start < ranges[i - 1].end) {
-          return { slotOverlap: true };
-        }
-      }
-
-      return null;
-    };
-  }
-
-  private holidayFormValidator(): ValidatorFn {
-    return (control: AbstractControl): ValidationErrors | null => {
-      const rule = control.get('rule')?.value as RecurringHolidayRule | null;
-      const closed = control.get('closed')?.value as boolean | null;
-      const slots = (control.get('slots') as FormArray<SlotForm> | null)?.controls ?? [];
-
-      if (rule === 'date-range') {
-        const rangeStartRaw = control.get('rangeStart')?.value as string | null;
-        const rangeEndRaw = control.get('rangeEnd')?.value as string | null;
-        if (!rangeStartRaw || !rangeEndRaw) {
-          return { dateRangeRequired: true };
-        }
-
-        const start = this.parseDateInput(rangeStartRaw);
-        const end = this.parseDateInput(rangeEndRaw);
-        if (!start || !end) {
-          return { dateRangeFormat: true };
-        }
-
-        if (end.getTime() < start.getTime()) {
-          return { dateRangeOrder: true };
-        }
-      }
-
-      if (!closed) {
-        if (slots.length === 0) {
-          return { slotRequired: true };
-        }
-
-        if (slots.some((slot) => slot.invalid)) {
-          return { slotInvalid: true };
-        }
-
-        const ranges = slots
-          .map((slot) => this.slotRange(slot))
-          .filter((value): value is { start: number; end: number } => value !== null)
-          .sort((a, b) => a.start - b.start);
-
-        for (let i = 1; i < ranges.length; i += 1) {
-          if (ranges[i].start < ranges[i - 1].end) {
-            return { slotOverlap: true };
-          }
-        }
-      }
-
-      return null;
-    };
-  }
-
-  private parseTimeToMinutes(value: string | null): number | null {
-    if (!value) {
-      return null;
-    }
-
-    if (value === '24:00') {
-      return 24 * 60;
-    }
-
-    const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
-    if (!match) {
-      return null;
-    }
-
-    return Number(match[1]) * 60 + Number(match[2]);
-  }
-
-  private slotRange(slot: SlotForm): { start: number; end: number } | null {
-    const raw = slot.getRawValue();
-    const start = this.parseTimeToMinutes(raw.opensAt);
-    const end = this.parseTimeToMinutes(raw.closesAt);
-    if (start === null || end === null || start >= end) {
-      return null;
-    }
-    return { start, end };
-  }
-
-  private dateRangeOverlapValidator(): ValidatorFn {
-    return (control: AbstractControl): ValidationErrors | null => {
-      const holidayForms = (control as FormArray<HolidayForm>).controls;
-      const ranges = holidayForms
-        .filter((holidayForm) => holidayForm.controls.rule.value === 'date-range')
-        .map((holidayForm) => {
-          const start = this.parseDateInput(holidayForm.controls.rangeStart.value ?? '');
-          const end = this.parseDateInput(holidayForm.controls.rangeEnd.value ?? '');
-          if (!start || !end) {
-            return null;
-          }
-          return { start, end };
-        })
-        .filter((range): range is { start: Date; end: Date } => range !== null)
-        .sort((a, b) => a.start.getTime() - b.start.getTime());
-
-      for (let i = 1; i < ranges.length; i += 1) {
-        if (ranges[i].start.getTime() <= ranges[i - 1].end.getTime()) {
-          return { dateRangeOverlap: true };
-        }
-      }
-
-      return null;
-    };
-  }
 }
