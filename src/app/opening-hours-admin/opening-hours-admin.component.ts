@@ -67,6 +67,11 @@ type HolidayTemplate = {
   holiday: RecurringHoliday;
 };
 
+type TimezoneOption = {
+  value: string;
+  label: string;
+};
+
 @Component({
   selector: 'app-opening-hours-admin',
   standalone: true,
@@ -80,6 +85,7 @@ export class OpeningHoursAdminComponent {
 
   readonly currentYear = new Date().getFullYear();
   readonly weekdays = WEEKDAYS;
+  readonly timezoneOptions = this.buildTimezoneOptions();
   readonly openTimeOptions = this.buildTimeOptions(15, false);
   readonly closeTimeOptions = this.buildTimeOptions(15, true);
   readonly holidayTemplates: ReadonlyArray<HolidayTemplate> = [
@@ -746,6 +752,102 @@ export class OpeningHoursAdminComponent {
         slots: []
       }
     };
+  }
+
+  private buildTimezoneOptions(): TimezoneOption[] {
+    const intlWithTimezones = Intl as typeof Intl & {
+      supportedValuesOf?: (key: 'timeZone') => string[];
+    };
+    const fromIntl = intlWithTimezones.supportedValuesOf?.('timeZone');
+    if (fromIntl && fromIntl.length > 0) {
+      return fromIntl
+        .map((timezone) => ({
+          value: timezone,
+          label: `${timezone} (${this.getUtcOffsetLabel(timezone)})`
+        }))
+        .sort((a, b) => {
+          const offsetDiff =
+            this.getUtcOffsetMinutes(a.value) - this.getUtcOffsetMinutes(b.value);
+          if (offsetDiff !== 0) {
+            return offsetDiff;
+          }
+          return a.value.localeCompare(b.value);
+        });
+    }
+
+    return [
+      'Europe/Oslo',
+      'Europe/Stockholm',
+      'Europe/Copenhagen',
+      'Europe/Helsinki',
+      'Europe/London',
+      'Europe/Berlin',
+      'UTC'
+    ]
+      .map((timezone) => ({
+        value: timezone,
+        label: `${timezone} (${this.getUtcOffsetLabel(timezone)})`
+      }))
+      .sort((a, b) => {
+        const offsetDiff =
+          this.getUtcOffsetMinutes(a.value) - this.getUtcOffsetMinutes(b.value);
+        if (offsetDiff !== 0) {
+          return offsetDiff;
+        }
+        return a.value.localeCompare(b.value);
+      });
+  }
+
+  private getUtcOffsetLabel(timezone: string): string {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      timeZoneName: 'shortOffset'
+    });
+    const offsetPart = formatter
+      .formatToParts(new Date())
+      .find((part) => part.type === 'timeZoneName')?.value;
+
+    if (!offsetPart) {
+      return 'UTC';
+    }
+
+    if (offsetPart === 'GMT' || offsetPart === 'UTC') {
+      return 'UTC+00:00';
+    }
+
+    const match = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(offsetPart);
+    if (!match) {
+      return offsetPart.replace('GMT', 'UTC');
+    }
+
+    const sign = match[1];
+    const hours = String(Number(match[2])).padStart(2, '0');
+    const minutes = match[3] ?? '00';
+    return `UTC${sign}${hours}:${minutes}`;
+  }
+
+  private getUtcOffsetMinutes(timezone: string): number {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      timeZoneName: 'shortOffset'
+    });
+    const offsetPart = formatter
+      .formatToParts(new Date())
+      .find((part) => part.type === 'timeZoneName')?.value;
+
+    if (!offsetPart || offsetPart === 'GMT' || offsetPart === 'UTC') {
+      return 0;
+    }
+
+    const match = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(offsetPart);
+    if (!match) {
+      return 0;
+    }
+
+    const sign = match[1] === '-' ? -1 : 1;
+    const hours = Number(match[2]);
+    const minutes = Number(match[3] ?? '0');
+    return sign * (hours * 60 + minutes);
   }
 
 }

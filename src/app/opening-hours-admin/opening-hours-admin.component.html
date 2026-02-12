@@ -8,7 +8,11 @@
     <div class="meta-grid">
       <label>
         Timezone
-        <input type="text" formControlName="timezone" placeholder="Europe/London" />
+        <select formControlName="timezone">
+          <option *ngFor="let timezone of timezoneOptions" [value]="timezone.value">
+            {{ timezone.label }}
+          </option>
+        </select>
       </label>
     </div>
 
