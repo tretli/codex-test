@@ -18,7 +18,10 @@ export interface DayOpeningHours {
   slots: OpeningHoursSlot[];
 }
 
-export type RecurringHolidayRule = 'fixed-date' | 'easter';
+export type RecurringHolidayRule =
+  | 'fixed-date'
+  | 'easter'
+  | 'swedish-midsummer-day';
 
 export interface RecurringHoliday {
   name: string;
@@ -27,6 +30,7 @@ export interface RecurringHoliday {
   day?: number; // 1-31 for fixed-date rules
   offsetDays?: number; // day offset from Easter Sunday for easter rules
   closed: boolean;
+  slots: OpeningHoursSlot[];
 }
 
 export interface OpeningHoursSchedule {

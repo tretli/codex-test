@@ -35,12 +35,20 @@
           <div class="slot-row" *ngFor="let slot of slotForms(dayIndex).controls; let slotIndex = index" [formGroupName]="slotIndex">
             <label>
               Opens
-              <input type="time" formControlName="opensAt" />
+              <select formControlName="opensAt">
+                <option *ngFor="let timeOption of timeOptions" [value]="timeOption">
+                  {{ timeOption }}
+                </option>
+              </select>
             </label>
 
             <label>
               Closes
-              <input type="time" formControlName="closesAt" />
+              <select formControlName="closesAt">
+                <option *ngFor="let timeOption of timeOptions" [value]="timeOption">
+                  {{ timeOption }}
+                </option>
+              </select>
             </label>
 
             <button type="button" class="danger" (click)="removeSlot(dayIndex, slotIndex)">Remove</button>
@@ -62,7 +70,7 @@
           Add holiday
           <select #holidayTemplate [value]="defaultHolidayTemplateId">
             <option *ngFor="let template of holidayTemplates" [value]="template.id">
-              {{ template.label }}
+              {{ holidayTemplateLabel(template) }}
             </option>
           </select>
         </label>
@@ -82,6 +90,36 @@
         </div>
 
         <p class="holiday-rule">{{ holidaySummary(holiday) }}</p>
+
+        <div formArrayName="slots" class="slots" *ngIf="!holiday.controls.closed.value; else holidayClosedTemplate">
+          <div class="slot-row" *ngFor="let slot of holidaySlotForms(holidayIndex).controls; let slotIndex = index" [formGroupName]="slotIndex">
+            <label>
+              Opens
+              <select formControlName="opensAt">
+                <option *ngFor="let timeOption of timeOptions" [value]="timeOption">
+                  {{ timeOption }}
+                </option>
+              </select>
+            </label>
+
+            <label>
+              Closes
+              <select formControlName="closesAt">
+                <option *ngFor="let timeOption of timeOptions" [value]="timeOption">
+                  {{ timeOption }}
+                </option>
+              </select>
+            </label>
+
+            <button type="button" class="danger" (click)="removeHolidaySlot(holidayIndex, slotIndex)">Remove</button>
+          </div>
+
+          <button type="button" class="secondary" (click)="addHolidaySlot(holidayIndex)">Add time slot</button>
+        </div>
+
+        <ng-template #holidayClosedTemplate>
+          <p class="closed-pill">Closed</p>
+        </ng-template>
 
         <div class="holiday-actions">
           <button type="button" class="danger" (click)="removeHoliday(holidayIndex)">Remove</button>
