@@ -43,6 +43,13 @@ h1 {
   display: flex;
   gap: 0.6rem;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.view-mode-tabs {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.5rem;
 }
 
 button.secondary {
@@ -53,6 +60,16 @@ button.secondary {
   color: #1f3f9f;
   font-weight: 600;
   cursor: pointer;
+}
+
+button.secondary.active {
+  background: #2356f6;
+  color: #fff;
+}
+
+.range-label {
+  color: #5b667d;
+  font-size: 0.9rem;
 }
 
 .day-grid {
@@ -120,4 +137,69 @@ h2 {
   margin: 0;
   color: #65728c;
   font-style: italic;
+}
+
+.month-grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.month-weekday {
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #5b667d;
+  padding: 0.2rem 0;
+}
+
+.month-day {
+  border: 1px solid #d9e0ef;
+  border-radius: 8px;
+  padding: 0.45rem;
+  min-height: 5.2rem;
+  background: #fbfcff;
+}
+
+.month-day.outside {
+  opacity: 0.5;
+}
+
+.month-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.2rem;
+  font-weight: 700;
+  font-size: 0.86rem;
+}
+
+.month-state {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.month-state.open {
+  color: #1f3f9f;
+}
+
+.month-state.closed {
+  color: #6c7790;
+}
+
+.month-source {
+  margin: 0.2rem 0 0;
+  font-size: 0.7rem;
+  color: #7a869f;
+  line-height: 1.2;
+}
+
+@media (max-width: 900px) {
+  .month-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .month-weekday {
+    display: none;
+  }
 }

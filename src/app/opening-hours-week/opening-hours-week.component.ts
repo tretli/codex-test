@@ -18,6 +18,14 @@ type DayView = {
   source: string;
 };
 
+type MonthDayView = {
+  date: Date;
+  dayNumber: number;
+  inCurrentMonth: boolean;
+  slots: OpeningHoursSlot[];
+  source: string;
+};
+
 @Component({
   selector: 'app-opening-hours-week',
   standalone: true,
@@ -28,6 +36,8 @@ type DayView = {
 export class OpeningHoursWeekComponent {
   private readonly service = inject(OpeningHoursService);
   private readonly weekStart = signal(this.startOfWeek(new Date()));
+  private readonly monthAnchor = signal(this.startOfMonth(new Date()));
+  readonly viewMode = signal<'week' | 'month'>('week');
 
   readonly timezone = computed(() => this.service.schedule().timezone);
   readonly weekDays = computed<DayView[]>(() => {
@@ -54,6 +64,38 @@ export class OpeningHoursWeekComponent {
     return `${this.formatDisplayDate(start)} - ${this.formatDisplayDate(end)}`;
   });
 
+  readonly monthLabel = computed(() =>
+    this.monthAnchor().toLocaleDateString('en-GB', {
+      month: 'long',
+      year: 'numeric'
+    })
+  );
+
+  readonly monthDays = computed<MonthDayView[]>(() => {
+    const anchor = this.monthAnchor();
+    const firstOfMonth = this.startOfMonth(anchor);
+    const gridStart = this.startOfWeek(firstOfMonth);
+    const days: MonthDayView[] = [];
+    for (let i = 0; i < 42; i += 1) {
+      const date = this.addDays(gridStart, i);
+      const daily = this.resolveDailySchedule(date);
+      days.push({
+        date,
+        dayNumber: date.getDate(),
+        inCurrentMonth: date.getMonth() === anchor.getMonth(),
+        slots: daily.slots,
+        source: daily.source
+      });
+    }
+    return days;
+  });
+
+  readonly monthWeekdayLabels = WEEKDAYS.map((weekday) => weekday.label.slice(0, 3));
+
+  setViewMode(mode: 'week' | 'month'): void {
+    this.viewMode.set(mode);
+  }
+
   previousWeek(): void {
     this.weekStart.update((value) => this.addDays(value, -7));
   }
@@ -64,6 +106,22 @@ export class OpeningHoursWeekComponent {
 
   currentWeek(): void {
     this.weekStart.set(this.startOfWeek(new Date()));
+  }
+
+  previousMonth(): void {
+    this.monthAnchor.update(
+      (value) => new Date(value.getFullYear(), value.getMonth() - 1, 1)
+    );
+  }
+
+  nextMonth(): void {
+    this.monthAnchor.update(
+      (value) => new Date(value.getFullYear(), value.getMonth() + 1, 1)
+    );
+  }
+
+  currentMonth(): void {
+    this.monthAnchor.set(this.startOfMonth(new Date()));
   }
 
   slotStartPercent(slot: OpeningHoursSlot): number {
@@ -175,6 +233,10 @@ export class OpeningHoursWeekComponent {
     const day = date.getDay();
     const diffToMonday = day === 0 ? -6 : 1 - day;
     return this.startOfDay(this.addDays(date, diffToMonday));
+  }
+
+  private startOfMonth(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
   }
 
   private startOfDay(date: Date): Date {

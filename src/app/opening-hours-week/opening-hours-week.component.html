@@ -7,13 +7,40 @@
     <a routerLink="/admin/opening-hours" class="back-link">Back to Admin</a>
   </header>
 
-  <div class="week-controls">
+  <div class="view-mode-tabs">
+    <button
+      type="button"
+      class="secondary"
+      [class.active]="viewMode() === 'week'"
+      (click)="setViewMode('week')"
+    >
+      Week
+    </button>
+    <button
+      type="button"
+      class="secondary"
+      [class.active]="viewMode() === 'month'"
+      (click)="setViewMode('month')"
+    >
+      Month
+    </button>
+  </div>
+
+  <div class="week-controls" *ngIf="viewMode() === 'week'">
     <button type="button" class="secondary" (click)="previousWeek()">Previous week</button>
     <button type="button" class="secondary" (click)="currentWeek()">Current week</button>
     <button type="button" class="secondary" (click)="nextWeek()">Next week</button>
+    <span class="range-label">{{ weekRangeLabel() }}</span>
   </div>
 
-  <div class="day-grid">
+  <div class="week-controls" *ngIf="viewMode() === 'month'">
+    <button type="button" class="secondary" (click)="previousMonth()">Previous month</button>
+    <button type="button" class="secondary" (click)="currentMonth()">Current month</button>
+    <button type="button" class="secondary" (click)="nextMonth()">Next month</button>
+    <span class="range-label">{{ monthLabel() }}</span>
+  </div>
+
+  <div class="day-grid" *ngIf="viewMode() === 'week'">
     <article class="day-card" *ngFor="let day of weekDays()">
       <h2>{{ day.label }}</h2>
       <p class="source">{{ day.source }}</p>
@@ -37,6 +64,26 @@
       <ng-template #closedBlock>
         <p class="closed">Closed</p>
       </ng-template>
+    </article>
+  </div>
+
+  <div class="month-grid" *ngIf="viewMode() === 'month'">
+    <div class="month-weekday" *ngFor="let weekday of monthWeekdayLabels">{{ weekday }}</div>
+    <article
+      class="month-day"
+      *ngFor="let day of monthDays()"
+      [class.outside]="!day.inCurrentMonth"
+    >
+      <div class="month-day-header">
+        <span>{{ day.dayNumber }}</span>
+      </div>
+      <p class="month-state open" *ngIf="day.slots.length > 0; else closedState">
+        Open {{ day.slots.length }} slot{{ day.slots.length === 1 ? '' : 's' }}
+      </p>
+      <ng-template #closedState>
+        <p class="month-state closed">Closed</p>
+      </ng-template>
+      <p class="month-source">{{ day.source }}</p>
     </article>
   </div>
 </section>
