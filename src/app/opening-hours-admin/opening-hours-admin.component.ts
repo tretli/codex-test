@@ -9,19 +9,20 @@ import {
 } from '@angular/forms';
 import {
   DateRangeHoliday,
-  DayOpeningHours,
   OpeningHoursSchedule,
   RecurringHoliday,
   RecurringHolidayRule,
+  WeeklyOpeningHoursRecord,
   WEEKDAYS,
   Weekday
 } from './opening-hours.model';
 import { OpeningHoursService } from './opening-hours.service';
 import {
   dateRangeOverlapValidator,
-  dayFormValidator,
   holidayFormValidator,
-  slotFormValidator
+  slotFormValidator,
+  weeklyRecordValidator,
+  weekdaysOverlapValidator
 } from './opening-hours.validators';
 
 type SlotForm = FormGroup<{
@@ -30,8 +31,7 @@ type SlotForm = FormGroup<{
 }>;
 
 type DayForm = FormGroup<{
-  day: import('@angular/forms').FormControl<Weekday>;
-  enabled: import('@angular/forms').FormControl<boolean>;
+  days: import('@angular/forms').FormControl<Weekday[]>;
   slots: FormArray<SlotForm>;
 }>;
 
@@ -170,7 +170,9 @@ export class OpeningHoursAdminComponent {
 
   readonly form = this.fb.nonNullable.group({
     timezone: ['Europe/London', Validators.required],
-    days: this.fb.array<DayForm>([]),
+    days: this.fb.array<DayForm>([], {
+      validators: weekdaysOverlapValidator()
+    }),
     recurringHolidays: this.fb.array<HolidayForm>([], {
       validators: dateRangeOverlapValidator((value) => this.parseDateInput(value))
     })
@@ -194,6 +196,36 @@ export class OpeningHoursAdminComponent {
 
   slotForms(dayIndex: number): FormArray<SlotForm> {
     return this.dayForms.at(dayIndex).controls.slots;
+  }
+
+  hasWeekday(dayIndex: number, day: Weekday): boolean {
+    return this.dayForms.at(dayIndex).controls.days.value.includes(day);
+  }
+
+  toggleWeekday(dayIndex: number, day: Weekday, checked: boolean): void {
+    const control = this.dayForms.at(dayIndex).controls.days;
+    const current = control.value;
+    if (checked) {
+      if (!current.includes(day)) {
+        control.setValue([...current, day]);
+      }
+      return;
+    }
+
+    control.setValue(current.filter((selectedDay) => selectedDay !== day));
+  }
+
+  addDayRecord(): void {
+    this.dayForms.push(
+      this.createDayForm({
+        days: [],
+        slots: [{ opensAt: '09:00', closesAt: '17:00' }]
+      })
+    );
+  }
+
+  removeDayRecord(dayIndex: number): void {
+    this.dayForms.removeAt(dayIndex);
   }
 
   addSlot(dayIndex: number): void {
@@ -348,8 +380,8 @@ export class OpeningHoursAdminComponent {
     this.service.updateSchedule(this.buildScheduleFromForm());
   }
 
-  trackByDay(_index: number, dayForm: DayForm): Weekday {
-    return dayForm.controls.day.value;
+  trackByDay(_index: number, dayForm: DayForm): string {
+    return dayForm.controls.days.value.join('|') || `record-${_index}`;
   }
 
   private hydrate(schedule: OpeningHoursSchedule): void {
@@ -366,12 +398,11 @@ export class OpeningHoursAdminComponent {
     });
   }
 
-  private createDayForm(day: DayOpeningHours): DayForm {
+  private createDayForm(day: WeeklyOpeningHoursRecord): DayForm {
     return this.fb.nonNullable.group({
-      day: [day.day],
-      enabled: [day.enabled],
+      days: [day.days],
       slots: this.fb.array(day.slots.map((slot) => this.createSlotForm(slot.opensAt, slot.closesAt)))
-    }, { validators: dayFormValidator() });
+    }, { validators: weeklyRecordValidator() });
   }
 
   private createSlotForm(opensAt: string, closesAt: string): SlotForm {

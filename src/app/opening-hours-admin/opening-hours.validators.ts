@@ -4,7 +4,7 @@ import {
   ValidationErrors,
   ValidatorFn
 } from '@angular/forms';
-import { RecurringHolidayRule } from './opening-hours.model';
+import { RecurringHolidayRule, Weekday } from './opening-hours.model';
 
 export type DateParser = (value: string) => Date | null;
 
@@ -27,11 +27,11 @@ export function slotFormValidator(): ValidatorFn {
   };
 }
 
-export function dayFormValidator(): ValidatorFn {
+export function weeklyRecordValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
-    const enabled = control.get('enabled')?.value as boolean | null;
-    if (!enabled) {
-      return null;
+    const selectedDays = (control.get('days')?.value as Weekday[] | null) ?? [];
+    if (selectedDays.length === 0) {
+      return { daysRequired: true };
     }
 
     const slots = (control.get('slots') as FormArray | null)?.controls ?? [];
@@ -51,6 +51,25 @@ export function dayFormValidator(): ValidatorFn {
     for (let i = 1; i < ranges.length; i += 1) {
       if (ranges[i].start < ranges[i - 1].end) {
         return { slotOverlap: true };
+      }
+    }
+
+    return null;
+  };
+}
+
+export function weekdaysOverlapValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const recordForms = (control as FormArray).controls;
+    const usedDays = new Set<string>();
+
+    for (const recordForm of recordForms) {
+      const days = (recordForm.get('days')?.value as Weekday[] | null) ?? [];
+      for (const day of days) {
+        if (usedDays.has(day)) {
+          return { weekdayOverlap: true };
+        }
+        usedDays.add(day);
       }
     }
 

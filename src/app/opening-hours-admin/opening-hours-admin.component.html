@@ -17,20 +17,31 @@
     </div>
 
     <div formArrayName="days" class="day-list">
+      <div class="day-record-toolbar">
+        <button type="button" class="secondary" (click)="addDayRecord()">Add weekday record</button>
+      </div>
       <article
         class="day-card"
         *ngFor="let dayForm of dayForms.controls; let dayIndex = index; trackBy: trackByDay"
         [formGroupName]="dayIndex"
       >
         <div class="day-header">
-          <h2>{{ weekdays[dayIndex].label }}</h2>
-          <label class="toggle">
-            <input type="checkbox" formControlName="enabled" />
-            Open this day
+          <h2>Weekday record {{ dayIndex + 1 }}</h2>
+          <button type="button" class="danger" (click)="removeDayRecord(dayIndex)">Remove</button>
+        </div>
+
+        <div class="weekday-pills">
+          <label class="weekday-pill" *ngFor="let weekday of weekdays">
+            <input
+              type="checkbox"
+              [checked]="hasWeekday(dayIndex, weekday.key)"
+              (change)="toggleWeekday(dayIndex, weekday.key, $any($event.target).checked)"
+            />
+            {{ weekday.label }}
           </label>
         </div>
 
-        <div formArrayName="slots" class="slots" *ngIf="dayForm.controls.enabled.value; else closedTemplate">
+        <div formArrayName="slots" class="slots">
           <ng-container *ngFor="let slot of slotForms(dayIndex).controls; let slotIndex = index">
             <div class="slot-row" [formGroupName]="slotIndex">
               <label>
@@ -60,17 +71,19 @@
 
           <button type="button" class="secondary" (click)="addSlot(dayIndex)">Add time slot</button>
         </div>
+        <p class="validation-error" *ngIf="dayForm.touched && dayForm.errors?.['daysRequired']">
+          Select at least one weekday for this record.
+        </p>
         <p class="validation-error" *ngIf="dayForm.touched && dayForm.errors?.['slotRequired']">
-          Add at least one time slot when the day is open.
+          Add at least one time slot for this record.
         </p>
         <p class="validation-error" *ngIf="dayForm.touched && dayForm.errors?.['slotOverlap']">
           Time slots cannot overlap.
         </p>
-
-        <ng-template #closedTemplate>
-          <p class="closed-pill">Closed</p>
-        </ng-template>
       </article>
+      <p class="validation-error" *ngIf="dayForms.touched && dayForms.errors?.['weekdayOverlap']">
+        A weekday can only belong to one record.
+      </p>
     </div>
 
     <section class="holiday-section" formArrayName="recurringHolidays">

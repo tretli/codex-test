@@ -1,8 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import {
-  DayOpeningHours,
   OpeningHoursSchedule,
-  WEEKDAYS,
+  OpeningHoursSlot,
   Weekday
 } from './opening-hours.model';
 
@@ -18,18 +17,26 @@ export class OpeningHoursService {
     this.scheduleSignal.set(schedule);
   }
 
-  getDay(day: Weekday): DayOpeningHours | undefined {
-    return this.schedule().days.find((d) => d.day === day);
+  getDaySlots(day: Weekday): OpeningHoursSlot[] {
+    const matchingRecords = this.schedule().days.filter((record) =>
+      record.days.includes(day)
+    );
+    return matchingRecords.flatMap((record) => record.slots);
   }
 
   private createDefaultSchedule(): OpeningHoursSchedule {
     return {
       timezone: 'Europe/London',
-      days: WEEKDAYS.map(({ key }) => ({
-        day: key,
-        enabled: key !== 'sunday',
-        slots: key === 'sunday' ? [] : [{ opensAt: '09:00', closesAt: '17:00' }]
-      })),
+      days: [
+        {
+          days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+          slots: [{ opensAt: '09:00', closesAt: '17:00' }]
+        },
+        {
+          days: ['saturday'],
+          slots: [{ opensAt: '10:00', closesAt: '14:00' }]
+        }
+      ],
       recurringHolidays: [],
       dateRanges: []
     };

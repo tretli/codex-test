@@ -12,9 +12,8 @@ export interface OpeningHoursSlot {
   closesAt: string; // HH:mm
 }
 
-export interface DayOpeningHours {
-  day: Weekday;
-  enabled: boolean;
+export interface WeeklyOpeningHoursRecord {
+  days: Weekday[];
   slots: OpeningHoursSlot[];
 }
 
@@ -46,7 +45,7 @@ export interface DateRangeHoliday extends RecurringHoliday {
 
 export interface OpeningHoursSchedule {
   timezone: string;
-  days: DayOpeningHours[];
+  days: WeeklyOpeningHoursRecord[];
   recurringHolidays: RecurringHoliday[];
   dateRanges: DateRangeHoliday[];
 }
