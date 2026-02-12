@@ -34,6 +34,7 @@ type HolidayForm = FormGroup<{
   month: import('@angular/forms').FormControl<number | null>;
   day: import('@angular/forms').FormControl<number | null>;
   offsetDays: import('@angular/forms').FormControl<number | null>;
+  lengthDays: import('@angular/forms').FormControl<number>;
   closed: import('@angular/forms').FormControl<boolean>;
   slots: FormArray<SlotForm>;
 }>;
@@ -44,6 +45,7 @@ type HolidayFormValue = {
   month: number | null;
   day: number | null;
   offsetDays: number | null;
+  lengthDays: number;
   closed: boolean;
   slots: { opensAt: string; closesAt: string }[];
 };
@@ -69,52 +71,83 @@ export class OpeningHoursAdminComponent {
   readonly weekdays = WEEKDAYS;
   readonly timeOptions = this.buildTimeOptions(15);
   readonly holidayTemplates: ReadonlyArray<HolidayTemplate> = [
-    {
-      id: 'easter-sunday',
-      label: 'Easter Sunday',
-      holiday: {
-        name: 'Easter Sunday',
-        rule: 'easter',
-        offsetDays: 0,
-        closed: true,
-        slots: []
-      }
-    },
-    {
-      id: 'christmas-day',
-      label: 'Christmas Day',
-      holiday: {
-        name: 'Christmas Day',
-        rule: 'fixed-date',
-        month: 12,
-        day: 25,
-        closed: true,
-        slots: []
-      }
-    },
-    {
-      id: 'national-holiday',
-      label: 'National Holiday (July 4)',
-      holiday: {
-        name: 'National Holiday',
-        rule: 'fixed-date',
-        month: 7,
-        day: 4,
-        closed: true,
-        slots: []
-      }
-    },
-    {
-      id: 'swedish-midsummer-day',
-      label: 'Midsummer Day (Sweden)',
-      holiday: {
-        name: 'Midsummer Day',
-        rule: 'swedish-midsummer-day',
-        closed: true,
-        slots: []
-      }
-    }
-  ];
+    this.createEasterTemplate('easter-week', 'Easter Week', -8, 10),
+    this.createEasterTemplate('easter', 'Easter', -3, 5),
+    this.createFixedTemplate('christmas', 'Christmas', 12, 24, 9),
+    this.createFixedTemplate('boxing-week', 'Boxing Week', 12, 25, 7),
+    this.createFixedTemplate("new-years", "New Year's", 1, 1, 1),
+    this.createEasterTemplate('palm-sunday', 'Palm Sunday', -7, 1),
+    this.createEasterTemplate(
+      'pre-easter-wednesday',
+      'Pre-easter Wednesday',
+      -4,
+      1
+    ),
+    this.createEasterTemplate('maundy-thursday', 'Maundy Thursday', -3, 1),
+    this.createEasterTemplate('good-friday', 'Good Friday', -2, 1),
+    this.createEasterTemplate('easter-eve', 'Easter Eve', -1, 1),
+    this.createEasterTemplate('easter-sunday', 'Easter Sunday', 0, 1),
+    this.createEasterTemplate('easter-monday', 'Easter Monday', 1, 1),
+    this.createFixedTemplate('labour-day', 'Labour day', 5, 1, 1),
+    this.createFixedTemplate(
+      'norwegian-constitution-day',
+      'Norwegian Constitution day',
+      5,
+      17,
+      1
+    ),
+    this.createEasterTemplate('ascension-day', 'Ascension day', 39, 1),
+    this.createEasterTemplate(
+      'pentecost-saturday',
+      'Pentecost Saturday',
+      48,
+      1
+    ),
+    this.createEasterTemplate('pentecost', 'Pentecost', 49, 1),
+    this.createEasterTemplate('whit-monday', 'Whit Monday', 50, 1),
+    this.createFixedTemplate('december-23rd', 'December 23rd', 12, 23, 1),
+    this.createFixedTemplate('christmas-eve', 'Christmas Eve', 12, 24, 1),
+    this.createFixedTemplate('christmas-day', 'Christmas Day', 12, 25, 1),
+    this.createFixedTemplate("st-stephens-day", "St. Stephen's Day", 12, 26, 1),
+    this.createFixedTemplate("new-years-eve", "New Year's Eve", 12, 31, 1),
+    this.createFixedTemplate('test', 'Test', 5, 6, 1),
+    this.createFixedTemplate(
+      'national-day-sweden',
+      'National day of Sweden',
+      6,
+      6,
+      1
+    ),
+    this.createFixedTemplate(
+      'national-day-finland',
+      'National day of Finland',
+      12,
+      6,
+      1
+    ),
+    this.createEasterTemplate('great-prayer-day', 'Great Prayer Day', 26, 1),
+    this.createFixedTemplate(
+      'national-day-denmark',
+      'National day of Denmark',
+      6,
+      5,
+      1
+    ),
+    this.createFixedTemplate('all-saints-day', 'All Saints Day', 11, 1, 1),
+    this.createFixedTemplate('epiphany', 'Epiphany', 1, 6, 1),
+    this.createSwedishMidsummerTemplate(
+      'midsummers-day',
+      "Midsummer's Day",
+      'swedish-midsummer-day',
+      1
+    ),
+    this.createSwedishMidsummerTemplate(
+      'midsummers-evening',
+      "Midsummer's Evening",
+      'swedish-midsummer-eve',
+      1
+    )
+  ].sort((a, b) => this.compareHolidaysByDate(a.holiday, b.holiday));
   readonly defaultHolidayTemplateId = this.holidayTemplates[0].id;
 
   readonly form = this.fb.nonNullable.group({
@@ -167,6 +200,7 @@ export class OpeningHoursAdminComponent {
     }
 
     this.holidayForms.push(this.createHolidayForm(template.holiday));
+    this.sortHolidayFormsByDate();
   }
 
   removeHoliday(index: number): void {
@@ -186,7 +220,7 @@ export class OpeningHoursAdminComponent {
   }
 
   holidaySummary(holidayForm: HolidayForm): string {
-    const dateLabel = this.getHolidayExampleDateForYear(
+    const startDate = this.getHolidayExampleDateForYear(
       {
         rule: holidayForm.controls.rule.value,
         month: holidayForm.controls.month.value ?? undefined,
@@ -195,19 +229,35 @@ export class OpeningHoursAdminComponent {
       },
       this.currentYear
     );
+    const lengthDays = holidayForm.controls.lengthDays.value;
 
-    return dateLabel ? `Example ${this.currentYear}: ${dateLabel}` : 'No date example';
+    if (!startDate) {
+      return 'No date example';
+    }
+
+    if (lengthDays <= 1) {
+      return `Example ${this.currentYear}: ${this.formatDate(startDate)}`;
+    }
+
+    const endDate = this.addDays(startDate, lengthDays - 1);
+    return `Example ${this.currentYear}: ${this.formatDate(startDate)} to ${this.formatDate(endDate)} (${lengthDays} days)`;
   }
 
   holidayTemplateLabel(template: HolidayTemplate): string {
-    const dateLabel = this.getHolidayExampleDateForYear(
+    const startDate = this.getHolidayExampleDateForYear(
       template.holiday,
       this.currentYear
     );
+    if (!startDate) {
+      return template.label;
+    }
 
-    return dateLabel
-      ? `${template.label} (${this.currentYear}: ${dateLabel})`
-      : template.label;
+    if (template.holiday.lengthDays <= 1) {
+      return `${template.label} (${this.currentYear}: ${this.formatDate(startDate)})`;
+    }
+
+    const endDate = this.addDays(startDate, template.holiday.lengthDays - 1);
+    return `${template.label} (${this.currentYear}: ${this.formatDate(startDate)} to ${this.formatDate(endDate)})`;
   }
 
   save(): void {
@@ -227,9 +277,11 @@ export class OpeningHoursAdminComponent {
     this.dayForms.clear();
     this.holidayForms.clear();
     schedule.days.forEach((day) => this.dayForms.push(this.createDayForm(day)));
-    schedule.recurringHolidays.forEach((holiday) =>
+    [...schedule.recurringHolidays]
+      .sort((a, b) => this.compareHolidaysByDate(a, b))
+      .forEach((holiday) =>
       this.holidayForms.push(this.createHolidayForm(holiday))
-    );
+      );
     this.form.patchValue({
       timezone: schedule.timezone,
       effectiveFrom: schedule.effectiveFrom
@@ -267,6 +319,9 @@ export class OpeningHoursAdminComponent {
         Validators.min(-365),
         Validators.max(365)
       ]),
+      lengthDays: this.fb.nonNullable.control(holiday.lengthDays, [
+        Validators.min(1)
+      ]),
       closed: this.fb.nonNullable.control(holiday.closed),
       slots: this.fb.array(
         holiday.slots.map((slot) => this.createSlotForm(slot.opensAt, slot.closesAt))
@@ -281,6 +336,7 @@ export class OpeningHoursAdminComponent {
         rule: holiday.rule,
         month: holiday.month ?? 1,
         day: holiday.day ?? 1,
+        lengthDays: holiday.lengthDays,
         closed: holiday.closed,
         slots: holiday.closed ? [] : holiday.slots
       };
@@ -291,6 +347,7 @@ export class OpeningHoursAdminComponent {
         name: holiday.name,
         rule: holiday.rule,
         offsetDays: holiday.offsetDays ?? 0,
+        lengthDays: holiday.lengthDays,
         closed: holiday.closed,
         slots: holiday.closed ? [] : holiday.slots
       };
@@ -299,6 +356,7 @@ export class OpeningHoursAdminComponent {
     return {
       name: holiday.name,
       rule: holiday.rule,
+      lengthDays: holiday.lengthDays,
       closed: holiday.closed,
       slots: holiday.closed ? [] : holiday.slots
     };
@@ -331,7 +389,7 @@ export class OpeningHoursAdminComponent {
   private getHolidayExampleDateForYear(
     holiday: Pick<RecurringHoliday, 'rule' | 'month' | 'day' | 'offsetDays'>,
     year: number
-  ): string | null {
+  ): Date | null {
     let date: Date | null = null;
 
     if (holiday.rule === 'fixed-date') {
@@ -345,9 +403,11 @@ export class OpeningHoursAdminComponent {
       date.setDate(date.getDate() + offsetDays);
     } else if (holiday.rule === 'swedish-midsummer-day') {
       date = this.getSwedishMidsummerDayDate(year);
+    } else if (holiday.rule === 'swedish-midsummer-eve') {
+      date = this.getSwedishMidsummerEveDate(year);
     }
 
-    return date ? this.formatDate(date) : null;
+    return date;
   }
 
   private getEasterDate(year: number): Date {
@@ -378,10 +438,117 @@ export class OpeningHoursAdminComponent {
     return new Date(year, 5, 20);
   }
 
+  private getSwedishMidsummerEveDate(year: number): Date {
+    for (let day = 19; day <= 25; day += 1) {
+      const candidate = new Date(year, 5, day);
+      if (candidate.getDay() === 5) {
+        return candidate;
+      }
+    }
+    return this.addDays(this.getSwedishMidsummerDayDate(year), -1);
+  }
+
   private formatDate(date: Date): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  private addDays(date: Date, days: number): Date {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+  }
+
+  private compareHolidaysByDate(a: RecurringHoliday, b: RecurringHoliday): number {
+    const aDate = this.getHolidayExampleDateForYear(a, this.currentYear);
+    const bDate = this.getHolidayExampleDateForYear(b, this.currentYear);
+
+    if (!aDate && !bDate) {
+      return a.name.localeCompare(b.name);
+    }
+    if (!aDate) {
+      return 1;
+    }
+    if (!bDate) {
+      return -1;
+    }
+
+    if (aDate.getTime() !== bDate.getTime()) {
+      return aDate.getTime() - bDate.getTime();
+    }
+
+    return a.name.localeCompare(b.name);
+  }
+
+  private sortHolidayFormsByDate(): void {
+    this.holidayForms.controls.sort((aForm, bForm) => {
+      const aHoliday = this.normalizeHoliday(aForm.getRawValue());
+      const bHoliday = this.normalizeHoliday(bForm.getRawValue());
+      return this.compareHolidaysByDate(aHoliday, bHoliday);
+    });
+    this.holidayForms.updateValueAndValidity();
+  }
+
+  private createFixedTemplate(
+    id: string,
+    label: string,
+    month: number,
+    day: number,
+    lengthDays: number
+  ): HolidayTemplate {
+    return {
+      id,
+      label,
+      holiday: {
+        name: label,
+        rule: 'fixed-date',
+        month,
+        day,
+        lengthDays,
+        closed: true,
+        slots: []
+      }
+    };
+  }
+
+  private createEasterTemplate(
+    id: string,
+    label: string,
+    offsetDays: number,
+    lengthDays: number
+  ): HolidayTemplate {
+    return {
+      id,
+      label,
+      holiday: {
+        name: label,
+        rule: 'easter',
+        offsetDays,
+        lengthDays,
+        closed: true,
+        slots: []
+      }
+    };
+  }
+
+  private createSwedishMidsummerTemplate(
+    id: string,
+    label: string,
+    rule: 'swedish-midsummer-day' | 'swedish-midsummer-eve',
+    lengthDays: number
+  ): HolidayTemplate {
+    return {
+      id,
+      label,
+      holiday: {
+        name: label,
+        rule,
+        lengthDays,
+        closed: true,
+        slots: []
+      }
+    };
   }
 }
