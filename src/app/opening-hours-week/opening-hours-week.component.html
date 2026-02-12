@@ -73,6 +73,7 @@
       class="month-day"
       *ngFor="let day of monthDays()"
       [class.outside]="!day.inCurrentMonth"
+      (click)="openWeekForDate(day.date)"
     >
       <div class="month-day-header">
         <span>{{ day.dayNumber }}</span>

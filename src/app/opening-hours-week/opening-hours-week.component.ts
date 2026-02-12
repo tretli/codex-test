@@ -96,6 +96,11 @@ export class OpeningHoursWeekComponent {
     this.viewMode.set(mode);
   }
 
+  openWeekForDate(date: Date): void {
+    this.weekStart.set(this.startOfWeek(date));
+    this.viewMode.set('week');
+  }
+
   previousWeek(): void {
     this.weekStart.update((value) => this.addDays(value, -7));
   }
