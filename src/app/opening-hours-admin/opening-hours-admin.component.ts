@@ -13,6 +13,7 @@ import {
   OpeningHoursSchedule,
   RecurringHoliday,
   RecurringHolidayRule,
+  RuleExitType,
   WeeklyOpeningHoursRecord,
   WEEKDAYS,
   Weekday
@@ -34,6 +35,8 @@ type SlotForm = FormGroup<{
 type DayForm = FormGroup<{
   days: import('@angular/forms').FormControl<Weekday[]>;
   slots: FormArray<SlotForm>;
+  openExitType: import('@angular/forms').FormControl<RuleExitType>;
+  closedExitType: import('@angular/forms').FormControl<RuleExitType>;
 }>;
 
 type HolidayForm = FormGroup<{
@@ -48,6 +51,8 @@ type HolidayForm = FormGroup<{
   lengthDays: import('@angular/forms').FormControl<number>;
   closed: import('@angular/forms').FormControl<boolean>;
   slots: FormArray<SlotForm>;
+  openExitType: import('@angular/forms').FormControl<RuleExitType>;
+  closedExitType: import('@angular/forms').FormControl<RuleExitType>;
 }>;
 
 type HolidayFormValue = {
@@ -62,6 +67,8 @@ type HolidayFormValue = {
   lengthDays: number;
   closed: boolean;
   slots: { opensAt: string; closesAt: string }[];
+  openExitType: RuleExitType;
+  closedExitType: RuleExitType;
 };
 
 type HolidayTemplate = {
@@ -72,6 +79,11 @@ type HolidayTemplate = {
 
 type TimezoneOption = {
   value: string;
+  label: string;
+};
+
+type ExitTypeOption = {
+  value: RuleExitType;
   label: string;
 };
 
@@ -88,6 +100,14 @@ export class OpeningHoursAdminComponent {
 
   readonly currentYear = new Date().getFullYear();
   readonly weekdays = WEEKDAYS;
+  readonly exitTypeOptions: ReadonlyArray<ExitTypeOption> = [
+    { value: RuleExitType.Proceed, label: 'Proceed' },
+    { value: RuleExitType.ProceedWithNotice, label: 'Proceed With Notice' },
+    { value: RuleExitType.Queue, label: 'Queue' },
+    { value: RuleExitType.Redirect, label: 'Redirect' },
+    { value: RuleExitType.ManualReview, label: 'Manual Review' },
+    { value: RuleExitType.Reject, label: 'Reject' }
+  ];
   readonly timezoneOptions = this.buildTimezoneOptions();
   readonly openTimeOptions = this.buildTimeOptions(15, false);
   readonly closeTimeOptions = this.buildTimeOptions(15, true);
@@ -222,7 +242,9 @@ export class OpeningHoursAdminComponent {
     this.dayForms.push(
       this.createDayForm({
         days: [],
-        slots: [{ opensAt: '09:00', closesAt: '17:00' }]
+        slots: [{ opensAt: '09:00', closesAt: '17:00' }],
+        openExitType: RuleExitType.Proceed,
+        closedExitType: RuleExitType.Reject
       })
     );
   }
@@ -274,7 +296,9 @@ export class OpeningHoursAdminComponent {
         weekdays: [],
         lengthDays: 1,
         closed: true,
-        slots: []
+        slots: [],
+        openExitType: RuleExitType.Proceed,
+        closedExitType: RuleExitType.Reject
       })
     );
     this.sortHolidayFormsByDate();
@@ -426,7 +450,9 @@ export class OpeningHoursAdminComponent {
   private createDayForm(day: WeeklyOpeningHoursRecord): DayForm {
     return this.fb.nonNullable.group({
       days: [day.days],
-      slots: this.fb.array(day.slots.map((slot) => this.createSlotForm(slot.opensAt, slot.closesAt)))
+      slots: this.fb.array(day.slots.map((slot) => this.createSlotForm(slot.opensAt, slot.closesAt))),
+      openExitType: [day.openExitType],
+      closedExitType: [day.closedExitType]
     }, { validators: weeklyRecordValidator() });
   }
 
@@ -471,7 +497,9 @@ export class OpeningHoursAdminComponent {
       closed: this.fb.nonNullable.control(holiday.closed),
       slots: this.fb.array(
         holiday.slots.map((slot) => this.createSlotForm(slot.opensAt, slot.closesAt))
-      )
+      ),
+      openExitType: this.fb.nonNullable.control(holiday.openExitType),
+      closedExitType: this.fb.nonNullable.control(holiday.closedExitType)
     }, { validators: holidayFormValidator((value) => this.parseDateInput(value)) });
   }
 
@@ -484,7 +512,9 @@ export class OpeningHoursAdminComponent {
         day: holiday.day ?? 1,
         lengthDays: holiday.lengthDays,
         closed: holiday.closed,
-        slots: holiday.closed ? [] : holiday.slots
+        slots: holiday.closed ? [] : holiday.slots,
+        openExitType: holiday.openExitType,
+        closedExitType: holiday.closedExitType
       };
     }
 
@@ -495,7 +525,9 @@ export class OpeningHoursAdminComponent {
         offsetDays: holiday.offsetDays ?? 0,
         lengthDays: holiday.lengthDays,
         closed: holiday.closed,
-        slots: holiday.closed ? [] : holiday.slots
+        slots: holiday.closed ? [] : holiday.slots,
+        openExitType: holiday.openExitType,
+        closedExitType: holiday.closedExitType
       };
     }
 
@@ -511,7 +543,9 @@ export class OpeningHoursAdminComponent {
         weekdays: holiday.weekdays,
         lengthDays: this.calculateDateRangeLength(rangeStart, rangeEnd),
         closed: holiday.closed,
-        slots: holiday.closed ? [] : holiday.slots
+        slots: holiday.closed ? [] : holiday.slots,
+        openExitType: holiday.openExitType,
+        closedExitType: holiday.closedExitType
       };
     }
 
@@ -520,7 +554,9 @@ export class OpeningHoursAdminComponent {
       rule: holiday.rule,
       lengthDays: holiday.lengthDays,
       closed: holiday.closed,
-      slots: holiday.closed ? [] : holiday.slots
+      slots: holiday.closed ? [] : holiday.slots,
+      openExitType: holiday.openExitType,
+      closedExitType: holiday.closedExitType
     };
   }
 
@@ -768,7 +804,9 @@ export class OpeningHoursAdminComponent {
         day,
         lengthDays,
         closed: true,
-        slots: []
+        slots: [],
+        openExitType: RuleExitType.Proceed,
+        closedExitType: RuleExitType.Reject
       }
     };
   }
@@ -788,7 +826,9 @@ export class OpeningHoursAdminComponent {
         offsetDays,
         lengthDays,
         closed: true,
-        slots: []
+        slots: [],
+        openExitType: RuleExitType.Proceed,
+        closedExitType: RuleExitType.Reject
       }
     };
   }
@@ -807,7 +847,9 @@ export class OpeningHoursAdminComponent {
         rule,
         lengthDays,
         closed: true,
-        slots: []
+        slots: [],
+        openExitType: RuleExitType.Proceed,
+        closedExitType: RuleExitType.Reject
       }
     };
   }

@@ -42,6 +42,25 @@
           </label>
         </div>
 
+        <div class="exit-type-grid">
+          <label>
+            Open exit type
+            <select formControlName="openExitType">
+              <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                {{ exitType.label }}
+              </option>
+            </select>
+          </label>
+          <label>
+            Closed exit type
+            <select formControlName="closedExitType">
+              <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                {{ exitType.label }}
+              </option>
+            </select>
+          </label>
+        </div>
+
         <div formArrayName="slots" class="slots">
           <ng-container *ngFor="let slot of slotForms(dayIndex).controls; let slotIndex = index">
             <div class="slot-row" [formGroupName]="slotIndex">
@@ -117,6 +136,25 @@
         </div>
 
         <p class="holiday-rule">{{ holidaySummary(holiday) }}</p>
+
+        <div class="exit-type-grid">
+          <label>
+            Open exit type
+            <select formControlName="openExitType">
+              <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                {{ exitType.label }}
+              </option>
+            </select>
+          </label>
+          <label>
+            Closed exit type
+            <select formControlName="closedExitType">
+              <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                {{ exitType.label }}
+              </option>
+            </select>
+          </label>
+        </div>
 
         <div class="holiday-fields" *ngIf="holiday.controls.rule.value === 'date-range'">
           <label>

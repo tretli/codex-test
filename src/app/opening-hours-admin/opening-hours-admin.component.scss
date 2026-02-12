@@ -93,6 +93,13 @@ select {
   gap: 0.5rem;
 }
 
+.exit-type-grid {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
 .weekday-pill {
   flex-direction: row;
   align-items: center;

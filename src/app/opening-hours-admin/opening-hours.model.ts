@@ -12,9 +12,20 @@ export interface OpeningHoursSlot {
   closesAt: string; // HH:mm
 }
 
+export enum RuleExitType {
+  Proceed = 'proceed', // Normal path: continue immediately.
+  ProceedWithNotice = 'proceed-with-notice', // Continue, but show a message/warning.
+  Queue = 'queue', // Accept request, process later or when capacity allows.
+  Redirect = 'redirect', // Route user/request to an alternate flow or location.
+  ManualReview = 'manual-review', // Hold for human decision before proceeding.
+  Reject = 'reject' // Hard stop: operation not allowed for this rule.
+}
+
 export interface WeeklyOpeningHoursRecord {
   days: Weekday[];
   slots: OpeningHoursSlot[];
+  openExitType: RuleExitType;
+  closedExitType: RuleExitType;
 }
 
 export type RecurringHolidayRule =
@@ -36,6 +47,8 @@ export interface RecurringHoliday {
   lengthDays: number; // number of consecutive days the holiday applies
   closed: boolean;
   slots: OpeningHoursSlot[];
+  openExitType: RuleExitType;
+  closedExitType: RuleExitType;
 }
 
 export interface DateRangeHoliday extends RecurringHoliday {
