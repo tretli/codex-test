@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import {
   FormArray,
   FormBuilder,
@@ -77,7 +78,7 @@ type TimezoneOption = {
 @Component({
   selector: 'app-opening-hours-admin',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './opening-hours-admin.component.html',
   styleUrl: './opening-hours-admin.component.scss'
 })

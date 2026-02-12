@@ -25,6 +25,14 @@ header p {
   color: #5b667d;
 }
 
+.view-link {
+  display: inline-block;
+  margin-top: 0.45rem;
+  color: #1f3f9f;
+  text-decoration: none;
+  font-weight: 600;
+}
+
 .meta-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

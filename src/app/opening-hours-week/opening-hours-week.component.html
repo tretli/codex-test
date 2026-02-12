@@ -1,0 +1,42 @@
+<section class="week-card">
+  <header class="top-row">
+    <div>
+      <h1>Opening Hours Week View</h1>
+      <p>{{ weekRangeLabel() }} ({{ timezone() }})</p>
+    </div>
+    <a routerLink="/admin/opening-hours" class="back-link">Back to Admin</a>
+  </header>
+
+  <div class="week-controls">
+    <button type="button" class="secondary" (click)="previousWeek()">Previous week</button>
+    <button type="button" class="secondary" (click)="currentWeek()">Current week</button>
+    <button type="button" class="secondary" (click)="nextWeek()">Next week</button>
+  </div>
+
+  <div class="day-grid">
+    <article class="day-card" *ngFor="let day of weekDays()">
+      <h2>{{ day.label }}</h2>
+      <p class="source">{{ day.source }}</p>
+
+      <div class="timeline" *ngIf="day.slots.length > 0; else closedBlock">
+        <div class="hour-lines">
+          <span *ngFor="let marker of [0, 6, 12, 18, 24]" class="hour-marker" [style.left.%]="(marker / 24) * 100">
+            {{ marker }}:00
+          </span>
+        </div>
+        <div
+          class="slot-bar"
+          *ngFor="let slot of day.slots"
+          [style.left.%]="slotStartPercent(slot)"
+          [style.width.%]="slotWidthPercent(slot)"
+        >
+          {{ slot.opensAt }} - {{ slot.closesAt }}
+        </div>
+      </div>
+
+      <ng-template #closedBlock>
+        <p class="closed">Closed</p>
+      </ng-template>
+    </article>
+  </div>
+</section>
