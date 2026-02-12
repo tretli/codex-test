@@ -142,17 +142,37 @@ export function dateRangeOverlapValidator(parseDateInput: DateParser): Validator
         const end = parseDateInput(
           (holidayForm.get('rangeEnd')?.value as string | null) ?? ''
         );
+        const weekdays = (holidayForm.get('weekdays')?.value as Weekday[] | null) ?? [];
         if (!start || !end) {
           return null;
         }
-        return { start, end };
+        return { start, end, weekdays };
       })
-      .filter((range): range is { start: Date; end: Date } => range !== null)
+      .filter(
+        (range): range is { start: Date; end: Date; weekdays: Weekday[] } =>
+          range !== null
+      )
       .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-    for (let i = 1; i < ranges.length; i += 1) {
-      if (ranges[i].start.getTime() <= ranges[i - 1].end.getTime()) {
-        return { dateRangeOverlap: true };
+    for (let i = 0; i < ranges.length; i += 1) {
+      for (let j = i + 1; j < ranges.length; j += 1) {
+        // Because ranges are sorted by start, later ranges will not overlap once this is true.
+        if (ranges[j].start.getTime() > ranges[i].end.getTime()) {
+          break;
+        }
+
+        const datesOverlap = ranges[j].start.getTime() <= ranges[i].end.getTime();
+        if (!datesOverlap) {
+          continue;
+        }
+
+        const weekdaysOverlap = ranges[i].weekdays.some((day) =>
+          ranges[j].weekdays.includes(day)
+        );
+
+        if (weekdaysOverlap) {
+          return { dateRangeOverlap: true };
+        }
       }
     }
 
