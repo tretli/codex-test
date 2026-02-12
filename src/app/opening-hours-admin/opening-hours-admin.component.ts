@@ -8,6 +8,7 @@ import {
   Validators
 } from '@angular/forms';
 import {
+  DateRangeHoliday,
   DayOpeningHours,
   OpeningHoursSchedule,
   RecurringHoliday,
@@ -34,6 +35,8 @@ type HolidayForm = FormGroup<{
   month: import('@angular/forms').FormControl<number | null>;
   day: import('@angular/forms').FormControl<number | null>;
   offsetDays: import('@angular/forms').FormControl<number | null>;
+  rangeStart: import('@angular/forms').FormControl<string | null>;
+  rangeEnd: import('@angular/forms').FormControl<string | null>;
   lengthDays: import('@angular/forms').FormControl<number>;
   closed: import('@angular/forms').FormControl<boolean>;
   slots: FormArray<SlotForm>;
@@ -45,6 +48,8 @@ type HolidayFormValue = {
   month: number | null;
   day: number | null;
   offsetDays: number | null;
+  rangeStart: string | null;
+  rangeEnd: string | null;
   lengthDays: number;
   closed: boolean;
   slots: { opensAt: string; closesAt: string }[];
@@ -69,7 +74,8 @@ export class OpeningHoursAdminComponent {
 
   readonly currentYear = new Date().getFullYear();
   readonly weekdays = WEEKDAYS;
-  readonly timeOptions = this.buildTimeOptions(15);
+  readonly openTimeOptions = this.buildTimeOptions(15, false);
+  readonly closeTimeOptions = this.buildTimeOptions(15, true);
   readonly holidayTemplates: ReadonlyArray<HolidayTemplate> = [
     this.createEasterTemplate('easter-week', 'Easter Week', -8, 10),
     this.createEasterTemplate('easter', 'Easter', -3, 5),
@@ -152,7 +158,6 @@ export class OpeningHoursAdminComponent {
 
   readonly form = this.fb.nonNullable.group({
     timezone: ['Europe/London', Validators.required],
-    effectiveFrom: [new Date().toISOString().slice(0, 10), Validators.required],
     days: this.fb.array<DayForm>([]),
     recurringHolidays: this.fb.array<HolidayForm>([])
   });
@@ -203,6 +208,28 @@ export class OpeningHoursAdminComponent {
     this.sortHolidayFormsByDate();
   }
 
+  addDateRangeHoliday(): void {
+    const today = new Date();
+    const start = this.formatIsoDate(today);
+    const end = this.formatIsoDate(today);
+    const sequence = this.holidayForms.controls.filter(
+      (holidayForm) => holidayForm.controls.rule.value === 'date-range'
+    ).length + 1;
+
+    this.holidayForms.push(
+      this.createHolidayForm({
+        name: `Date range ${sequence}`,
+        rule: 'date-range',
+        rangeStart: start,
+        rangeEnd: end,
+        lengthDays: 1,
+        closed: true,
+        slots: []
+      })
+    );
+    this.sortHolidayFormsByDate();
+  }
+
   removeHoliday(index: number): void {
     this.holidayForms.removeAt(index);
   }
@@ -219,13 +246,51 @@ export class OpeningHoursAdminComponent {
     this.holidaySlotForms(holidayIndex).removeAt(slotIndex);
   }
 
+  toIsoDateValue(value: string | null): string {
+    return this.normalizeDateInput(value) ?? '';
+  }
+
+  onDatePicked(
+    holidayIndex: number,
+    field: 'rangeStart' | 'rangeEnd',
+    isoDateValue: string
+  ): void {
+    if (!isoDateValue) {
+      return;
+    }
+
+    const holidayForm = this.holidayForms.at(holidayIndex);
+    holidayForm.controls[field].setValue(this.formatEuropeanDate(isoDateValue));
+  }
+
+  openNativeDatePicker(input: HTMLInputElement): void {
+    const picker = input as HTMLInputElement & { showPicker?: () => void };
+    if (typeof picker.showPicker === 'function') {
+      picker.showPicker();
+      return;
+    }
+
+    input.focus();
+    input.click();
+  }
+
   holidaySummary(holidayForm: HolidayForm): string {
+    if (holidayForm.controls.rule.value === 'date-range') {
+      const rangeStart = holidayForm.controls.rangeStart.value;
+      const rangeEnd = holidayForm.controls.rangeEnd.value;
+      if (rangeStart && rangeEnd) {
+        return `Range: ${this.formatEuropeanDate(rangeStart)} to ${this.formatEuropeanDate(rangeEnd)}`;
+      }
+      return 'Range: set start and end date';
+    }
+
     const startDate = this.getHolidayExampleDateForYear(
       {
         rule: holidayForm.controls.rule.value,
         month: holidayForm.controls.month.value ?? undefined,
         day: holidayForm.controls.day.value ?? undefined,
-        offsetDays: holidayForm.controls.offsetDays.value ?? undefined
+        offsetDays: holidayForm.controls.offsetDays.value ?? undefined,
+        rangeStart: holidayForm.controls.rangeStart.value ?? undefined
       },
       this.currentYear
     );
@@ -236,11 +301,11 @@ export class OpeningHoursAdminComponent {
     }
 
     if (lengthDays <= 1) {
-      return `Example ${this.currentYear}: ${this.formatDate(startDate)}`;
+      return `Example ${this.currentYear}: ${this.formatEuropeanDate(startDate)}`;
     }
 
     const endDate = this.addDays(startDate, lengthDays - 1);
-    return `Example ${this.currentYear}: ${this.formatDate(startDate)} to ${this.formatDate(endDate)} (${lengthDays} days)`;
+    return `Example ${this.currentYear}: ${this.formatEuropeanDate(startDate)} to ${this.formatEuropeanDate(endDate)} (${lengthDays} days)`;
   }
 
   holidayTemplateLabel(template: HolidayTemplate): string {
@@ -253,11 +318,11 @@ export class OpeningHoursAdminComponent {
     }
 
     if (template.holiday.lengthDays <= 1) {
-      return `${template.label} (${this.currentYear}: ${this.formatDate(startDate)})`;
+      return `${template.label} (${this.currentYear}: ${this.formatEuropeanDate(startDate)})`;
     }
 
     const endDate = this.addDays(startDate, template.holiday.lengthDays - 1);
-    return `${template.label} (${this.currentYear}: ${this.formatDate(startDate)} to ${this.formatDate(endDate)})`;
+    return `${template.label} (${this.currentYear}: ${this.formatEuropeanDate(startDate)} to ${this.formatEuropeanDate(endDate)})`;
   }
 
   save(): void {
@@ -277,14 +342,13 @@ export class OpeningHoursAdminComponent {
     this.dayForms.clear();
     this.holidayForms.clear();
     schedule.days.forEach((day) => this.dayForms.push(this.createDayForm(day)));
-    [...schedule.recurringHolidays]
+    [...schedule.recurringHolidays, ...schedule.dateRanges]
       .sort((a, b) => this.compareHolidaysByDate(a, b))
       .forEach((holiday) =>
       this.holidayForms.push(this.createHolidayForm(holiday))
       );
     this.form.patchValue({
-      timezone: schedule.timezone,
-      effectiveFrom: schedule.effectiveFrom
+      timezone: schedule.timezone
     });
   }
 
@@ -304,6 +368,15 @@ export class OpeningHoursAdminComponent {
   }
 
   private createHolidayForm(holiday: RecurringHoliday): HolidayForm {
+    const rangeStartValue =
+      holiday.rule === 'date-range' && holiday.rangeStart
+        ? this.formatEuropeanDate(holiday.rangeStart)
+        : holiday.rangeStart ?? null;
+    const rangeEndValue =
+      holiday.rule === 'date-range' && holiday.rangeEnd
+        ? this.formatEuropeanDate(holiday.rangeEnd)
+        : holiday.rangeEnd ?? null;
+
     return this.fb.group({
       name: this.fb.nonNullable.control(holiday.name, Validators.required),
       rule: this.fb.nonNullable.control(holiday.rule),
@@ -319,6 +392,8 @@ export class OpeningHoursAdminComponent {
         Validators.min(-365),
         Validators.max(365)
       ]),
+      rangeStart: this.fb.control(rangeStartValue),
+      rangeEnd: this.fb.control(rangeEndValue),
       lengthDays: this.fb.nonNullable.control(holiday.lengthDays, [
         Validators.min(1)
       ]),
@@ -353,6 +428,21 @@ export class OpeningHoursAdminComponent {
       };
     }
 
+    if (holiday.rule === 'date-range') {
+      const rangeStart =
+        this.normalizeDateInput(holiday.rangeStart) ?? this.formatIsoDate(new Date());
+      const rangeEnd = this.normalizeDateInput(holiday.rangeEnd) ?? rangeStart;
+      return {
+        name: holiday.name,
+        rule: holiday.rule,
+        rangeStart,
+        rangeEnd,
+        lengthDays: this.calculateDateRangeLength(rangeStart, rangeEnd),
+        closed: holiday.closed,
+        slots: holiday.closed ? [] : holiday.slots
+      };
+    }
+
     return {
       name: holiday.name,
       rule: holiday.rule,
@@ -364,30 +454,52 @@ export class OpeningHoursAdminComponent {
 
   private buildScheduleFromForm(): OpeningHoursSchedule {
     const raw = this.form.getRawValue();
+    const normalizedHolidays = raw.recurringHolidays.map((holiday) =>
+      this.normalizeHoliday(holiday)
+    );
+    const recurringHolidays = normalizedHolidays.filter(
+      (holiday) => holiday.rule !== 'date-range'
+    );
+    const dateRanges = normalizedHolidays.filter(
+      (holiday): holiday is DateRangeHoliday => holiday.rule === 'date-range'
+    );
+
     return {
       timezone: raw.timezone,
-      effectiveFrom: raw.effectiveFrom,
       days: raw.days,
-      recurringHolidays: raw.recurringHolidays.map((holiday) =>
-        this.normalizeHoliday(holiday)
-      )
+      recurringHolidays,
+      dateRanges
     };
   }
 
-  private buildTimeOptions(stepMinutes: number): string[] {
+  private buildTimeOptions(stepMinutes: number, forCloseTime: boolean): string[] {
     const options: string[] = [];
-    for (let hour = 0; hour < 24; hour += 1) {
-      for (let minute = 0; minute < 60; minute += stepMinutes) {
-        const hh = String(hour).padStart(2, '0');
-        const mm = String(minute).padStart(2, '0');
-        options.push(`${hh}:${mm}`);
+    const startMinutes = forCloseTime ? stepMinutes : 0;
+    const endMinutesExclusive = forCloseTime ? (24 * 60) + stepMinutes : 24 * 60;
+
+    for (
+      let totalMinutes = startMinutes;
+      totalMinutes < endMinutesExclusive;
+      totalMinutes += stepMinutes
+    ) {
+      if (totalMinutes === 24 * 60) {
+        options.push('24:00');
+        continue;
       }
+      const hour = Math.floor(totalMinutes / 60);
+      const minute = totalMinutes % 60;
+      const hh = String(hour).padStart(2, '0');
+      const mm = String(minute).padStart(2, '0');
+      options.push(`${hh}:${mm}`);
     }
     return options;
   }
 
   private getHolidayExampleDateForYear(
-    holiday: Pick<RecurringHoliday, 'rule' | 'month' | 'day' | 'offsetDays'>,
+    holiday: Pick<
+      RecurringHoliday,
+      'rule' | 'month' | 'day' | 'offsetDays' | 'rangeStart'
+    >,
     year: number
   ): Date | null {
     let date: Date | null = null;
@@ -405,6 +517,11 @@ export class OpeningHoursAdminComponent {
       date = this.getSwedishMidsummerDayDate(year);
     } else if (holiday.rule === 'swedish-midsummer-eve') {
       date = this.getSwedishMidsummerEveDate(year);
+    } else if (holiday.rule === 'date-range' && holiday.rangeStart) {
+      const parsed = this.parseDateInput(holiday.rangeStart);
+      if (parsed) {
+        date = parsed;
+      }
     }
 
     return date;
@@ -448,17 +565,88 @@ export class OpeningHoursAdminComponent {
     return this.addDays(this.getSwedishMidsummerDayDate(year), -1);
   }
 
-  private formatDate(date: Date): string {
+  private formatIsoDate(date: Date): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
 
+  private formatEuropeanDate(value: Date | string): string {
+    const date = typeof value === 'string' ? this.parseDateInput(value) : new Date(value);
+    if (!date) {
+      return typeof value === 'string' ? value : '';
+    }
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  }
+
+  private parseIsoDate(value: string): Date | null {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) {
+      return null;
+    }
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const parsed = new Date(year, month - 1, day);
+    if (
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    ) {
+      return null;
+    }
+    return parsed;
+  }
+
+  private parseEuropeanDate(value: string): Date | null {
+    const match = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(value.trim());
+    if (!match) {
+      return null;
+    }
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+    const parsed = new Date(year, month - 1, day);
+    if (
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    ) {
+      return null;
+    }
+    return parsed;
+  }
+
+  private parseDateInput(value: string): Date | null {
+    return this.parseIsoDate(value) ?? this.parseEuropeanDate(value);
+  }
+
+  private normalizeDateInput(value: string | null): string | null {
+    if (!value) {
+      return null;
+    }
+    const parsed = this.parseDateInput(value);
+    return parsed ? this.formatIsoDate(parsed) : null;
+  }
+
   private addDays(date: Date, days: number): Date {
     const result = new Date(date);
     result.setDate(result.getDate() + days);
     return result;
+  }
+
+  private calculateDateRangeLength(rangeStart: string, rangeEnd: string): number {
+    const start = this.parseDateInput(rangeStart);
+    const end = this.parseDateInput(rangeEnd);
+    if (!start || !end) {
+      return 1;
+    }
+    const msPerDay = 24 * 60 * 60 * 1000;
+    return Math.max(1, Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1);
   }
 
   private compareHolidaysByDate(a: RecurringHoliday, b: RecurringHoliday): number {

@@ -10,11 +10,6 @@
         Timezone
         <input type="text" formControlName="timezone" placeholder="Europe/London" />
       </label>
-
-      <label>
-        Effective from
-        <input type="date" formControlName="effectiveFrom" />
-      </label>
     </div>
 
     <div formArrayName="days" class="day-list">
@@ -36,7 +31,7 @@
             <label>
               Opens
               <select formControlName="opensAt">
-                <option *ngFor="let timeOption of timeOptions" [value]="timeOption">
+                <option *ngFor="let timeOption of openTimeOptions" [value]="timeOption">
                   {{ timeOption }}
                 </option>
               </select>
@@ -45,7 +40,7 @@
             <label>
               Closes
               <select formControlName="closesAt">
-                <option *ngFor="let timeOption of timeOptions" [value]="timeOption">
+                <option *ngFor="let timeOption of closeTimeOptions" [value]="timeOption">
                   {{ timeOption }}
                 </option>
               </select>
@@ -77,6 +72,9 @@
         <button type="button" class="secondary" (click)="addHolidayFromTemplate(holidayTemplate.value)">
           Add recurring holiday
         </button>
+        <button type="button" class="secondary" (click)="addDateRangeHoliday()">
+          Add date range
+        </button>
       </div>
 
       <article class="holiday-card" *ngFor="let holiday of holidayForms.controls; let holidayIndex = index" [formGroupName]="holidayIndex">
@@ -91,12 +89,52 @@
 
         <p class="holiday-rule">{{ holidaySummary(holiday) }}</p>
 
+        <div class="holiday-fields" *ngIf="holiday.controls.rule.value === 'date-range'">
+          <label>
+            Start date
+            <div class="date-input-group">
+              <input type="text" formControlName="rangeStart" placeholder="DD.MM.YYYY" />
+              <button type="button" class="secondary date-picker-button" (click)="openNativeDatePicker(rangeStartPicker)">
+                Calendar
+              </button>
+              <input
+                #rangeStartPicker
+                class="native-date-picker-input"
+                type="date"
+                [value]="toIsoDateValue(holiday.controls.rangeStart.value)"
+                (change)="onDatePicked(holidayIndex, 'rangeStart', $any($event.target).value)"
+                tabindex="-1"
+                aria-hidden="true"
+              />
+            </div>
+          </label>
+
+          <label>
+            End date
+            <div class="date-input-group">
+              <input type="text" formControlName="rangeEnd" placeholder="DD.MM.YYYY" />
+              <button type="button" class="secondary date-picker-button" (click)="openNativeDatePicker(rangeEndPicker)">
+                Calendar
+              </button>
+              <input
+                #rangeEndPicker
+                class="native-date-picker-input"
+                type="date"
+                [value]="toIsoDateValue(holiday.controls.rangeEnd.value)"
+                (change)="onDatePicked(holidayIndex, 'rangeEnd', $any($event.target).value)"
+                tabindex="-1"
+                aria-hidden="true"
+              />
+            </div>
+          </label>
+        </div>
+
         <div formArrayName="slots" class="slots" *ngIf="!holiday.controls.closed.value; else holidayClosedTemplate">
           <div class="slot-row" *ngFor="let slot of holidaySlotForms(holidayIndex).controls; let slotIndex = index" [formGroupName]="slotIndex">
             <label>
               Opens
               <select formControlName="opensAt">
-                <option *ngFor="let timeOption of timeOptions" [value]="timeOption">
+                <option *ngFor="let timeOption of openTimeOptions" [value]="timeOption">
                   {{ timeOption }}
                 </option>
               </select>
@@ -105,7 +143,7 @@
             <label>
               Closes
               <select formControlName="closesAt">
-                <option *ngFor="let timeOption of timeOptions" [value]="timeOption">
+                <option *ngFor="let timeOption of closeTimeOptions" [value]="timeOption">
                   {{ timeOption }}
                 </option>
               </select>

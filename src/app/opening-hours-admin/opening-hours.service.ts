@@ -25,13 +25,13 @@ export class OpeningHoursService {
   private createDefaultSchedule(): OpeningHoursSchedule {
     return {
       timezone: 'Europe/London',
-      effectiveFrom: new Date().toISOString().slice(0, 10),
       days: WEEKDAYS.map(({ key }) => ({
         day: key,
         enabled: key !== 'sunday',
         slots: key === 'sunday' ? [] : [{ opensAt: '09:00', closesAt: '17:00' }]
       })),
-      recurringHolidays: []
+      recurringHolidays: [],
+      dateRanges: []
     };
   }
 }
