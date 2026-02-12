@@ -96,6 +96,18 @@ h2 {
   font-size: 0.85rem;
 }
 
+.exit-type {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  color: #26324a;
+}
+
+.exit-reason {
+  margin: 0 0 0.55rem;
+  font-size: 0.8rem;
+  color: #5b667d;
+}
+
 .timeline {
   position: relative;
   border: 1px solid #d9e0ef;
@@ -194,6 +206,19 @@ h2 {
   font-size: 0.7rem;
   color: #7a869f;
   line-height: 1.2;
+}
+
+.month-exit {
+  margin: 0.18rem 0 0;
+  font-size: 0.7rem;
+  color: #26324a;
+}
+
+.month-reason {
+  margin: 0.12rem 0 0;
+  font-size: 0.66rem;
+  color: #5b667d;
+  line-height: 1.15;
 }
 
 @media (max-width: 900px) {

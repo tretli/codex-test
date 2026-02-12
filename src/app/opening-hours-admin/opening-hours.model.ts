@@ -26,6 +26,7 @@ export interface WeeklyOpeningHoursRecord {
   slots: OpeningHoursSlot[];
   openExitType: RuleExitType;
   closedExitType: RuleExitType;
+  closedExitReason?: string;
 }
 
 export type RecurringHolidayRule =
@@ -49,6 +50,7 @@ export interface RecurringHoliday {
   slots: OpeningHoursSlot[];
   openExitType: RuleExitType;
   closedExitType: RuleExitType;
+  closedExitReason?: string;
 }
 
 export interface DateRangeHoliday extends RecurringHoliday {

@@ -44,6 +44,15 @@
     <article class="day-card" *ngFor="let day of weekDays()">
       <h2>{{ day.label }}</h2>
       <p class="source">{{ day.source }}</p>
+      <p class="exit-type">
+        Open action: <strong>{{ day.openExitTypeLabel }}</strong>
+      </p>
+      <p class="exit-type">
+        Closed action: <strong>{{ day.closedExitTypeLabel }}</strong>
+      </p>
+      <p class="exit-reason" *ngIf="day.slots.length === 0 && day.closedExitReason">
+        Reason: {{ day.closedExitReason }}
+      </p>
 
       <div class="timeline" *ngIf="day.slots.length > 0; else closedBlock">
         <div class="hour-lines">
@@ -84,6 +93,11 @@
       <ng-template #closedState>
         <p class="month-state closed">Closed</p>
       </ng-template>
+      <p class="month-exit">Open: {{ day.openExitTypeLabel }}</p>
+      <p class="month-exit">Closed: {{ day.closedExitTypeLabel }}</p>
+      <p class="month-reason" *ngIf="day.slots.length === 0 && day.closedExitReason">
+        {{ day.closedExitReason }}
+      </p>
       <p class="month-source">{{ day.source }}</p>
     </article>
   </div>

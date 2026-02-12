@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import {
   OpeningHoursSlot,
   RecurringHoliday,
+  RuleExitType,
   WEEKDAYS,
   Weekday
 } from '../opening-hours-admin/opening-hours.model';
@@ -16,6 +17,9 @@ type DayView = {
   weekday: Weekday;
   slots: OpeningHoursSlot[];
   source: string;
+  openExitTypeLabel: string;
+  closedExitTypeLabel: string;
+  closedExitReason?: string;
 };
 
 type MonthDayView = {
@@ -24,6 +28,9 @@ type MonthDayView = {
   inCurrentMonth: boolean;
   slots: OpeningHoursSlot[];
   source: string;
+  openExitTypeLabel: string;
+  closedExitTypeLabel: string;
+  closedExitReason?: string;
 };
 
 @Component({
@@ -52,7 +59,10 @@ export class OpeningHoursWeekComponent {
         label: this.formatDisplayDate(date),
         weekday: this.weekdayFromDate(date),
         slots: daily.slots,
-        source: daily.source
+        source: daily.source,
+        openExitTypeLabel: this.getExitTypeLabel(daily.openExitType),
+        closedExitTypeLabel: this.getExitTypeLabel(daily.closedExitType),
+        closedExitReason: daily.closedExitReason
       });
     }
     return days;
@@ -84,7 +94,10 @@ export class OpeningHoursWeekComponent {
         dayNumber: date.getDate(),
         inCurrentMonth: date.getMonth() === anchor.getMonth(),
         slots: daily.slots,
-        source: daily.source
+        source: daily.source,
+        openExitTypeLabel: this.getExitTypeLabel(daily.openExitType),
+        closedExitTypeLabel: this.getExitTypeLabel(daily.closedExitType),
+        closedExitReason: daily.closedExitReason
       });
     }
     return days;
@@ -141,7 +154,13 @@ export class OpeningHoursWeekComponent {
     return (width / (24 * 60)) * 100;
   }
 
-  private resolveDailySchedule(date: Date): { slots: OpeningHoursSlot[]; source: string } {
+  private resolveDailySchedule(date: Date): {
+    slots: OpeningHoursSlot[];
+    source: string;
+    openExitType: RuleExitType;
+    closedExitType: RuleExitType;
+    closedExitReason?: string;
+  } {
     const schedule = this.service.schedule();
     const day = this.weekdayFromDate(date);
     const isoDate = this.formatIsoDate(date);
@@ -163,27 +182,76 @@ export class OpeningHoursWeekComponent {
       return this.resolveHolidaySlots(recurringMatches, 'Recurring holiday');
     }
 
-    const baseSlots = schedule.days
-      .filter((record) => record.days.includes(day))
-      .flatMap((record) => record.slots);
-    return { slots: baseSlots, source: 'Weekly schedule' };
+    const baseRecords = schedule.days.filter((record) => record.days.includes(day));
+    const baseSlots = baseRecords.flatMap((record) => record.slots);
+    if (baseRecords.length === 0) {
+      return {
+        slots: [],
+        source: 'Weekly schedule',
+        openExitType: RuleExitType.Reject,
+        closedExitType: RuleExitType.Reject,
+        closedExitReason: 'No matching opening rule for this weekday'
+      };
+    }
+
+    if (baseSlots.length === 0) {
+      return {
+        slots: [],
+        source: 'Weekly schedule',
+        openExitType: baseRecords[0].openExitType,
+        closedExitType: baseRecords[0].closedExitType,
+        closedExitReason: baseRecords[0].closedExitReason || 'Closed by weekly schedule'
+      };
+    }
+
+    return {
+      slots: baseSlots,
+      source: 'Weekly schedule',
+      openExitType: baseRecords[0].openExitType,
+      closedExitType: baseRecords[0].closedExitType,
+      closedExitReason: baseRecords[0].closedExitReason
+    };
   }
 
   private resolveHolidaySlots(
     holidays: RecurringHoliday[],
     sourcePrefix: string
-  ): { slots: OpeningHoursSlot[]; source: string } {
+  ): {
+    slots: OpeningHoursSlot[];
+    source: string;
+    openExitType: RuleExitType;
+    closedExitType: RuleExitType;
+    closedExitReason?: string;
+  } {
     const openSlots = holidays.filter((holiday) => !holiday.closed).flatMap((h) => h.slots);
     if (openSlots.length > 0) {
       return {
         slots: openSlots,
-        source: `${sourcePrefix}: ${holidays.map((holiday) => holiday.name).join(', ')}`
+        source: `${sourcePrefix}: ${holidays.map((holiday) => holiday.name).join(', ')}`,
+        openExitType: holidays[0].openExitType,
+        closedExitType: holidays[0].closedExitType,
+        closedExitReason: holidays[0].closedExitReason
       };
     }
     return {
       slots: [],
-      source: `${sourcePrefix}: ${holidays.map((holiday) => holiday.name).join(', ')} (closed)`
+      source: `${sourcePrefix}: ${holidays.map((holiday) => holiday.name).join(', ')} (closed)`,
+      openExitType: holidays[0].openExitType,
+      closedExitType: holidays[0].closedExitType,
+      closedExitReason: holidays[0].closedExitReason || 'Closed by rule'
     };
+  }
+
+  private getExitTypeLabel(exitType: RuleExitType): string {
+    const labels: Record<RuleExitType, string> = {
+      [RuleExitType.Proceed]: 'Proceed',
+      [RuleExitType.ProceedWithNotice]: 'Proceed with notice',
+      [RuleExitType.Queue]: 'Queue',
+      [RuleExitType.Redirect]: 'Redirect',
+      [RuleExitType.ManualReview]: 'Manual review',
+      [RuleExitType.Reject]: 'Reject'
+    };
+    return labels[exitType];
   }
 
   private isRecurringHolidayMatch(holiday: RecurringHoliday, date: Date): boolean {
