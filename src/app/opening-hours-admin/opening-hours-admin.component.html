@@ -27,30 +27,41 @@
         </div>
 
         <div formArrayName="slots" class="slots" *ngIf="dayForm.controls.enabled.value; else closedTemplate">
-          <div class="slot-row" *ngFor="let slot of slotForms(dayIndex).controls; let slotIndex = index" [formGroupName]="slotIndex">
-            <label>
-              Opens
-              <select formControlName="opensAt">
-                <option *ngFor="let timeOption of openTimeOptions" [value]="timeOption">
-                  {{ timeOption }}
-                </option>
-              </select>
-            </label>
+          <ng-container *ngFor="let slot of slotForms(dayIndex).controls; let slotIndex = index">
+            <div class="slot-row" [formGroupName]="slotIndex">
+              <label>
+                Opens
+                <select formControlName="opensAt">
+                  <option *ngFor="let timeOption of openTimeOptions" [value]="timeOption">
+                    {{ timeOption }}
+                  </option>
+                </select>
+              </label>
 
-            <label>
-              Closes
-              <select formControlName="closesAt">
-                <option *ngFor="let timeOption of closeTimeOptions" [value]="timeOption">
-                  {{ timeOption }}
-                </option>
-              </select>
-            </label>
+              <label>
+                Closes
+                <select formControlName="closesAt">
+                  <option *ngFor="let timeOption of closeTimeOptions" [value]="timeOption">
+                    {{ timeOption }}
+                  </option>
+                </select>
+              </label>
 
-            <button type="button" class="danger" (click)="removeSlot(dayIndex, slotIndex)">Remove</button>
-          </div>
+              <button type="button" class="danger" (click)="removeSlot(dayIndex, slotIndex)">Remove</button>
+            </div>
+            <p class="validation-error" *ngIf="slot.touched && slot.errors?.['timeOrder']">
+              Closing time must be later than opening time.
+            </p>
+          </ng-container>
 
           <button type="button" class="secondary" (click)="addSlot(dayIndex)">Add time slot</button>
         </div>
+        <p class="validation-error" *ngIf="dayForm.touched && dayForm.errors?.['slotRequired']">
+          Add at least one time slot when the day is open.
+        </p>
+        <p class="validation-error" *ngIf="dayForm.touched && dayForm.errors?.['slotOverlap']">
+          Time slots cannot overlap.
+        </p>
 
         <ng-template #closedTemplate>
           <p class="closed-pill">Closed</p>
@@ -128,32 +139,52 @@
             </div>
           </label>
         </div>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['dateRangeRequired']">
+          Start and end dates are required.
+        </p>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['dateRangeFormat']">
+          Use a valid date format: DD.MM.YYYY.
+        </p>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['dateRangeOrder']">
+          End date must be the same as or after start date.
+        </p>
 
         <div formArrayName="slots" class="slots" *ngIf="!holiday.controls.closed.value; else holidayClosedTemplate">
-          <div class="slot-row" *ngFor="let slot of holidaySlotForms(holidayIndex).controls; let slotIndex = index" [formGroupName]="slotIndex">
-            <label>
-              Opens
-              <select formControlName="opensAt">
-                <option *ngFor="let timeOption of openTimeOptions" [value]="timeOption">
-                  {{ timeOption }}
-                </option>
-              </select>
-            </label>
+          <ng-container *ngFor="let slot of holidaySlotForms(holidayIndex).controls; let slotIndex = index">
+            <div class="slot-row" [formGroupName]="slotIndex">
+              <label>
+                Opens
+                <select formControlName="opensAt">
+                  <option *ngFor="let timeOption of openTimeOptions" [value]="timeOption">
+                    {{ timeOption }}
+                  </option>
+                </select>
+              </label>
 
-            <label>
-              Closes
-              <select formControlName="closesAt">
-                <option *ngFor="let timeOption of closeTimeOptions" [value]="timeOption">
-                  {{ timeOption }}
-                </option>
-              </select>
-            </label>
+              <label>
+                Closes
+                <select formControlName="closesAt">
+                  <option *ngFor="let timeOption of closeTimeOptions" [value]="timeOption">
+                    {{ timeOption }}
+                  </option>
+                </select>
+              </label>
 
-            <button type="button" class="danger" (click)="removeHolidaySlot(holidayIndex, slotIndex)">Remove</button>
-          </div>
+              <button type="button" class="danger" (click)="removeHolidaySlot(holidayIndex, slotIndex)">Remove</button>
+            </div>
+            <p class="validation-error" *ngIf="slot.touched && slot.errors?.['timeOrder']">
+              Closing time must be later than opening time.
+            </p>
+          </ng-container>
 
           <button type="button" class="secondary" (click)="addHolidaySlot(holidayIndex)">Add time slot</button>
         </div>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['slotRequired']">
+          Add at least one time slot when the holiday is open.
+        </p>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['slotOverlap']">
+          Time slots cannot overlap.
+        </p>
 
         <ng-template #holidayClosedTemplate>
           <p class="closed-pill">Closed</p>
@@ -163,6 +194,10 @@
           <button type="button" class="danger" (click)="removeHoliday(holidayIndex)">Remove</button>
         </div>
       </article>
+
+      <p class="validation-error" *ngIf="holidayForms.touched && holidayForms.errors?.['dateRangeOverlap']">
+        Date ranges cannot overlap each other.
+      </p>
     </section>
 
     <div class="actions">
