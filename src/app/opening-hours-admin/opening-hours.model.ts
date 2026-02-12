@@ -18,10 +18,22 @@ export interface DayOpeningHours {
   slots: OpeningHoursSlot[];
 }
 
+export type RecurringHolidayRule = 'fixed-date' | 'easter';
+
+export interface RecurringHoliday {
+  name: string;
+  rule: RecurringHolidayRule;
+  month?: number; // 1-12 for fixed-date rules
+  day?: number; // 1-31 for fixed-date rules
+  offsetDays?: number; // day offset from Easter Sunday for easter rules
+  closed: boolean;
+}
+
 export interface OpeningHoursSchedule {
   timezone: string;
   effectiveFrom: string; // ISO date
   days: DayOpeningHours[];
+  recurringHolidays: RecurringHoliday[];
 }
 
 export const WEEKDAYS: ReadonlyArray<{ key: Weekday; label: string }> = [

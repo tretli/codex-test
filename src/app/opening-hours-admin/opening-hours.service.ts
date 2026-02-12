@@ -30,7 +30,8 @@ export class OpeningHoursService {
         day: key,
         enabled: key !== 'sunday',
         slots: key === 'sunday' ? [] : [{ opensAt: '09:00', closesAt: '17:00' }]
-      }))
+      })),
+      recurringHolidays: []
     };
   }
 }

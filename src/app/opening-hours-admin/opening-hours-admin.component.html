@@ -55,6 +55,40 @@
       </article>
     </div>
 
+    <section class="holiday-section" formArrayName="recurringHolidays">
+      <h2>Recurring holidays</h2>
+      <div class="holiday-toolbar">
+        <label>
+          Add holiday
+          <select #holidayTemplate [value]="defaultHolidayTemplateId">
+            <option *ngFor="let template of holidayTemplates" [value]="template.id">
+              {{ template.label }}
+            </option>
+          </select>
+        </label>
+        <button type="button" class="secondary" (click)="addHolidayFromTemplate(holidayTemplate.value)">
+          Add recurring holiday
+        </button>
+      </div>
+
+      <article class="holiday-card" *ngFor="let holiday of holidayForms.controls; let holidayIndex = index" [formGroupName]="holidayIndex">
+        <div class="holiday-header">
+          <h3>{{ holiday.controls.name.value }}</h3>
+
+          <label class="toggle">
+            <input type="checkbox" formControlName="closed" />
+            Closed
+          </label>
+        </div>
+
+        <p class="holiday-rule">{{ holidaySummary(holiday) }}</p>
+
+        <div class="holiday-actions">
+          <button type="button" class="danger" (click)="removeHoliday(holidayIndex)">Remove</button>
+        </div>
+      </article>
+    </section>
+
     <div class="actions">
       <button type="submit">Save opening hours</button>
     </div>

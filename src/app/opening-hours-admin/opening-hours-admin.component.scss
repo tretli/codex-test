@@ -41,7 +41,9 @@ label {
 
 input[type='text'],
 input[type='date'],
-input[type='time'] {
+input[type='time'],
+input[type='number'],
+select {
   border: 1px solid #ccd3e3;
   border-radius: 8px;
   padding: 0.5rem 0.65rem;
@@ -107,6 +109,56 @@ button.danger {
 
 .actions {
   margin-top: 1.25rem;
+}
+
+.holiday-section {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.holiday-section h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.holiday-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.holiday-card {
+  border: 1px solid #d9e0ef;
+  border-radius: 10px;
+  padding: 1rem;
+  background: #fbfcff;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.holiday-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.holiday-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.holiday-rule {
+  margin: 0;
+  color: #5b667d;
+  font-size: 0.9rem;
+}
+
+.holiday-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .closed-pill {
