@@ -876,11 +876,14 @@ export class OpeningHoursAdminComponent {
   }
 
   private sortHolidayFormsByDate(): void {
-    this.holidayForms.controls.sort((aForm, bForm) => {
+    const sortedControls = [...this.holidayForms.controls].sort((aForm, bForm) => {
       const aHoliday = this.normalizeHoliday(aForm.getRawValue());
       const bHoliday = this.normalizeHoliday(bForm.getRawValue());
       return this.compareHolidaysByDate(aHoliday, bHoliday);
     });
+
+    this.holidayForms.clear();
+    sortedControls.forEach(control => this.holidayForms.push(control));
     this.holidayForms.updateValueAndValidity();
   }
 
