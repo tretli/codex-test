@@ -215,26 +215,26 @@ export class OpeningHoursWeekComponent {
       };
     }
 
-    if (dateRangeMatches.length > 0) {
-      return {
-        ...this.resolveHolidaySlots(dateRangeMatches, 'Date range'),
-        inactiveRules: this.filterInactiveRules(
-          [
-            ...matchedRangeLabels,
-            ...matchedRecurringLabels,
-            ...matchedWeeklyLabels
-          ],
-          matchedRangeLabels
-        )
-      };
-    }
-
     if (recurringMatches.length > 0) {
       return {
         ...this.resolveHolidaySlots(recurringMatches, 'Recurring holiday'),
         inactiveRules: this.filterInactiveRules(
-          [...matchedRecurringLabels, ...matchedWeeklyLabels],
+          [
+            ...matchedRecurringLabels,
+            ...matchedRangeLabels,
+            ...matchedWeeklyLabels
+          ],
           matchedRecurringLabels
+        )
+      };
+    }
+
+    if (dateRangeMatches.length > 0) {
+      return {
+        ...this.resolveHolidaySlots(dateRangeMatches, 'Date range'),
+        inactiveRules: this.filterInactiveRules(
+          [...matchedRangeLabels, ...matchedWeeklyLabels],
+          matchedRangeLabels
         )
       };
     }
