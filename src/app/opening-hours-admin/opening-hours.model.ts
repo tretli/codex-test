@@ -10,6 +10,7 @@ export type Weekday =
 export interface OpeningHoursSlot {
   opensAt: string; // HH:mm
   closesAt: string; // HH:mm
+  openExitType: ExitOutcome;
 }
 
 export enum ExitOutcome {
@@ -25,7 +26,6 @@ export enum ExitOutcome {
 export interface WeeklyOpeningHoursRecord {
   days: Weekday[];
   slots: OpeningHoursSlot[];
-  openExitType: ExitOutcome;
   closedExitType: ExitOutcome;
   closedExitReason?: string;
 }
@@ -51,7 +51,6 @@ export interface RecurringHoliday {
   lengthDays: number; // number of consecutive days the holiday applies
   closed: boolean;
   slots: OpeningHoursSlot[];
-  openExitType: ExitOutcome;
   closedExitType: ExitOutcome;
   closedExitReason?: string;
 }
@@ -85,4 +84,3 @@ export const WEEKDAYS: ReadonlyArray<{ key: Weekday; label: string }> = [
   { key: 'saturday', label: 'Saturday' },
   { key: 'sunday', label: 'Sunday' }
 ] as const;
-

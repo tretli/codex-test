@@ -11,10 +11,10 @@
       The system resolves each day using the first matching rule group below.
     </p>
     <ol>
-      <li><strong>Single date</strong> rules (`singleDates`)</li>
-      <li><strong>Recurring holiday</strong> rules (`recurringHolidays`)</li>
-      <li><strong>Date range</strong> rules (`dateRanges`)</li>
-      <li><strong>Weekly records</strong> (`days`)</li>
+      <li class="rule-line rule-single-date"><strong>Single date</strong> rules (`singleDates`)</li>
+      <li class="rule-line rule-recurring"><strong>Recurring holiday</strong> rules (`recurringHolidays`)</li>
+      <li class="rule-line rule-date-range"><strong>Date range</strong> rules (`dateRanges`)</li>
+      <li class="rule-line rule-weekly"><strong>Weekly records</strong> (`days`)</li>
     </ol>
     <p>
       Within one group, if multiple rules match the same day, the first matching
@@ -39,7 +39,7 @@
         <button type="button" class="secondary" (click)="addDayRecord()">Add weekday record</button>
       </div>
       <article
-        class="day-card"
+        class="day-card rule-weekly"
         *ngFor="let dayForm of dayForms.controls; let dayIndex = index; trackBy: trackByDay"
         [formGroupName]="dayIndex"
       >
@@ -60,14 +60,6 @@
         </div>
 
         <div class="exit-type-grid">
-          <label>
-            Open exit type
-            <select formControlName="openExitType">
-              <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
-                {{ exitType.label }}
-              </option>
-            </select>
-          </label>
           <label>
             Closed exit type
             <select formControlName="closedExitType">
@@ -95,6 +87,15 @@
                 <select formControlName="closesAt">
                   <option *ngFor="let timeOption of closeTimeOptions" [value]="timeOption">
                     {{ timeOption }}
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                Open exit type
+                <select formControlName="openExitType">
+                  <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                    {{ exitType.label }}
                   </option>
                 </select>
               </label>
@@ -145,7 +146,16 @@
         </button>
       </div>
 
-      <article class="holiday-card" *ngFor="let holiday of holidayForms.controls; let holidayIndex = index" [formGroupName]="holidayIndex">
+      <article
+        class="holiday-card"
+        [ngClass]="{
+          'rule-single-date': holiday.controls.rule.value === 'single-date',
+          'rule-date-range': holiday.controls.rule.value === 'date-range',
+          'rule-recurring': holiday.controls.rule.value !== 'single-date' && holiday.controls.rule.value !== 'date-range'
+        }"
+        *ngFor="let holiday of holidayForms.controls; let holidayIndex = index"
+        [formGroupName]="holidayIndex"
+      >
         <div class="holiday-header">
           <h3>{{ holiday.controls.name.value }}</h3>
 
@@ -158,14 +168,6 @@
         <p class="holiday-rule">{{ holidaySummary(holiday) }}</p>
 
         <div class="exit-type-grid">
-          <label>
-            Open exit type
-            <select formControlName="openExitType">
-              <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
-                {{ exitType.label }}
-              </option>
-            </select>
-          </label>
           <label>
             Closed exit type
             <select formControlName="closedExitType">
@@ -281,6 +283,15 @@
                 <select formControlName="closesAt">
                   <option *ngFor="let timeOption of closeTimeOptions" [value]="timeOption">
                     {{ timeOption }}
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                Open exit type
+                <select formControlName="openExitType">
+                  <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                    {{ exitType.label }}
                   </option>
                 </select>
               </label>

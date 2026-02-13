@@ -85,6 +85,26 @@ button.secondary.active {
   background: #fbfcff;
 }
 
+.rule-single-date {
+  border-color: #f1c48a;
+  background: #fff8ef;
+}
+
+.rule-recurring {
+  border-color: #efb3b6;
+  background: #fff2f3;
+}
+
+.rule-date-range {
+  border-color: #9cd9bb;
+  background: #f2fbf6;
+}
+
+.rule-weekly {
+  border-color: #d9e0ef;
+  background: #fbfcff;
+}
+
 h2 {
   margin: 0;
   font-size: 1rem;
@@ -92,8 +112,40 @@ h2 {
 
 .source {
   margin: 0.3rem 0 0.55rem;
-  color: #5b667d;
+  color: #4a5671;
   font-size: 0.85rem;
+}
+
+.rule-chip {
+  display: inline-block;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.18rem 0.5rem;
+  font-weight: 600;
+}
+
+.rule-chip.rule-single-date {
+  border-color: #f1c48a;
+  background: #fff1dc;
+  color: #8d4c00;
+}
+
+.rule-chip.rule-recurring {
+  border-color: #efb3b6;
+  background: #fde7e9;
+  color: #8a1f2b;
+}
+
+.rule-chip.rule-date-range {
+  border-color: #9cd9bb;
+  background: #e6f7ee;
+  color: #136341;
+}
+
+.rule-chip.rule-weekly {
+  border-color: #c9d4ec;
+  background: #eef3ff;
+  color: #27406e;
 }
 
 .exit-type {

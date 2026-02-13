@@ -31,14 +31,24 @@ export class OpeningHoursService {
       days: [
         {
           days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-          slots: [{ opensAt: '09:00', closesAt: '17:00' }],
-          openExitType: ExitOutcome.Allow,
+          slots: [
+            {
+              opensAt: '09:00',
+              closesAt: '17:00',
+              openExitType: ExitOutcome.Allow
+            }
+          ],
           closedExitType: ExitOutcome.Deny
         },
         {
           days: ['saturday'],
-          slots: [{ opensAt: '10:00', closesAt: '14:00' }],
-          openExitType: ExitOutcome.Allow,
+          slots: [
+            {
+              opensAt: '10:00',
+              closesAt: '14:00',
+              openExitType: ExitOutcome.Allow
+            }
+          ],
           closedExitType: ExitOutcome.Deny
         }
       ],

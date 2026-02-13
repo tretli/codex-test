@@ -17,6 +17,7 @@ type DayView = {
   weekday: Weekday;
   slots: OpeningHoursSlot[];
   source: string;
+  ruleType: 'single-date' | 'recurring' | 'date-range' | 'weekly';
   openExitTypeLabel: string;
   closedExitTypeLabel: string;
   closedExitReason?: string;
@@ -29,6 +30,7 @@ type MonthDayView = {
   inCurrentMonth: boolean;
   slots: OpeningHoursSlot[];
   source: string;
+  ruleType: 'single-date' | 'recurring' | 'date-range' | 'weekly';
   openExitTypeLabel: string;
   closedExitTypeLabel: string;
   closedExitReason?: string;
@@ -62,7 +64,8 @@ export class OpeningHoursWeekComponent {
         weekday: this.weekdayFromDate(date),
         slots: daily.slots,
         source: daily.source,
-        openExitTypeLabel: this.getExitTypeLabel(daily.openExitType),
+        ruleType: daily.ruleType,
+        openExitTypeLabel: this.getOpenExitTypeSummary(daily.slots),
         closedExitTypeLabel: this.getExitTypeLabel(daily.closedExitType),
         closedExitReason: daily.closedExitReason,
         inactiveRules: daily.inactiveRules
@@ -98,7 +101,8 @@ export class OpeningHoursWeekComponent {
         inCurrentMonth: date.getMonth() === anchor.getMonth(),
         slots: daily.slots,
         source: daily.source,
-        openExitTypeLabel: this.getExitTypeLabel(daily.openExitType),
+        ruleType: daily.ruleType,
+        openExitTypeLabel: this.getOpenExitTypeSummary(daily.slots),
         closedExitTypeLabel: this.getExitTypeLabel(daily.closedExitType),
         closedExitReason: daily.closedExitReason,
         inactiveRules: daily.inactiveRules
@@ -158,10 +162,14 @@ export class OpeningHoursWeekComponent {
     return (width / (24 * 60)) * 100;
   }
 
+  slotExitTypeLabel(slot: OpeningHoursSlot): string {
+    return this.getExitTypeLabel(slot.openExitType);
+  }
+
   private resolveDailySchedule(date: Date): {
     slots: OpeningHoursSlot[];
     source: string;
-    openExitType: ExitOutcome;
+    ruleType: 'single-date' | 'recurring' | 'date-range' | 'weekly';
     closedExitType: ExitOutcome;
     closedExitReason?: string;
     inactiveRules: string[];
@@ -203,6 +211,7 @@ export class OpeningHoursWeekComponent {
     if (singleDateMatches.length > 0) {
       return {
         ...this.resolveHolidaySlots(singleDateMatches, 'Single date'),
+        ruleType: 'single-date',
         inactiveRules: this.filterInactiveRules(
           [
             ...matchedSingleLabels,
@@ -218,6 +227,7 @@ export class OpeningHoursWeekComponent {
     if (recurringMatches.length > 0) {
       return {
         ...this.resolveHolidaySlots(recurringMatches, 'Recurring holiday'),
+        ruleType: 'recurring',
         inactiveRules: this.filterInactiveRules(
           [
             ...matchedRecurringLabels,
@@ -232,6 +242,7 @@ export class OpeningHoursWeekComponent {
     if (dateRangeMatches.length > 0) {
       return {
         ...this.resolveHolidaySlots(dateRangeMatches, 'Date range'),
+        ruleType: 'date-range',
         inactiveRules: this.filterInactiveRules(
           [...matchedRangeLabels, ...matchedWeeklyLabels],
           matchedRangeLabels
@@ -246,7 +257,7 @@ export class OpeningHoursWeekComponent {
       return {
         slots: [],
         source: 'Weekly schedule',
-        openExitType: ExitOutcome.Deny,
+        ruleType: 'weekly',
         closedExitType: ExitOutcome.Deny,
         closedExitReason: `No weekly rule configured for ${weekdayLabel}`,
         inactiveRules
@@ -257,7 +268,7 @@ export class OpeningHoursWeekComponent {
       return {
         slots: [],
         source: 'Weekly schedule',
-        openExitType: baseRecords[0].openExitType,
+        ruleType: 'weekly',
         closedExitType: baseRecords[0].closedExitType,
         closedExitReason: baseRecords[0].closedExitReason || 'Closed by weekly schedule',
         inactiveRules
@@ -267,7 +278,7 @@ export class OpeningHoursWeekComponent {
     return {
       slots: baseSlots,
       source: 'Weekly schedule',
-      openExitType: baseRecords[0].openExitType,
+      ruleType: 'weekly',
       closedExitType: baseRecords[0].closedExitType,
       closedExitReason: baseRecords[0].closedExitReason,
       inactiveRules
@@ -280,7 +291,6 @@ export class OpeningHoursWeekComponent {
   ): {
     slots: OpeningHoursSlot[];
     source: string;
-    openExitType: ExitOutcome;
     closedExitType: ExitOutcome;
     closedExitReason?: string;
   } {
@@ -289,7 +299,6 @@ export class OpeningHoursWeekComponent {
       return {
         slots: openSlots,
         source: `${sourcePrefix}: ${holidays.map((holiday) => holiday.name).join(', ')}`,
-        openExitType: holidays[0].openExitType,
         closedExitType: holidays[0].closedExitType,
         closedExitReason: holidays[0].closedExitReason
       };
@@ -297,10 +306,18 @@ export class OpeningHoursWeekComponent {
     return {
       slots: [],
       source: `${sourcePrefix}: ${holidays.map((holiday) => holiday.name).join(', ')} (closed)`,
-      openExitType: holidays[0].openExitType,
       closedExitType: holidays[0].closedExitType,
       closedExitReason: holidays[0].closedExitReason || 'Closed by rule'
     };
+  }
+
+  private getOpenExitTypeSummary(slots: OpeningHoursSlot[]): string {
+    if (slots.length === 0) {
+      return this.getExitTypeLabel(ExitOutcome.Deny);
+    }
+
+    const labels = [...new Set(slots.map((slot) => this.getExitTypeLabel(slot.openExitType)))];
+    return labels.length === 1 ? labels[0] : 'Mixed by slot';
   }
 
   private getExitTypeLabel(exitType: ExitOutcome): string {

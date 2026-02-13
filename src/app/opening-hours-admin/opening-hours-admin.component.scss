@@ -63,6 +63,32 @@ header p {
   font-size: 0.9rem;
 }
 
+.rule-line {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.28rem 0.45rem;
+}
+
+.rule-single-date {
+  border-color: #f1c48a;
+  background: #fff8ef;
+}
+
+.rule-recurring {
+  border-color: #efb3b6;
+  background: #fff2f3;
+}
+
+.rule-date-range {
+  border-color: #9cd9bb;
+  background: #f2fbf6;
+}
+
+.rule-weekly {
+  border-color: #d9e0ef;
+  background: #fbfcff;
+}
+
 .meta-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -155,7 +181,7 @@ select {
 
 .slot-row {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
   align-items: end;
   gap: 0.75rem;
 }
