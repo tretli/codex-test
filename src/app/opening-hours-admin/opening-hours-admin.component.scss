@@ -1,0 +1,386 @@
+:host {
+  display: block;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #f4f6fb;
+  min-height: 100vh;
+  color: #1d2331;
+}
+
+.admin-card {
+  margin: 1.5rem auto;
+  max-width: 940px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(15, 25, 54, 0.08);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+header p {
+  margin-top: 0.5rem;
+  color: #5b667d;
+}
+
+.view-link {
+  display: inline-block;
+  margin-top: 0.45rem;
+  color: #1f3f9f;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.rules-info {
+  margin-top: 1rem;
+  border: 1px solid #d9e0ef;
+  border-radius: 10px;
+  background: #fbfcff;
+  padding: 0.9rem 1rem;
+}
+
+.rules-info h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.rules-info p {
+  margin: 0.45rem 0 0;
+  color: #5b667d;
+  font-size: 0.9rem;
+}
+
+.rules-info ol {
+  margin: 0.55rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.rules-info li {
+  margin: 0.2rem 0;
+  color: #26324a;
+  font-size: 0.9rem;
+}
+
+.rule-line {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.28rem 0.45rem;
+}
+
+.rule-single-date {
+  border-color: #f1c48a;
+  background: #fff8ef;
+}
+
+.rule-recurring {
+  border-color: #efb3b6;
+  background: #fff2f3;
+}
+
+.rule-date-range {
+  border-color: #9cd9bb;
+  background: #f2fbf6;
+}
+
+.rule-weekly {
+  border-color: #d9e0ef;
+  background: #fbfcff;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+input[type='text'],
+input[type='date'],
+input[type='time'],
+input[type='number'],
+select {
+  border: 1px solid #ccd3e3;
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+}
+
+.day-list {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+}
+
+.day-record-toolbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.day-card {
+  border: 1px solid #d9e0ef;
+  border-radius: 10px;
+  padding: 1rem;
+  background: #fbfcff;
+}
+
+.day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.day-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.weekday-pills {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.exit-type-grid {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.weekday-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #d9e0ef;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.82rem;
+  color: #26324a;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.weekday-pill.active {
+  background: #2356f6;
+  border-color: #2356f6;
+  color: #fff;
+}
+
+.weekday-pill:focus-visible {
+  outline: 2px solid #7aa2ff;
+  outline-offset: 2px;
+}
+
+.toggle {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.toggle-track {
+  position: relative;
+  width: 2.3rem;
+  height: 1.3rem;
+  border-radius: 999px;
+  background: #c9d4ec;
+  border: 1px solid #b7c5e4;
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: calc(1.3rem - 4px);
+  height: calc(1.3rem - 4px);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(16, 25, 39, 0.2);
+  transition: transform 0.18s ease;
+}
+
+.toggle-input:checked + .toggle-track {
+  background: #2356f6;
+  border-color: #2356f6;
+}
+
+.toggle-input:checked + .toggle-track::after {
+  transform: translateX(1rem);
+}
+
+.toggle-input:focus-visible + .toggle-track {
+  outline: 2px solid #7aa2ff;
+  outline-offset: 2px;
+}
+
+.toggle-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.slots {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.slot-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.55rem 0.8rem;
+  background: #2356f6;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #eaf0ff;
+  color: #1f3f9f;
+}
+
+button.danger {
+  background: #ffe9ea;
+  color: #ad2532;
+}
+
+.actions {
+  margin-top: 1.25rem;
+}
+
+.holiday-section {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.holiday-section h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.holiday-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.holiday-card {
+  border: 1px solid #d9e0ef;
+  border-radius: 10px;
+  padding: 1rem;
+  background: #fbfcff;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.holiday-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.holiday-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.holiday-header > label:first-child {
+  flex: 1;
+}
+
+.holiday-rule {
+  margin: 0;
+  color: #5b667d;
+  font-size: 0.9rem;
+}
+
+.holiday-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.date-input-group {
+  position: relative;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.date-input-group input[type='text'] {
+  flex: 1;
+}
+
+.date-picker-button {
+  white-space: nowrap;
+}
+
+.native-date-picker-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.holiday-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.validation-error {
+  margin: 0.1rem 0 0;
+  color: #ad2532;
+  font-size: 0.85rem;
+}
+
+.closed-pill {
+  margin: 0.75rem 0 0;
+  color: #65728c;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.preview {
+  margin-top: 1.4rem;
+}
+
+pre {
+  background: #101927;
+  color: #e7f0ff;
+  padding: 0.85rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  margin: 0;
+}

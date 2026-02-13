@@ -1,0 +1,105 @@
+<section class="week-card">
+  <header class="top-row">
+    <div>
+      <h1>Opening Hours Week View</h1>
+      <p>{{ weekRangeLabel() }} ({{ timezone() }})</p>
+    </div>
+    <a routerLink="/admin/opening-hours" class="back-link">Back to Admin</a>
+  </header>
+
+  <div class="view-mode-tabs">
+    <button
+      type="button"
+      class="secondary"
+      [class.active]="viewMode() === 'week'"
+      (click)="setViewMode('week')"
+    >
+      Week
+    </button>
+    <button
+      type="button"
+      class="secondary"
+      [class.active]="viewMode() === 'month'"
+      (click)="setViewMode('month')"
+    >
+      Month
+    </button>
+  </div>
+
+  <div class="week-controls" *ngIf="viewMode() === 'week'">
+    <button type="button" class="secondary" (click)="previousWeek()">Previous week</button>
+    <button type="button" class="secondary" (click)="currentWeek()">Current week</button>
+    <button type="button" class="secondary" (click)="nextWeek()">Next week</button>
+    <span class="range-label">{{ weekRangeLabel() }}</span>
+  </div>
+
+  <div class="week-controls" *ngIf="viewMode() === 'month'">
+    <button type="button" class="secondary" (click)="previousMonth()">Previous month</button>
+    <button type="button" class="secondary" (click)="currentMonth()">Current month</button>
+    <button type="button" class="secondary" (click)="nextMonth()">Next month</button>
+    <span class="range-label">{{ monthLabel() }}</span>
+  </div>
+
+  <div class="day-grid" *ngIf="viewMode() === 'week'">
+    <article class="day-card" [ngClass]="'rule-' + day.ruleType" *ngFor="let day of weekDays()">
+      <h2>{{ day.label }}</h2>
+      <p class="source"><span class="rule-chip" [ngClass]="'rule-' + day.ruleType">{{ day.source }}</span></p>
+      <p class="exit-type">
+        Open action: <strong>{{ day.openExitTypeLabel }}</strong>
+      </p>
+      <p class="exit-type">
+        Closed action: <strong>{{ day.closedExitTypeLabel }}</strong>
+      </p>
+      <details class="inactive-rules" *ngIf="day.inactiveRules.length > 0">
+        <summary>Inactive rules ({{ day.inactiveRules.length }})</summary>
+        <ul>
+          <li *ngFor="let rule of day.inactiveRules">{{ rule }}</li>
+        </ul>
+      </details>
+
+      <div class="timeline" *ngIf="day.slots.length > 0; else closedBlock">
+        <div class="hour-lines">
+          <span *ngFor="let marker of [0, 6, 12, 18, 24]" class="hour-marker" [style.left.%]="(marker / 24) * 100">
+            {{ marker }}:00
+          </span>
+        </div>
+        <div
+          class="slot-bar"
+          *ngFor="let slot of day.slots"
+          [style.left.%]="slotStartPercent(slot)"
+          [style.width.%]="slotWidthPercent(slot)"
+        >
+          {{ slot.opensAt }} - {{ slot.closesAt }} ({{ slotExitTypeLabel(slot) }})
+        </div>
+      </div>
+
+      <ng-template #closedBlock>
+        <p class="closed">Closed</p>
+      </ng-template>
+    </article>
+  </div>
+
+  <div class="month-grid" *ngIf="viewMode() === 'month'">
+    <div class="month-weekday" *ngFor="let weekday of monthWeekdayLabels">{{ weekday }}</div>
+    <article
+      class="month-day"
+      [ngClass]="'rule-' + day.ruleType"
+      *ngFor="let day of monthDays()"
+      [class.outside]="!day.inCurrentMonth"
+      (click)="openWeekForDate(day.date)"
+    >
+      <div class="month-day-header">
+        <span>{{ day.dayNumber }}</span>
+      </div>
+      <p class="month-state open" *ngIf="day.slots.length > 0; else closedState">
+        Open {{ day.slots.length }} slot{{ day.slots.length === 1 ? '' : 's' }}
+      </p>
+      <ng-template #closedState>
+        <p class="month-state closed">Closed</p>
+      </ng-template>
+      <p class="month-exit">Open: {{ day.openExitTypeLabel }}</p>
+      <p class="month-exit">Closed: {{ day.closedExitTypeLabel }}</p>
+      <p class="month-source"><span class="rule-chip" [ngClass]="'rule-' + day.ruleType">{{ day.source }}</span></p>
+    </article>
+  </div>
+</section>

@@ -1,0 +1,368 @@
+<section class="admin-card">
+  <header>
+    <h1>Opening Hours Admin</h1>
+    <p>Configure the business opening schedule and publish once complete.</p>
+    <a class="view-link" routerLink="/admin/opening-hours/week">Open Week Calendar</a>
+  </header>
+
+  <section class="rules-info">
+    <h2>Rule Priority</h2>
+    <p>
+      The system resolves each day using the first matching rule group below.
+    </p>
+    <ol>
+      <li class="rule-line rule-single-date"><strong>Single date</strong> rules (`singleDates`)</li>
+      <li class="rule-line rule-recurring"><strong>Recurring holiday</strong> rules (`recurringHolidays`)</li>
+      <li class="rule-line rule-date-range"><strong>Date range</strong> rules (`dateRanges`)</li>
+      <li class="rule-line rule-weekly"><strong>Weekly records</strong> (`days`)</li>
+    </ol>
+    <p>
+      Within one group, if multiple rules match the same day, the first matching
+      entry is used.
+    </p>
+  </section>
+
+  <form [formGroup]="form" (ngSubmit)="save()">
+    <div class="meta-grid">
+      <label>
+        Timezone
+        <select formControlName="timezone">
+          <option *ngFor="let timezone of timezoneOptions" [value]="timezone.value">
+            {{ timezone.label }}
+          </option>
+        </select>
+      </label>
+    </div>
+
+    <div formArrayName="days" class="day-list">
+      <div class="day-record-toolbar">
+        <button type="button" class="secondary" (click)="addDayRecord()">Add weekday record</button>
+      </div>
+      <article
+        class="day-card rule-weekly"
+        *ngFor="let dayForm of dayForms.controls; let dayIndex = index; trackBy: trackByDay"
+        [formGroupName]="dayIndex"
+      >
+        <div class="day-header">
+          <h2>Weekday record {{ dayIndex + 1 }}</h2>
+          <button type="button" class="danger" (click)="removeDayRecord(dayIndex)">Remove</button>
+        </div>
+        <label>
+          Rule name
+          <input type="text" formControlName="name" placeholder="Weekly rule name" />
+        </label>
+
+        <div class="weekday-pills">
+          <button
+            type="button"
+            class="weekday-pill"
+            [class.active]="hasWeekday(dayIndex, weekday.key)"
+            [attr.aria-pressed]="hasWeekday(dayIndex, weekday.key)"
+            *ngFor="let weekday of weekdays"
+            (click)="toggleWeekday(dayIndex, weekday.key, !hasWeekday(dayIndex, weekday.key))"
+          >
+            {{ weekday.label }}
+          </button>
+        </div>
+
+        <div class="exit-type-grid">
+          <label>
+            Default exit type
+            <select formControlName="closedExitType">
+              <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                {{ exitType.label }}
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <div formArrayName="slots" class="slots">
+          <ng-container *ngFor="let slot of slotForms(dayIndex).controls; let slotIndex = index">
+            <div class="slot-row" [formGroupName]="slotIndex">
+              <label>
+                Opens
+                <select formControlName="opensAt">
+                  <option *ngFor="let timeOption of openTimeOptions" [value]="timeOption">
+                    {{ timeOption }}
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                Closes
+                <select formControlName="closesAt">
+                  <option *ngFor="let timeOption of closeTimeOptions" [value]="timeOption">
+                    {{ timeOption }}
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                Exit type
+                <select formControlName="openExitType">
+                  <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                    {{ exitType.label }}
+                  </option>
+                </select>
+              </label>
+
+              <button type="button" class="danger" (click)="removeSlot(dayIndex, slotIndex)">Remove</button>
+            </div>
+            <p class="validation-error" *ngIf="slot.touched && slot.errors?.['timeOrder']">
+              Closing time must be later than opening time.
+            </p>
+          </ng-container>
+
+          <button type="button" class="secondary" (click)="addSlot(dayIndex)">Add time slot</button>
+        </div>
+        <p class="validation-error" *ngIf="dayForm.touched && dayForm.errors?.['daysRequired']">
+          Select at least one weekday for this record.
+        </p>
+        <p class="validation-error" *ngIf="dayForm.touched && dayForm.errors?.['slotRequired']">
+          Add at least one time slot for this record.
+        </p>
+        <p class="validation-error" *ngIf="dayForm.touched && dayForm.errors?.['slotOverlap']">
+          Time slots cannot overlap.
+        </p>
+      </article>
+      <p class="validation-error" *ngIf="dayForms.touched && dayForms.errors?.['weekdayOverlap']">
+        A weekday can only belong to one record.
+      </p>
+    </div>
+
+    <section class="holiday-section" formArrayName="recurringHolidays">
+      <h2>Recurring holidays</h2>
+      <div class="holiday-toolbar">
+        <label>
+          Add holiday
+          <select #holidayTemplate [value]="defaultHolidayTemplateId">
+            <option *ngFor="let template of holidayTemplates" [value]="template.id">
+              {{ holidayTemplateLabel(template) }}
+            </option>
+          </select>
+        </label>
+        <button type="button" class="secondary" (click)="addHolidayFromTemplate(holidayTemplate.value)">
+          Add recurring holiday
+        </button>
+        <button type="button" class="secondary" (click)="addDateRangeHoliday()">
+          Add date range
+        </button>
+        <button type="button" class="secondary" (click)="addSingleDateHoliday()">
+          Add single date
+        </button>
+      </div>
+
+      <article
+        class="holiday-card"
+        [ngClass]="{
+          'rule-single-date': holiday.controls.rule.value === 'single-date',
+          'rule-date-range': holiday.controls.rule.value === 'date-range',
+          'rule-recurring': holiday.controls.rule.value !== 'single-date' && holiday.controls.rule.value !== 'date-range'
+        }"
+        *ngFor="let holiday of holidayForms.controls; let holidayIndex = index"
+        [formGroupName]="holidayIndex"
+      >
+        <div class="holiday-header">
+          <label>
+            Rule name
+            <input type="text" formControlName="name" placeholder="Holiday rule name" />
+          </label>
+
+          <label class="toggle">
+            <input class="toggle-input" type="checkbox" formControlName="closed" />
+            <span class="toggle-track" aria-hidden="true"></span>
+            <span class="toggle-label">Closed</span>
+          </label>
+        </div>
+
+        <p class="holiday-rule">{{ holidaySummary(holiday) }}</p>
+
+        <div class="exit-type-grid">
+          <label>
+            Default exit type
+            <select formControlName="closedExitType">
+              <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                {{ exitType.label }}
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <div class="holiday-fields" *ngIf="holiday.controls.rule.value === 'date-range'">
+          <label>
+            Start date
+            <div class="date-input-group">
+              <input type="text" formControlName="rangeStart" placeholder="DD.MM.YYYY" />
+              <button
+                type="button"
+                class="secondary date-picker-button"
+                [attr.aria-controls]="'range-start-picker-' + holidayIndex"
+                aria-label="Open calendar for start date"
+                (click)="openNativeDatePicker(rangeStartPicker)"
+              >
+                Calendar
+              </button>
+              <input
+                #rangeStartPicker
+                [id]="'range-start-picker-' + holidayIndex"
+                class="native-date-picker-input"
+                type="date"
+                aria-label="Start date calendar input"
+                [value]="toIsoDateValue(holiday.controls.rangeStart.value)"
+                (change)="onDatePicked(holidayIndex, 'rangeStart', $any($event.target).value)"
+              />
+            </div>
+          </label>
+
+          <label>
+            End date
+            <div class="date-input-group">
+              <input type="text" formControlName="rangeEnd" placeholder="DD.MM.YYYY" />
+              <button
+                type="button"
+                class="secondary date-picker-button"
+                [attr.aria-controls]="'range-end-picker-' + holidayIndex"
+                aria-label="Open calendar for end date"
+                (click)="openNativeDatePicker(rangeEndPicker)"
+              >
+                Calendar
+              </button>
+              <input
+                #rangeEndPicker
+                [id]="'range-end-picker-' + holidayIndex"
+                class="native-date-picker-input"
+                type="date"
+                aria-label="End date calendar input"
+                [value]="toIsoDateValue(holiday.controls.rangeEnd.value)"
+                (change)="onDatePicked(holidayIndex, 'rangeEnd', $any($event.target).value)"
+              />
+            </div>
+          </label>
+        </div>
+        <div class="holiday-fields" *ngIf="holiday.controls.rule.value === 'single-date'">
+          <label>
+            Date
+            <div class="date-input-group">
+              <input type="text" formControlName="singleDate" placeholder="DD.MM.YYYY" />
+              <button
+                type="button"
+                class="secondary date-picker-button"
+                [attr.aria-controls]="'single-date-picker-' + holidayIndex"
+                aria-label="Open calendar for date"
+                (click)="openNativeDatePicker(singleDatePicker)"
+              >
+                Calendar
+              </button>
+              <input
+                #singleDatePicker
+                [id]="'single-date-picker-' + holidayIndex"
+                class="native-date-picker-input"
+                type="date"
+                aria-label="Single date calendar input"
+                [value]="toIsoDateValue(holiday.controls.singleDate.value)"
+                (change)="onDatePicked(holidayIndex, 'singleDate', $any($event.target).value)"
+              />
+            </div>
+          </label>
+        </div>
+        <div class="weekday-pills" *ngIf="holiday.controls.rule.value === 'date-range'">
+          <button
+            type="button"
+            class="weekday-pill"
+            [class.active]="hasHolidayWeekday(holidayIndex, weekday.key)"
+            [attr.aria-pressed]="hasHolidayWeekday(holidayIndex, weekday.key)"
+            *ngFor="let weekday of weekdays"
+            (click)="toggleHolidayWeekday(holidayIndex, weekday.key, !hasHolidayWeekday(holidayIndex, weekday.key))"
+          >
+            {{ weekday.label }}
+          </button>
+        </div>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['dateRangeRequired']">
+          Start and end dates are required.
+        </p>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['dateRangeWeekdaysRequired']">
+          Select at least one weekday for this date range.
+        </p>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['dateRangeFormat']">
+          Use a valid date format: DD.MM.YYYY.
+        </p>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['dateRangeOrder']">
+          End date must be the same as or after start date.
+        </p>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['singleDateRequired']">
+          Date is required.
+        </p>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['singleDateFormat']">
+          Use a valid date format: DD.MM.YYYY.
+        </p>
+
+        <div formArrayName="slots" class="slots" *ngIf="!holiday.controls.closed.value; else holidayClosedTemplate">
+          <ng-container *ngFor="let slot of holidaySlotForms(holidayIndex).controls; let slotIndex = index">
+            <div class="slot-row" [formGroupName]="slotIndex">
+              <label>
+                Opens
+                <select formControlName="opensAt">
+                  <option *ngFor="let timeOption of openTimeOptions" [value]="timeOption">
+                    {{ timeOption }}
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                Closes
+                <select formControlName="closesAt">
+                  <option *ngFor="let timeOption of closeTimeOptions" [value]="timeOption">
+                    {{ timeOption }}
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                Exit type
+                <select formControlName="openExitType">
+                  <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                    {{ exitType.label }}
+                  </option>
+                </select>
+              </label>
+
+              <button type="button" class="danger" (click)="removeHolidaySlot(holidayIndex, slotIndex)">Remove</button>
+            </div>
+            <p class="validation-error" *ngIf="slot.touched && slot.errors?.['timeOrder']">
+              Closing time must be later than opening time.
+            </p>
+          </ng-container>
+
+          <button type="button" class="secondary" (click)="addHolidaySlot(holidayIndex)">Add time slot</button>
+        </div>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['slotRequired']">
+          Add at least one time slot when the holiday is open.
+        </p>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['slotOverlap']">
+          Time slots cannot overlap.
+        </p>
+
+        <ng-template #holidayClosedTemplate>
+          <p class="closed-pill">Closed</p>
+        </ng-template>
+
+        <div class="holiday-actions">
+          <button type="button" class="danger" (click)="removeHoliday(holidayIndex)">Remove</button>
+        </div>
+      </article>
+
+      <p class="validation-error" *ngIf="holidayForms.touched && holidayForms.errors?.['dateRangeOverlap']">
+        Date ranges cannot overlap each other.
+      </p>
+    </section>
+
+    <div class="actions">
+      <button type="submit">Save opening hours</button>
+    </div>
+  </form>
+
+  <section class="preview">
+    <h3>Payload preview (v2)</h3>
+    <pre>{{ serializedScheduleV2() }}</pre>
+  </section>
+</section>
