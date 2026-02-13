@@ -6,10 +6,16 @@ import {
   OpeningHoursSlot,
   RuleV2,
   ExitOutcome,
+  toExitOutcome,
   WEEKDAYS,
   Weekday
 } from '../opening-hours-admin/opening-hours.model';
 import { OpeningHoursService } from '../opening-hours-admin/opening-hours.service';
+import {
+  getEasterDate,
+  getSwedishMidsummerDayDate,
+  getSwedishMidsummerEveDate
+} from '../opening-hours-admin/opening-hours-date.utils';
 
 type DayView = {
   date: Date;
@@ -221,7 +227,7 @@ export class OpeningHoursWeekComponent {
   }
 
   private actionToExitOutcome(action: ActionV2): ExitOutcome {
-    return action as ExitOutcome;
+    return toExitOutcome(action);
   }
 
   private ruleSlotsToLegacySlots(rule: RuleV2): OpeningHoursSlot[] {
@@ -246,6 +252,7 @@ export class OpeningHoursWeekComponent {
       if (!rule.appliesOn.dateFrom || !rule.appliesOn.dateTo) {
         return false;
       }
+      // Safe with ISO dates (YYYY-MM-DD): lexicographic order matches chronological order.
       const inRange = isoDate >= rule.appliesOn.dateFrom && isoDate <= rule.appliesOn.dateTo;
       if (!inRange) {
         return false;
@@ -285,16 +292,16 @@ export class OpeningHoursWeekComponent {
     }
 
     if (recurring.kind === 'easter-offset') {
-      const easter = this.getEasterDate(year);
+      const easter = getEasterDate(year);
       return this.addDays(easter, recurring.offsetDays ?? 0);
     }
 
     if (recurring.kind === 'swedish-midsummer-day') {
-      return this.getSwedishMidsummerDayDate(year);
+      return getSwedishMidsummerDayDate(year);
     }
 
     if (recurring.kind === 'swedish-midsummer-eve') {
-      return this.getSwedishMidsummerEveDate(year);
+      return getSwedishMidsummerEveDate(year);
     }
 
     return null;
@@ -376,56 +383,4 @@ export class OpeningHoursWeekComponent {
     return Number(match[1]) * 60 + Number(match[2]);
   }
 
-  private getEasterDate(year: number): Date {
-    const a = year % 19;
-    const b = Math.floor(year / 100);
-    const c = year % 100;
-    const d = Math.floor(b / 4);
-    const e = b % 4;
-    const f = Math.floor((b + 8) / 25);
-    const g = Math.floor((b - f + 1) / 3);
-    const h = (19 * a + b - d - g + 15) % 30;
-    const i = Math.floor(c / 4);
-    const k = c % 4;
-    const l = (32 + 2 * e + 2 * i - h - k) % 7;
-    const m = Math.floor((a + 11 * h + 22 * l) / 451);
-    const month = Math.floor((h + l - 7 * m + 114) / 31);
-    const day = ((h + l - 7 * m + 114) % 31) + 1;
-    return new Date(year, month - 1, day);
-  }
-
-  private findWeekdayInJuneRange(
-    year: number,
-    weekday: number,
-    startDay: number,
-    endDay: number
-  ): Date | null {
-    for (let day = startDay; day <= endDay; day += 1) {
-      const candidate = new Date(year, 5, day);
-      if (candidate.getDay() === weekday) {
-        return candidate;
-      }
-    }
-    return null;
-  }
-
-  private getSwedishMidsummerDayDate(year: number): Date {
-    const midsummerDay =
-      this.findWeekdayInJuneRange(year, 6, 20, 26);
-    if (midsummerDay) {
-      return midsummerDay;
-    }
-    // Fallback to June 20th if no Saturday is found in the expected range.
-    return new Date(year, 5, 20);
-  }
-
-  private getSwedishMidsummerEveDate(year: number): Date {
-    const midsummerEve =
-      this.findWeekdayInJuneRange(year, 5, 19, 25);
-    if (midsummerEve) {
-      return midsummerEve;
-    }
-    // Fallback to the day before Midsummer Day if no Friday is found.
-    return this.addDays(this.getSwedishMidsummerDayDate(year), -1);
-  }
 }

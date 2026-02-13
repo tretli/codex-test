@@ -23,6 +23,19 @@ export enum ExitOutcome {
   Deny = 'deny' // Hard stop: do not proceed.
 }
 
+const EXIT_OUTCOME_SET = new Set<string>(Object.values(ExitOutcome));
+
+export function isExitOutcome(value: string): value is ExitOutcome {
+  return EXIT_OUTCOME_SET.has(value);
+}
+
+export function toExitOutcome(
+  value: string,
+  fallback: ExitOutcome = ExitOutcome.Deny
+): ExitOutcome {
+  return isExitOutcome(value) ? value : fallback;
+}
+
 export interface WeeklyOpeningHoursRecord {
   name?: string;
   days: Weekday[];
@@ -257,7 +270,7 @@ export function fromOpeningHoursScheduleV2(
 
   sortedRules.forEach((rule, index) => {
     const slots = mapSlotsFromV2(rule.slots);
-    const closedExitType = rule.defaultClosed.action as ExitOutcome;
+    const closedExitType = toExitOutcome(rule.defaultClosed.action);
 
     if (rule.scope === 'weekly') {
       days.push({
@@ -366,7 +379,7 @@ function mapSlotsFromV2(slots: TimeSlotV2[]): OpeningHoursSlot[] {
   return slots.map((slot) => ({
     opensAt: slot.start,
     closesAt: slot.end,
-    openExitType: slot.action as ExitOutcome
+    openExitType: toExitOutcome(slot.action)
   }));
 }
 

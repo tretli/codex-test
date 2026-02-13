@@ -21,6 +21,11 @@ import {
 } from './opening-hours.model';
 import { OpeningHoursService } from './opening-hours.service';
 import {
+  getEasterDate,
+  getSwedishMidsummerDayDate,
+  getSwedishMidsummerEveDate
+} from './opening-hours-date.utils';
+import {
   dateRangeOverlapValidator,
   holidayFormValidator,
   slotFormValidator,
@@ -710,13 +715,13 @@ export class OpeningHoursAdminComponent {
       }
       date = new Date(year, holiday.month - 1, holiday.day);
     } else if (holiday.rule === 'easter') {
-      date = this.getEasterDate(year);
+      date = getEasterDate(year);
       const offsetDays = holiday.offsetDays ?? 0;
       date.setDate(date.getDate() + offsetDays);
     } else if (holiday.rule === 'swedish-midsummer-day') {
-      date = this.getSwedishMidsummerDayDate(year);
+      date = getSwedishMidsummerDayDate(year);
     } else if (holiday.rule === 'swedish-midsummer-eve') {
-      date = this.getSwedishMidsummerEveDate(year);
+      date = getSwedishMidsummerEveDate(year);
     } else if (holiday.rule === 'date-range' && holiday.rangeStart) {
       const parsed = this.parseDateInput(holiday.rangeStart);
       if (parsed) {
@@ -730,44 +735,6 @@ export class OpeningHoursAdminComponent {
     }
 
     return date;
-  }
-
-  private getEasterDate(year: number): Date {
-    const a = year % 19;
-    const b = Math.floor(year / 100);
-    const c = year % 100;
-    const d = Math.floor(b / 4);
-    const e = b % 4;
-    const f = Math.floor((b + 8) / 25);
-    const g = Math.floor((b - f + 1) / 3);
-    const h = (19 * a + b - d - g + 15) % 30;
-    const i = Math.floor(c / 4);
-    const k = c % 4;
-    const l = (32 + 2 * e + 2 * i - h - k) % 7;
-    const m = Math.floor((a + 11 * h + 22 * l) / 451);
-    const month = Math.floor((h + l - 7 * m + 114) / 31);
-    const day = ((h + l - 7 * m + 114) % 31) + 1;
-    return new Date(year, month - 1, day);
-  }
-
-  private getSwedishMidsummerDayDate(year: number): Date {
-    for (let day = 20; day <= 26; day += 1) {
-      const candidate = new Date(year, 5, day);
-      if (candidate.getDay() === 6) {
-        return candidate;
-      }
-    }
-    return new Date(year, 5, 20);
-  }
-
-  private getSwedishMidsummerEveDate(year: number): Date {
-    for (let day = 19; day <= 25; day += 1) {
-      const candidate = new Date(year, 5, day);
-      if (candidate.getDay() === 5) {
-        return candidate;
-      }
-    }
-    return this.addDays(this.getSwedishMidsummerDayDate(year), -1);
   }
 
   private formatIsoDate(date: Date): string {
