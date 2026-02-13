@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import {
   OpeningHoursSchedule,
   OpeningHoursSlot,
-  RuleExitType,
+  ExitOutcome,
   Weekday
 } from './opening-hours.model';
 
@@ -32,14 +32,14 @@ export class OpeningHoursService {
         {
           days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
           slots: [{ opensAt: '09:00', closesAt: '17:00' }],
-          openExitType: RuleExitType.Proceed,
-          closedExitType: RuleExitType.Reject
+          openExitType: ExitOutcome.Allow,
+          closedExitType: ExitOutcome.Deny
         },
         {
           days: ['saturday'],
           slots: [{ opensAt: '10:00', closesAt: '14:00' }],
-          openExitType: RuleExitType.Proceed,
-          closedExitType: RuleExitType.Reject
+          openExitType: ExitOutcome.Allow,
+          closedExitType: ExitOutcome.Deny
         }
       ],
       recurringHolidays: [],
@@ -48,3 +48,4 @@ export class OpeningHoursService {
     };
   }
 }
+

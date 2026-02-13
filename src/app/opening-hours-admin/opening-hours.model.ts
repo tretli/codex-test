@@ -12,20 +12,21 @@ export interface OpeningHoursSlot {
   closesAt: string; // HH:mm
 }
 
-export enum RuleExitType {
-  Proceed = 'proceed', // Normal path: continue immediately.
-  ProceedWithNotice = 'proceed-with-notice', // Continue, but show a message/warning.
-  Queue = 'queue', // Accept request, process later or when capacity allows.
-  Redirect = 'redirect', // Route user/request to an alternate flow or location.
-  ManualReview = 'manual-review', // Hold for human decision before proceeding.
-  Reject = 'reject' // Hard stop: operation not allowed for this rule.
+export enum ExitOutcome {
+  Allow = 'allow', // Continue normally.
+  AllowWithMessage = 'allow-with-message', // Continue and surface an informational message.
+  Defer = 'defer', // Do not process now; retry/schedule later.
+  Escalate = 'escalate', // Hand off to a higher tier or special handling path.
+  Review = 'review', // Hold for human/policy review before proceeding.
+  DenyWithMessage = 'deny-with-message', // Stop: play message before do not proceed.
+  Deny = 'deny' // Hard stop: do not proceed.
 }
 
 export interface WeeklyOpeningHoursRecord {
   days: Weekday[];
   slots: OpeningHoursSlot[];
-  openExitType: RuleExitType;
-  closedExitType: RuleExitType;
+  openExitType: ExitOutcome;
+  closedExitType: ExitOutcome;
   closedExitReason?: string;
 }
 
@@ -50,8 +51,8 @@ export interface RecurringHoliday {
   lengthDays: number; // number of consecutive days the holiday applies
   closed: boolean;
   slots: OpeningHoursSlot[];
-  openExitType: RuleExitType;
-  closedExitType: RuleExitType;
+  openExitType: ExitOutcome;
+  closedExitType: ExitOutcome;
   closedExitReason?: string;
 }
 
@@ -84,3 +85,4 @@ export const WEEKDAYS: ReadonlyArray<{ key: Weekday; label: string }> = [
   { key: 'saturday', label: 'Saturday' },
   { key: 'sunday', label: 'Sunday' }
 ] as const;
+

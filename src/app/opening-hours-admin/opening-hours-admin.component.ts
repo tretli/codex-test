@@ -13,7 +13,7 @@ import {
   OpeningHoursSchedule,
   RecurringHoliday,
   RecurringHolidayRule,
-  RuleExitType,
+  ExitOutcome,
   SingleDateHoliday,
   WeeklyOpeningHoursRecord,
   WEEKDAYS,
@@ -36,8 +36,8 @@ type SlotForm = FormGroup<{
 type DayForm = FormGroup<{
   days: import('@angular/forms').FormControl<Weekday[]>;
   slots: FormArray<SlotForm>;
-  openExitType: import('@angular/forms').FormControl<RuleExitType>;
-  closedExitType: import('@angular/forms').FormControl<RuleExitType>;
+  openExitType: import('@angular/forms').FormControl<ExitOutcome>;
+  closedExitType: import('@angular/forms').FormControl<ExitOutcome>;
 }>;
 
 type HolidayForm = FormGroup<{
@@ -53,8 +53,8 @@ type HolidayForm = FormGroup<{
   lengthDays: import('@angular/forms').FormControl<number>;
   closed: import('@angular/forms').FormControl<boolean>;
   slots: FormArray<SlotForm>;
-  openExitType: import('@angular/forms').FormControl<RuleExitType>;
-  closedExitType: import('@angular/forms').FormControl<RuleExitType>;
+  openExitType: import('@angular/forms').FormControl<ExitOutcome>;
+  closedExitType: import('@angular/forms').FormControl<ExitOutcome>;
 }>;
 
 type HolidayFormValue = {
@@ -70,8 +70,8 @@ type HolidayFormValue = {
   lengthDays: number;
   closed: boolean;
   slots: { opensAt: string; closesAt: string }[];
-  openExitType: RuleExitType;
-  closedExitType: RuleExitType;
+  openExitType: ExitOutcome;
+  closedExitType: ExitOutcome;
 };
 
 type HolidayTemplate = {
@@ -86,7 +86,7 @@ type TimezoneOption = {
 };
 
 type ExitTypeOption = {
-  value: RuleExitType;
+  value: ExitOutcome;
   label: string;
 };
 
@@ -104,12 +104,12 @@ export class OpeningHoursAdminComponent {
   readonly currentYear = new Date().getFullYear();
   readonly weekdays = WEEKDAYS;
   readonly exitTypeOptions: ReadonlyArray<ExitTypeOption> = [
-    { value: RuleExitType.Proceed, label: 'Proceed' },
-    { value: RuleExitType.ProceedWithNotice, label: 'Proceed With Notice' },
-    { value: RuleExitType.Queue, label: 'Queue' },
-    { value: RuleExitType.Redirect, label: 'Redirect' },
-    { value: RuleExitType.ManualReview, label: 'Manual Review' },
-    { value: RuleExitType.Reject, label: 'Reject' }
+    { value: ExitOutcome.Allow, label: 'Allow' },
+    { value: ExitOutcome.AllowWithMessage, label: 'Allow With Message' },
+    { value: ExitOutcome.Defer, label: 'Defer' },
+    { value: ExitOutcome.Escalate, label: 'Escalate' },
+    { value: ExitOutcome.Review, label: 'Review' },
+    { value: ExitOutcome.Deny, label: 'Deny' }
   ];
   readonly timezoneOptions = this.buildTimezoneOptions();
   readonly openTimeOptions = this.buildTimeOptions(15, false);
@@ -246,8 +246,8 @@ export class OpeningHoursAdminComponent {
       this.createDayForm({
         days: [],
         slots: [{ opensAt: '09:00', closesAt: '17:00' }],
-        openExitType: RuleExitType.Proceed,
-        closedExitType: RuleExitType.Reject
+        openExitType: ExitOutcome.Allow,
+        closedExitType: ExitOutcome.Deny
       })
     );
   }
@@ -300,8 +300,8 @@ export class OpeningHoursAdminComponent {
         lengthDays: 1,
         closed: true,
         slots: [],
-        openExitType: RuleExitType.Proceed,
-        closedExitType: RuleExitType.Reject
+        openExitType: ExitOutcome.Allow,
+        closedExitType: ExitOutcome.Deny
       })
     );
     this.sortHolidayFormsByDate();
@@ -322,8 +322,8 @@ export class OpeningHoursAdminComponent {
         lengthDays: 1,
         closed: true,
         slots: [],
-        openExitType: RuleExitType.Proceed,
-        closedExitType: RuleExitType.Reject
+        openExitType: ExitOutcome.Allow,
+        closedExitType: ExitOutcome.Deny
       })
     );
     this.sortHolidayFormsByDate();
@@ -866,8 +866,8 @@ export class OpeningHoursAdminComponent {
         lengthDays,
         closed: true,
         slots: [],
-        openExitType: RuleExitType.Proceed,
-        closedExitType: RuleExitType.Reject
+        openExitType: ExitOutcome.Allow,
+        closedExitType: ExitOutcome.Deny
       }
     };
   }
@@ -888,8 +888,8 @@ export class OpeningHoursAdminComponent {
         lengthDays,
         closed: true,
         slots: [],
-        openExitType: RuleExitType.Proceed,
-        closedExitType: RuleExitType.Reject
+        openExitType: ExitOutcome.Allow,
+        closedExitType: ExitOutcome.Deny
       }
     };
   }
@@ -909,8 +909,8 @@ export class OpeningHoursAdminComponent {
         lengthDays,
         closed: true,
         slots: [],
-        openExitType: RuleExitType.Proceed,
-        closedExitType: RuleExitType.Reject
+        openExitType: ExitOutcome.Allow,
+        closedExitType: ExitOutcome.Deny
       }
     };
   }
@@ -1012,3 +1012,4 @@ export class OpeningHoursAdminComponent {
   }
 
 }
+

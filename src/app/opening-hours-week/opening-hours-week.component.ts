@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import {
   OpeningHoursSlot,
   RecurringHoliday,
-  RuleExitType,
+  ExitOutcome,
   WEEKDAYS,
   Weekday
 } from '../opening-hours-admin/opening-hours.model';
@@ -157,8 +157,8 @@ export class OpeningHoursWeekComponent {
   private resolveDailySchedule(date: Date): {
     slots: OpeningHoursSlot[];
     source: string;
-    openExitType: RuleExitType;
-    closedExitType: RuleExitType;
+    openExitType: ExitOutcome;
+    closedExitType: ExitOutcome;
     closedExitReason?: string;
   } {
     const schedule = this.service.schedule();
@@ -195,8 +195,8 @@ export class OpeningHoursWeekComponent {
       return {
         slots: [],
         source: 'Weekly schedule',
-        openExitType: RuleExitType.Reject,
-        closedExitType: RuleExitType.Reject,
+        openExitType: ExitOutcome.Deny,
+        closedExitType: ExitOutcome.Deny,
         closedExitReason: 'No matching opening rule for this weekday'
       };
     }
@@ -226,8 +226,8 @@ export class OpeningHoursWeekComponent {
   ): {
     slots: OpeningHoursSlot[];
     source: string;
-    openExitType: RuleExitType;
-    closedExitType: RuleExitType;
+    openExitType: ExitOutcome;
+    closedExitType: ExitOutcome;
     closedExitReason?: string;
   } {
     const openSlots = holidays.filter((holiday) => !holiday.closed).flatMap((h) => h.slots);
@@ -249,14 +249,15 @@ export class OpeningHoursWeekComponent {
     };
   }
 
-  private getExitTypeLabel(exitType: RuleExitType): string {
-    const labels: Record<RuleExitType, string> = {
-      [RuleExitType.Proceed]: 'Proceed',
-      [RuleExitType.ProceedWithNotice]: 'Proceed with notice',
-      [RuleExitType.Queue]: 'Queue',
-      [RuleExitType.Redirect]: 'Redirect',
-      [RuleExitType.ManualReview]: 'Manual review',
-      [RuleExitType.Reject]: 'Reject'
+  private getExitTypeLabel(exitType: ExitOutcome): string {
+    const labels: Record<ExitOutcome, string> = {
+      [ExitOutcome.Allow]: 'Allow',
+      [ExitOutcome.AllowWithMessage]: 'Allow with message',
+      [ExitOutcome.Defer]: 'Defer',
+      [ExitOutcome.Escalate]: 'Escalate',
+      [ExitOutcome.Review]: 'Review',
+      [ExitOutcome.DenyWithMessage]: 'Deny with message',
+      [ExitOutcome.Deny]: 'Deny'
     };
     return labels[exitType];
   }
@@ -396,3 +397,4 @@ export class OpeningHoursWeekComponent {
     return this.addDays(this.getSwedishMidsummerDayDate(year), -1);
   }
 }
+
