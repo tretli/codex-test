@@ -285,7 +285,14 @@ export class OpeningHoursAdminComponent {
   addDateRangeHoliday(): void {
     const today = new Date();
     const start = this.formatIsoDate(today);
-    const end = this.formatIsoDate(today);
+    const end = this.formatIsoDate(this.addDays(today, 6));
+    const defaultWeekdays: Weekday[] = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday'
+    ];
     const sequence = this.holidayForms.controls.filter(
       (holidayForm) => holidayForm.controls.rule.value === 'date-range'
     ).length + 1;
@@ -296,8 +303,8 @@ export class OpeningHoursAdminComponent {
         rule: 'date-range',
         rangeStart: start,
         rangeEnd: end,
-        weekdays: [],
-        lengthDays: 1,
+        weekdays: defaultWeekdays,
+        lengthDays: 7,
         closed: true,
         slots: [],
         openExitType: ExitOutcome.Allow,
