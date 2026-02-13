@@ -11,7 +11,6 @@ import {
 import {
   DateRangeHoliday,
   OpeningHoursSchedule,
-  toOpeningHoursScheduleV2,
   RecurringHoliday,
   RecurringHolidayRule,
   ExitOutcome,
@@ -209,11 +208,8 @@ export class OpeningHoursAdminComponent {
     })
   });
 
-  readonly serializedSchedule = computed(() =>
-    JSON.stringify(this.service.schedule(), null, 2)
-  );
   readonly serializedScheduleV2 = computed(() =>
-    JSON.stringify(toOpeningHoursScheduleV2(this.service.schedule()), null, 2)
+    JSON.stringify(this.service.scheduleV2(), null, 2)
   );
 
   constructor() {

@@ -2,8 +2,9 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
+  ActionV2,
   OpeningHoursSlot,
-  RecurringHoliday,
+  RuleV2,
   ExitOutcome,
   WEEKDAYS,
   Weekday
@@ -48,7 +49,7 @@ export class OpeningHoursWeekComponent {
   private readonly monthAnchor = signal(this.startOfMonth(new Date()));
   readonly viewMode = signal<'week' | 'month'>('week');
 
-  readonly timezone = computed(() => this.service.schedule().timezone);
+  readonly timezone = computed(() => this.service.scheduleV2().timezone);
   readonly weekDays = computed<DayView[]>(() => {
     const start = this.weekStart();
     const days: DayView[] = [];
@@ -169,133 +170,32 @@ export class OpeningHoursWeekComponent {
     closedExitType: ExitOutcome;
     inactiveRules: string[];
   } {
-    const schedule = this.service.schedule();
+    const schedule = this.service.scheduleV2();
     const day = this.weekdayFromDate(date);
     const isoDate = this.formatIsoDate(date);
+    const sortedRules = [...schedule.rules].sort((a, b) => a.priority - b.priority);
+    const matchedRules = sortedRules.filter((rule) =>
+      this.ruleMatchesDate(rule, date, isoDate, day)
+    );
 
-    const singleDateMatches = schedule.singleDates.filter(
-      (singleDate) => singleDate.singleDate === isoDate
-    );
-    const dateRangeMatches = schedule.dateRanges.filter(
-      (range) =>
-        isoDate >= range.rangeStart &&
-        isoDate <= range.rangeEnd &&
-        range.weekdays.includes(day)
-    );
-    const recurringMatches = schedule.recurringHolidays.filter((holiday) =>
-      this.isRecurringHolidayMatch(holiday, date)
-    );
-    const weeklyMatches = schedule.days.filter((record) => record.days.includes(day));
-
-    const matchedSingleLabels = singleDateMatches.map(
-      (singleDate) => `Single date: ${singleDate.name}`
-    );
-    const matchedRangeLabels = dateRangeMatches.map(
-      (range) => `Date range: ${range.name}`
-    );
-    const matchedRecurringLabels = recurringMatches.map(
-      (holiday) => `Recurring: ${holiday.name}`
-    );
-    const matchedWeeklyLabels = weeklyMatches.map(
-      (record) =>
-        `Weekly: ${record.name || record.days
-          .map((recordDay) => WEEKDAYS.find((item) => item.key === recordDay)?.label ?? recordDay)
-          .join(', ')}`
-    );
-    if (singleDateMatches.length > 0) {
-      return {
-        ...this.resolveHolidaySlots(singleDateMatches, 'Single date'),
-        ruleType: 'single-date',
-        inactiveRules: this.filterInactiveRules(
-          [
-            ...matchedSingleLabels,
-            ...matchedRangeLabels,
-            ...matchedRecurringLabels,
-            ...matchedWeeklyLabels
-          ],
-          matchedSingleLabels
-        )
-      };
-    }
-
-    if (recurringMatches.length > 0) {
-      return {
-        ...this.resolveHolidaySlots(recurringMatches, 'Recurring holiday'),
-        ruleType: 'recurring',
-        inactiveRules: this.filterInactiveRules(
-          [
-            ...matchedRecurringLabels,
-            ...matchedRangeLabels,
-            ...matchedWeeklyLabels
-          ],
-          matchedRecurringLabels
-        )
-      };
-    }
-
-    if (dateRangeMatches.length > 0) {
-      return {
-        ...this.resolveHolidaySlots(dateRangeMatches, 'Date range'),
-        ruleType: 'date-range',
-        inactiveRules: this.filterInactiveRules(
-          [...matchedRangeLabels, ...matchedWeeklyLabels],
-          matchedRangeLabels
-        )
-      };
-    }
-
-    const baseRecords = weeklyMatches;
-    const baseSlots = baseRecords.flatMap((record) => record.slots);
-    const inactiveRules = this.filterInactiveRules(matchedWeeklyLabels, matchedWeeklyLabels);
-    if (baseRecords.length === 0) {
+    if (matchedRules.length === 0) {
       return {
         slots: [],
-        source: 'Weekly schedule',
+        source: 'No matching rule',
         ruleType: 'weekly',
         closedExitType: ExitOutcome.Deny,
-        inactiveRules
+        inactiveRules: []
       };
     }
 
-    if (baseSlots.length === 0) {
-      return {
-        slots: [],
-        source: `Weekly schedule: ${baseRecords[0].name || 'Unnamed rule'}`,
-        ruleType: 'weekly',
-        closedExitType: baseRecords[0].closedExitType,
-        inactiveRules
-      };
-    }
-
+    const activeRule = matchedRules[0];
+    const activeSlots = this.ruleSlotsToLegacySlots(activeRule);
     return {
-      slots: baseSlots,
-      source: `Weekly schedule: ${baseRecords[0].name || 'Unnamed rule'}`,
-      ruleType: 'weekly',
-      closedExitType: baseRecords[0].closedExitType,
-      inactiveRules
-    };
-  }
-
-  private resolveHolidaySlots(
-    holidays: RecurringHoliday[],
-    sourcePrefix: string
-  ): {
-    slots: OpeningHoursSlot[];
-    source: string;
-    closedExitType: ExitOutcome;
-  } {
-    const openSlots = holidays.filter((holiday) => !holiday.closed).flatMap((h) => h.slots);
-    if (openSlots.length > 0) {
-      return {
-        slots: openSlots,
-        source: `${sourcePrefix}: ${holidays.map((holiday) => holiday.name).join(', ')}`,
-        closedExitType: holidays[0].closedExitType
-      };
-    }
-    return {
-      slots: [],
-      source: `${sourcePrefix}: ${holidays.map((holiday) => holiday.name).join(', ')} (closed)`,
-      closedExitType: holidays[0].closedExitType
+      slots: activeSlots,
+      source: this.formatRuleSource(activeRule),
+      ruleType: activeRule.scope,
+      closedExitType: this.actionToExitOutcome(activeRule.defaultClosed.action),
+      inactiveRules: matchedRules.slice(1).map((rule) => this.formatRuleSource(rule))
     };
   }
 
@@ -310,6 +210,96 @@ export class OpeningHoursWeekComponent {
     return labels.length === 1 ? labels[0] : 'Mixed by slot';
   }
 
+  private formatRuleSource(rule: RuleV2): string {
+    const prefix: Record<RuleV2['scope'], string> = {
+      'single-date': 'Single date',
+      recurring: 'Recurring holiday',
+      'date-range': 'Date range',
+      weekly: 'Weekly schedule'
+    };
+    return `${prefix[rule.scope]}: ${rule.name}`;
+  }
+
+  private actionToExitOutcome(action: ActionV2): ExitOutcome {
+    return action as ExitOutcome;
+  }
+
+  private ruleSlotsToLegacySlots(rule: RuleV2): OpeningHoursSlot[] {
+    return rule.slots.map((slot) => ({
+      opensAt: slot.start,
+      closesAt: slot.end,
+      openExitType: this.actionToExitOutcome(slot.action)
+    }));
+  }
+
+  private ruleMatchesDate(
+    rule: RuleV2,
+    date: Date,
+    isoDate: string,
+    weekday: Weekday
+  ): boolean {
+    if (rule.scope === 'single-date') {
+      return rule.appliesOn.date === isoDate;
+    }
+
+    if (rule.scope === 'date-range') {
+      if (!rule.appliesOn.dateFrom || !rule.appliesOn.dateTo) {
+        return false;
+      }
+      const inRange = isoDate >= rule.appliesOn.dateFrom && isoDate <= rule.appliesOn.dateTo;
+      if (!inRange) {
+        return false;
+      }
+      if (rule.appliesOn.weekdays && rule.appliesOn.weekdays.length > 0) {
+        return rule.appliesOn.weekdays.includes(weekday);
+      }
+      return true;
+    }
+
+    if (rule.scope === 'weekly') {
+      return (rule.appliesOn.weekdays ?? []).includes(weekday);
+    }
+
+    const recurring = rule.appliesOn.recurring;
+    if (!recurring) {
+      return false;
+    }
+    const start = this.recurringStartDate(recurring, date.getFullYear());
+    if (!start) {
+      return false;
+    }
+    const lengthDays = Math.max(recurring.lengthDays ?? 1, 1);
+    const end = this.addDays(start, lengthDays - 1);
+    return date >= this.startOfDay(start) && date <= this.endOfDay(end);
+  }
+
+  private recurringStartDate(
+    recurring: NonNullable<RuleV2['appliesOn']['recurring']>,
+    year: number
+  ): Date | null {
+    if (recurring.kind === 'fixed-date') {
+      if (!recurring.month || !recurring.day) {
+        return null;
+      }
+      return new Date(year, recurring.month - 1, recurring.day);
+    }
+
+    if (recurring.kind === 'easter-offset') {
+      const easter = this.getEasterDate(year);
+      return this.addDays(easter, recurring.offsetDays ?? 0);
+    }
+
+    if (recurring.kind === 'swedish-midsummer-day') {
+      return this.getSwedishMidsummerDayDate(year);
+    }
+
+    if (recurring.kind === 'swedish-midsummer-eve') {
+      return this.getSwedishMidsummerEveDate(year);
+    }
+
+    return null;
+  }
+
   private getExitTypeLabel(exitType: ExitOutcome): string {
     const labels: Record<ExitOutcome, string> = {
       [ExitOutcome.Allow]: 'Allow',
@@ -321,45 +311,6 @@ export class OpeningHoursWeekComponent {
       [ExitOutcome.Deny]: 'Deny'
     };
     return labels[exitType];
-  }
-
-  private filterInactiveRules(candidates: string[], activeLabels: string[]): string[] {
-    const active = new Set(activeLabels);
-    return [...new Set(candidates)].filter((label) => !active.has(label));
-  }
-
-  private isRecurringHolidayMatch(holiday: RecurringHoliday, date: Date): boolean {
-    const start = this.holidayStartDate(holiday, date.getFullYear());
-    if (!start) {
-      return false;
-    }
-    const end = this.addDays(start, Math.max(holiday.lengthDays, 1) - 1);
-    return date >= this.startOfDay(start) && date <= this.endOfDay(end);
-  }
-
-  private holidayStartDate(holiday: RecurringHoliday, year: number): Date | null {
-    if (holiday.rule === 'fixed-date') {
-      if (!holiday.month || !holiday.day) {
-        return null;
-      }
-      return new Date(year, holiday.month - 1, holiday.day);
-    }
-
-    if (holiday.rule === 'easter') {
-      const easter = this.getEasterDate(year);
-      const offset = holiday.offsetDays ?? 0;
-      return this.addDays(easter, offset);
-    }
-
-    if (holiday.rule === 'swedish-midsummer-day') {
-      return this.getSwedishMidsummerDayDate(year);
-    }
-
-    if (holiday.rule === 'swedish-midsummer-eve') {
-      return this.getSwedishMidsummerEveDate(year);
-    }
-
-    return null;
   }
 
   private weekdayFromDate(date: Date): Weekday {

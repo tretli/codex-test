@@ -1,21 +1,29 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 import {
+  fromOpeningHoursScheduleV2,
   OpeningHoursSchedule,
+  OpeningHoursScheduleV2,
   OpeningHoursSlot,
   ExitOutcome,
+  toOpeningHoursScheduleV2,
   Weekday
 } from './opening-hours.model';
 
 @Injectable({ providedIn: 'root' })
 export class OpeningHoursService {
-  private readonly scheduleSignal = signal<OpeningHoursSchedule>(
-    this.createDefaultSchedule()
+  private readonly scheduleV2Signal = signal<OpeningHoursScheduleV2>(
+    toOpeningHoursScheduleV2(this.createDefaultSchedule())
   );
 
-  readonly schedule = this.scheduleSignal.asReadonly();
+  readonly scheduleV2 = this.scheduleV2Signal.asReadonly();
+  readonly schedule = computed(() => fromOpeningHoursScheduleV2(this.scheduleV2Signal()));
 
   updateSchedule(schedule: OpeningHoursSchedule): void {
-    this.scheduleSignal.set(schedule);
+    this.scheduleV2Signal.set(toOpeningHoursScheduleV2(schedule));
+  }
+
+  updateScheduleV2(schedule: OpeningHoursScheduleV2): void {
+    this.scheduleV2Signal.set(schedule);
   }
 
   getDaySlots(day: Weekday): OpeningHoursSlot[] {
