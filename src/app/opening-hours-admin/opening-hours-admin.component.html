@@ -63,7 +63,7 @@
 
         <div class="exit-type-grid">
           <label>
-            Closed exit type
+            Default exit type
             <select formControlName="closedExitType">
               <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
                 {{ exitType.label }}
@@ -94,16 +94,7 @@
               </label>
 
               <label>
-                Slot state
-                <select formControlName="isOpen">
-                  <option *ngFor="let stateOption of slotStateOptions" [ngValue]="stateOption.value">
-                    {{ stateOption.label }}
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                Open exit type
+                Exit type
                 <select formControlName="openExitType">
                   <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
                     {{ exitType.label }}
@@ -181,7 +172,7 @@
 
         <div class="exit-type-grid">
           <label>
-            Closed exit type
+            Default exit type
             <select formControlName="closedExitType">
               <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
                 {{ exitType.label }}
@@ -302,16 +293,7 @@
               </label>
 
               <label>
-                Slot state
-                <select formControlName="isOpen">
-                  <option *ngFor="let stateOption of slotStateOptions" [ngValue]="stateOption.value">
-                    {{ stateOption.label }}
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                Open exit type
+                Exit type
                 <select formControlName="openExitType">
                   <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
                     {{ exitType.label }}

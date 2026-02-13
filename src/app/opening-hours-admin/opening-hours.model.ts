@@ -10,7 +10,6 @@ export type Weekday =
 export interface OpeningHoursSlot {
   opensAt: string; // HH:mm
   closesAt: string; // HH:mm
-  isOpen: boolean;
   openExitType: ExitOutcome;
 }
 
@@ -28,7 +27,6 @@ export interface WeeklyOpeningHoursRecord {
   days: Weekday[];
   slots: OpeningHoursSlot[];
   closedExitType: ExitOutcome;
-  closedExitReason?: string;
 }
 
 export type RecurringHolidayRule =
@@ -53,7 +51,6 @@ export interface RecurringHoliday {
   closed: boolean;
   slots: OpeningHoursSlot[];
   closedExitType: ExitOutcome;
-  closedExitReason?: string;
 }
 
 export interface DateRangeHoliday extends RecurringHoliday {
@@ -82,8 +79,6 @@ export type RuleScopeV2 =
   | 'date-range'
   | 'single-date';
 
-export type SlotStateV2 = 'open' | 'closed';
-
 export type ActionV2 =
   | 'allow'
   | 'allow-with-message'
@@ -93,21 +88,10 @@ export type ActionV2 =
   | 'deny'
   | 'deny-with-message';
 
-export type ClosedReasonV2 =
-  | 'outside-business-hours'
-  | 'lunch-break'
-  | 'bank-holiday'
-  | 'maintenance'
-  | 'staff-unavailable'
-  | 'other';
-
 export interface TimeSlotV2 {
   start: string; // HH:mm
   end: string; // HH:mm
-  state: SlotStateV2;
   action: ActionV2;
-  reason?: ClosedReasonV2;
-  note?: string;
 }
 
 export interface RuleAppliesOnV2 {
@@ -136,8 +120,6 @@ export interface RuleV2 {
   slots: TimeSlotV2[];
   defaultClosed: {
     action: ActionV2;
-    reason?: ClosedReasonV2;
-    note?: string;
   };
 }
 
@@ -161,9 +143,7 @@ export function toOpeningHoursScheduleV2(
       appliesOn: { date: singleDate.singleDate },
       slots: mapSlotsToV2(singleDate.slots),
       defaultClosed: {
-        action: mapExitToAction(singleDate.closedExitType),
-        reason: singleDate.closed ? 'bank-holiday' : undefined,
-        note: singleDate.closedExitReason
+        action: mapExitToAction(singleDate.closedExitType)
       }
     });
   });
@@ -179,9 +159,7 @@ export function toOpeningHoursScheduleV2(
       },
       slots: mapSlotsToV2(holiday.slots),
       defaultClosed: {
-        action: mapExitToAction(holiday.closedExitType),
-        reason: holiday.closed ? 'bank-holiday' : undefined,
-        note: holiday.closedExitReason
+        action: mapExitToAction(holiday.closedExitType)
       }
     });
   });
@@ -199,9 +177,7 @@ export function toOpeningHoursScheduleV2(
       },
       slots: mapSlotsToV2(range.slots),
       defaultClosed: {
-        action: mapExitToAction(range.closedExitType),
-        reason: range.closed ? 'other' : undefined,
-        note: range.closedExitReason
+        action: mapExitToAction(range.closedExitType)
       }
     });
   });
@@ -217,9 +193,7 @@ export function toOpeningHoursScheduleV2(
       },
       slots: mapSlotsToV2(weekly.slots),
       defaultClosed: {
-        action: mapExitToAction(weekly.closedExitType),
-        reason: 'outside-business-hours',
-        note: weekly.closedExitReason
+        action: mapExitToAction(weekly.closedExitType)
       }
     });
   });
@@ -234,7 +208,6 @@ function mapSlotsToV2(slots: OpeningHoursSlot[]): TimeSlotV2[] {
   return slots.map((slot) => ({
     start: slot.opensAt,
     end: slot.closesAt,
-    state: slot.isOpen === false ? 'closed' : 'open',
     action: mapExitToAction(slot.openExitType)
   }));
 }
