@@ -47,6 +47,10 @@
           <h2>Weekday record {{ dayIndex + 1 }}</h2>
           <button type="button" class="danger" (click)="removeDayRecord(dayIndex)">Remove</button>
         </div>
+        <label>
+          Rule name
+          <input type="text" formControlName="name" placeholder="Weekly rule name" />
+        </label>
 
         <div class="weekday-pills">
           <button
@@ -159,7 +163,10 @@
         [formGroupName]="holidayIndex"
       >
         <div class="holiday-header">
-          <h3>{{ holiday.controls.name.value }}</h3>
+          <label>
+            Rule name
+            <input type="text" formControlName="name" placeholder="Holiday rule name" />
+          </label>
 
           <label class="toggle">
             <input class="toggle-input" type="checkbox" formControlName="closed" />

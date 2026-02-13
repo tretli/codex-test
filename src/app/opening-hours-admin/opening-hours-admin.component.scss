@@ -314,6 +314,10 @@ button.danger {
   font-size: 1rem;
 }
 
+.holiday-header > label:first-child {
+  flex: 1;
+}
+
 .holiday-rule {
   margin: 0;
   color: #5b667d;

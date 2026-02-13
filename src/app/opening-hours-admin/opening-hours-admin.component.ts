@@ -36,6 +36,7 @@ type SlotForm = FormGroup<{
 }>;
 
 type DayForm = FormGroup<{
+  name: import('@angular/forms').FormControl<string>;
   days: import('@angular/forms').FormControl<Weekday[]>;
   slots: FormArray<SlotForm>;
   closedExitType: import('@angular/forms').FormControl<ExitOutcome>;
@@ -251,6 +252,7 @@ export class OpeningHoursAdminComponent {
   addDayRecord(): void {
     this.dayForms.push(
       this.createDayForm({
+        name: `Weekly rule ${this.dayForms.length + 1}`,
         days: [],
         slots: [
           {
@@ -483,7 +485,11 @@ export class OpeningHoursAdminComponent {
   }
 
   trackByDay(_index: number, dayForm: DayForm): string {
-    return dayForm.controls.days.value.join('|') || `record-${_index}`;
+    return (
+      dayForm.controls.name.value ||
+      dayForm.controls.days.value.join('|') ||
+      `record-${_index}`
+    );
   }
 
   private hydrate(schedule: OpeningHoursSchedule): void {
@@ -502,6 +508,7 @@ export class OpeningHoursAdminComponent {
 
   private createDayForm(day: WeeklyOpeningHoursRecord): DayForm {
     return this.fb.nonNullable.group({
+      name: [day.name ?? 'Weekly rule'],
       days: [day.days],
       slots: this.fb.array(
         day.slots.map((slot) =>

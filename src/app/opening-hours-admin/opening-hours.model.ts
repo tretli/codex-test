@@ -24,6 +24,7 @@ export enum ExitOutcome {
 }
 
 export interface WeeklyOpeningHoursRecord {
+  name?: string;
   days: Weekday[];
   slots: OpeningHoursSlot[];
   closedExitType: ExitOutcome;
@@ -185,7 +186,7 @@ export function toOpeningHoursScheduleV2(
   schedule.days.forEach((weekly, index) => {
     rules.push({
       id: `weekly-${index + 1}`,
-      name: `Weekly ${index + 1}`,
+      name: weekly.name || `Weekly ${index + 1}`,
       scope: 'weekly',
       priority: priority++,
       appliesOn: {

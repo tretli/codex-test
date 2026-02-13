@@ -198,7 +198,7 @@ export class OpeningHoursWeekComponent {
     );
     const matchedWeeklyLabels = weeklyMatches.map(
       (record) =>
-        `Weekly: ${record.days
+        `Weekly: ${record.name || record.days
           .map((recordDay) => WEEKDAYS.find((item) => item.key === recordDay)?.label ?? recordDay)
           .join(', ')}`
     );
@@ -260,7 +260,7 @@ export class OpeningHoursWeekComponent {
     if (baseSlots.length === 0) {
       return {
         slots: [],
-        source: 'Weekly schedule',
+        source: `Weekly schedule: ${baseRecords[0].name || 'Unnamed rule'}`,
         ruleType: 'weekly',
         closedExitType: baseRecords[0].closedExitType,
         inactiveRules
@@ -269,7 +269,7 @@ export class OpeningHoursWeekComponent {
 
     return {
       slots: baseSlots,
-      source: 'Weekly schedule',
+      source: `Weekly schedule: ${baseRecords[0].name || 'Unnamed rule'}`,
       ruleType: 'weekly',
       closedExitType: baseRecords[0].closedExitType,
       inactiveRules

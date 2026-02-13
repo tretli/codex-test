@@ -30,6 +30,7 @@ export class OpeningHoursService {
       timezone: 'Europe/London',
       days: [
         {
+          name: 'Weekdays',
           days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
           slots: [
             {
@@ -41,6 +42,7 @@ export class OpeningHoursService {
           closedExitType: ExitOutcome.Deny
         },
         {
+          name: 'Saturday',
           days: ['saturday'],
           slots: [
             {
