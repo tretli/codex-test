@@ -7,7 +7,6 @@ import {
   OpeningHoursSlot,
   RuleV2,
   ExitOutcome,
-  toExitOutcome,
   WEEKDAYS,
   Weekday
 } from '../opening-hours-admin/opening-hours.model';
