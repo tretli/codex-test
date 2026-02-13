@@ -27,10 +27,20 @@ header p {
 
 .view-link {
   display: inline-block;
-  margin-top: 0.45rem;
   color: #1f3f9f;
   text-decoration: none;
   font-weight: 600;
+  background: #eef3ff;
+  border: 1px solid #d2ddfb;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+}
+
+.header-links {
+  margin-top: 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .rules-info {
