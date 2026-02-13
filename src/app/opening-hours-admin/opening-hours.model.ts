@@ -76,6 +76,198 @@ export interface OpeningHoursSchedule {
   singleDates: SingleDateHoliday[];
 }
 
+export type RuleScopeV2 =
+  | 'weekly'
+  | 'recurring'
+  | 'date-range'
+  | 'single-date';
+
+export type SlotStateV2 = 'open' | 'closed';
+
+export type ActionV2 =
+  | 'allow'
+  | 'allow-with-message'
+  | 'defer'
+  | 'escalate'
+  | 'review'
+  | 'deny'
+  | 'deny-with-message';
+
+export type ClosedReasonV2 =
+  | 'outside-business-hours'
+  | 'lunch-break'
+  | 'bank-holiday'
+  | 'maintenance'
+  | 'staff-unavailable'
+  | 'other';
+
+export interface TimeSlotV2 {
+  start: string; // HH:mm
+  end: string; // HH:mm
+  state: SlotStateV2;
+  action: ActionV2;
+  reason?: ClosedReasonV2;
+  note?: string;
+}
+
+export interface RuleAppliesOnV2 {
+  weekdays?: Weekday[];
+  date?: string; // ISO date for single-date
+  dateFrom?: string; // ISO date for date-range
+  dateTo?: string; // ISO date for date-range
+  recurring?: {
+    kind:
+      | 'fixed-date'
+      | 'easter-offset'
+      | 'swedish-midsummer-day'
+      | 'swedish-midsummer-eve';
+    month?: number;
+    day?: number;
+    offsetDays?: number;
+  };
+}
+
+export interface RuleV2 {
+  id: string;
+  name: string;
+  scope: RuleScopeV2;
+  priority: number;
+  appliesOn: RuleAppliesOnV2;
+  slots: TimeSlotV2[];
+  defaultClosed: {
+    action: ActionV2;
+    reason?: ClosedReasonV2;
+    note?: string;
+  };
+}
+
+export interface OpeningHoursScheduleV2 {
+  timezone: string;
+  rules: RuleV2[];
+}
+
+export function toOpeningHoursScheduleV2(
+  schedule: OpeningHoursSchedule
+): OpeningHoursScheduleV2 {
+  const rules: RuleV2[] = [];
+  let priority = 1;
+
+  schedule.singleDates.forEach((singleDate, index) => {
+    rules.push({
+      id: `single-date-${index + 1}`,
+      name: singleDate.name,
+      scope: 'single-date',
+      priority: priority++,
+      appliesOn: { date: singleDate.singleDate },
+      slots: mapSlotsToV2(singleDate.slots),
+      defaultClosed: {
+        action: mapExitToAction(singleDate.closedExitType),
+        reason: singleDate.closed ? 'bank-holiday' : undefined,
+        note: singleDate.closedExitReason
+      }
+    });
+  });
+
+  schedule.recurringHolidays.forEach((holiday, index) => {
+    rules.push({
+      id: `recurring-${index + 1}`,
+      name: holiday.name,
+      scope: 'recurring',
+      priority: priority++,
+      appliesOn: {
+        recurring: mapRecurringToV2(holiday)
+      },
+      slots: mapSlotsToV2(holiday.slots),
+      defaultClosed: {
+        action: mapExitToAction(holiday.closedExitType),
+        reason: holiday.closed ? 'bank-holiday' : undefined,
+        note: holiday.closedExitReason
+      }
+    });
+  });
+
+  schedule.dateRanges.forEach((range, index) => {
+    rules.push({
+      id: `date-range-${index + 1}`,
+      name: range.name,
+      scope: 'date-range',
+      priority: priority++,
+      appliesOn: {
+        dateFrom: range.rangeStart,
+        dateTo: range.rangeEnd,
+        weekdays: range.weekdays
+      },
+      slots: mapSlotsToV2(range.slots),
+      defaultClosed: {
+        action: mapExitToAction(range.closedExitType),
+        reason: range.closed ? 'other' : undefined,
+        note: range.closedExitReason
+      }
+    });
+  });
+
+  schedule.days.forEach((weekly, index) => {
+    rules.push({
+      id: `weekly-${index + 1}`,
+      name: `Weekly ${index + 1}`,
+      scope: 'weekly',
+      priority: priority++,
+      appliesOn: {
+        weekdays: weekly.days
+      },
+      slots: mapSlotsToV2(weekly.slots),
+      defaultClosed: {
+        action: mapExitToAction(weekly.closedExitType),
+        reason: 'outside-business-hours',
+        note: weekly.closedExitReason
+      }
+    });
+  });
+
+  return {
+    timezone: schedule.timezone,
+    rules
+  };
+}
+
+function mapSlotsToV2(slots: OpeningHoursSlot[]): TimeSlotV2[] {
+  return slots.map((slot) => ({
+    start: slot.opensAt,
+    end: slot.closesAt,
+    state: slot.isOpen === false ? 'closed' : 'open',
+    action: mapExitToAction(slot.openExitType)
+  }));
+}
+
+function mapRecurringToV2(
+  holiday: RecurringHoliday
+): RuleAppliesOnV2['recurring'] | undefined {
+  if (holiday.rule === 'fixed-date') {
+    return {
+      kind: 'fixed-date',
+      month: holiday.month,
+      day: holiday.day
+    };
+  }
+  if (holiday.rule === 'easter') {
+    return {
+      kind: 'easter-offset',
+      offsetDays: holiday.offsetDays
+    };
+  }
+  if (holiday.rule === 'swedish-midsummer-day') {
+    return { kind: 'swedish-midsummer-day' };
+  }
+  if (holiday.rule === 'swedish-midsummer-eve') {
+    return { kind: 'swedish-midsummer-eve' };
+  }
+  return undefined;
+}
+
+function mapExitToAction(exit: ExitOutcome): ActionV2 {
+  return exit;
+}
+
 export const WEEKDAYS: ReadonlyArray<{ key: Weekday; label: string }> = [
   { key: 'monday', label: 'Monday' },
   { key: 'tuesday', label: 'Tuesday' },

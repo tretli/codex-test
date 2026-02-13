@@ -371,6 +371,25 @@ button.danger {
   margin-top: 1.4rem;
 }
 
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.preview-card {
+  border: 1px solid #d9e0ef;
+  border-radius: 10px;
+  background: #0d1626;
+  padding: 0.7rem;
+}
+
+.preview-card h4 {
+  margin: 0 0 0.45rem;
+  color: #d6e6ff;
+  font-size: 0.88rem;
+}
+
 pre {
   background: #101927;
   color: #e7f0ff;
@@ -378,4 +397,11 @@ pre {
   border-radius: 8px;
   overflow-x: auto;
   font-size: 0.8rem;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .preview-grid {
+    grid-template-columns: 1fr;
+  }
 }

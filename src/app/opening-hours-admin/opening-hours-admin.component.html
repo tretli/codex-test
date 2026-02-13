@@ -356,6 +356,15 @@
 
   <section class="preview">
     <h3>Payload preview</h3>
-    <pre>{{ serializedSchedule() }}</pre>
+    <div class="preview-grid">
+      <article class="preview-card">
+        <h4>Current (v1)</h4>
+        <pre>{{ serializedSchedule() }}</pre>
+      </article>
+      <article class="preview-card">
+        <h4>Simplified (v2)</h4>
+        <pre>{{ serializedScheduleV2() }}</pre>
+      </article>
+    </div>
   </section>
 </section>
