@@ -10,7 +10,7 @@ export type Weekday =
 export interface OpeningHoursSlot {
   opensAt: string; // HH:mm
   closesAt: string; // HH:mm
-  openExitType: ExitOutcome;
+  openExitType: ExitOutcomeId;
 }
 
 export enum ExitOutcome {
@@ -23,11 +23,29 @@ export enum ExitOutcome {
   Deny = 'deny' // Hard stop: do not proceed.
 }
 
+export type ExitOutcomeId = string;
+
+export interface ExitOutcomeDefinition {
+  id: ExitOutcomeId;
+  name: string;
+  color: string; // hex color
+}
+
+export const DEFAULT_EXIT_OUTCOMES: ReadonlyArray<ExitOutcomeDefinition> = [
+  { id: ExitOutcome.Allow, name: 'Allow', color: '#2e7d32' },
+  { id: ExitOutcome.AllowWithMessage, name: 'Allow with message', color: '#0288d1' },
+  { id: ExitOutcome.Defer, name: 'Defer', color: '#6d4c41' },
+  { id: ExitOutcome.Escalate, name: 'Escalate', color: '#ef6c00' },
+  { id: ExitOutcome.Review, name: 'Review', color: '#5e35b1' },
+  { id: ExitOutcome.DenyWithMessage, name: 'Deny with message', color: '#ad1457' },
+  { id: ExitOutcome.Deny, name: 'Deny', color: '#c62828' }
+] as const;
+
 export interface WeeklyOpeningHoursRecord {
   name?: string;
   days: Weekday[];
   slots: OpeningHoursSlot[];
-  closedExitType: ExitOutcome;
+  closedExitType: ExitOutcomeId;
 }
 
 export type RecurringHolidayRule =
@@ -51,7 +69,7 @@ export interface RecurringHoliday {
   lengthDays: number; // number of consecutive days the holiday applies
   closed: boolean;
   slots: OpeningHoursSlot[];
-  closedExitType: ExitOutcome;
+  closedExitType: ExitOutcomeId;
 }
 
 export interface DateRangeHoliday extends RecurringHoliday {
@@ -80,14 +98,7 @@ export type RuleScopeV2 =
   | 'date-range'
   | 'single-date';
 
-export type ActionV2 =
-  | 'allow'
-  | 'allow-with-message'
-  | 'defer'
-  | 'escalate'
-  | 'review'
-  | 'deny'
-  | 'deny-with-message';
+export type ActionV2 = ExitOutcomeId;
 
 export interface TimeSlotV2 {
   start: string; // HH:mm
@@ -127,11 +138,13 @@ export interface RuleV2 {
 
 export interface OpeningHoursScheduleV2 {
   timezone: string;
+  exitOutcomes: ExitOutcomeDefinition[];
   rules: RuleV2[];
 }
 
 export function toOpeningHoursScheduleV2(
-  schedule: OpeningHoursSchedule
+  schedule: OpeningHoursSchedule,
+  exitOutcomes: ExitOutcomeDefinition[] = [...DEFAULT_EXIT_OUTCOMES]
 ): OpeningHoursScheduleV2 {
   const rules: RuleV2[] = [];
   let priority = 1;
@@ -202,6 +215,7 @@ export function toOpeningHoursScheduleV2(
 
   return {
     timezone: schedule.timezone,
+    exitOutcomes,
     rules
   };
 }
@@ -241,7 +255,7 @@ function mapRecurringToV2(
   return undefined;
 }
 
-function mapExitToAction(exit: ExitOutcome): ActionV2 {
+function mapExitToAction(exit: ExitOutcomeId): ActionV2 {
   return exit;
 }
 
@@ -257,7 +271,7 @@ export function fromOpeningHoursScheduleV2(
 
   sortedRules.forEach((rule, index) => {
     const slots = mapSlotsFromV2(rule.slots);
-    const closedExitType = rule.defaultClosed.action as ExitOutcome;
+    const closedExitType = rule.defaultClosed.action;
 
     if (rule.scope === 'weekly') {
       days.push({
@@ -366,7 +380,7 @@ function mapSlotsFromV2(slots: TimeSlotV2[]): OpeningHoursSlot[] {
   return slots.map((slot) => ({
     opensAt: slot.start,
     closesAt: slot.end,
-    openExitType: slot.action as ExitOutcome
+    openExitType: slot.action
   }));
 }
 

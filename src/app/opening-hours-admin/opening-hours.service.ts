@@ -1,5 +1,7 @@
 import { Injectable, computed, signal } from '@angular/core';
 import {
+  DEFAULT_EXIT_OUTCOMES,
+  ExitOutcomeDefinition,
   fromOpeningHoursScheduleV2,
   OpeningHoursSchedule,
   OpeningHoursScheduleV2,
@@ -12,18 +14,26 @@ import {
 @Injectable({ providedIn: 'root' })
 export class OpeningHoursService {
   private readonly scheduleV2Signal = signal<OpeningHoursScheduleV2>(
-    toOpeningHoursScheduleV2(this.createDefaultSchedule())
+    toOpeningHoursScheduleV2(this.createDefaultSchedule(), [...DEFAULT_EXIT_OUTCOMES])
   );
 
   readonly scheduleV2 = this.scheduleV2Signal.asReadonly();
   readonly schedule = computed(() => fromOpeningHoursScheduleV2(this.scheduleV2Signal()));
 
   updateSchedule(schedule: OpeningHoursSchedule): void {
-    this.scheduleV2Signal.set(toOpeningHoursScheduleV2(schedule));
+    const currentOutcomes = this.scheduleV2Signal().exitOutcomes;
+    this.scheduleV2Signal.set(toOpeningHoursScheduleV2(schedule, currentOutcomes));
   }
 
   updateScheduleV2(schedule: OpeningHoursScheduleV2): void {
     this.scheduleV2Signal.set(schedule);
+  }
+
+  updateExitOutcomes(exitOutcomes: ExitOutcomeDefinition[]): void {
+    this.scheduleV2Signal.update((current) => ({
+      ...current,
+      exitOutcomes
+    }));
   }
 
   getDaySlots(day: Weekday): OpeningHoursSlot[] {

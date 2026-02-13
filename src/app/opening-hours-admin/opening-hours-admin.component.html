@@ -23,6 +23,12 @@
   </section>
 
   <form [formGroup]="form" (ngSubmit)="save()">
+    <app-exit-outcome-definitions
+      [outcomes]="exitOutcomeForms"
+      (add)="addExitOutcome()"
+      (remove)="removeExitOutcome($event)"
+    />
+
     <div class="meta-grid">
       <label>
         Timezone
@@ -69,7 +75,7 @@
           <label>
             Default exit type
             <select formControlName="closedExitType">
-              <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+              <option *ngFor="let exitType of exitTypeOptions()" [value]="exitType.value">
                 {{ exitType.label }}
               </option>
             </select>
@@ -100,7 +106,7 @@
               <label>
                 Exit type
                 <select formControlName="openExitType">
-                  <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                  <option *ngFor="let exitType of exitTypeOptions()" [value]="exitType.value">
                     {{ exitType.label }}
                   </option>
                 </select>
@@ -181,7 +187,7 @@
           <label>
             Default exit type
             <select formControlName="closedExitType">
-              <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+              <option *ngFor="let exitType of exitTypeOptions()" [value]="exitType.value">
                 {{ exitType.label }}
               </option>
             </select>
@@ -302,7 +308,7 @@
               <label>
                 Exit type
                 <select formControlName="openExitType">
-                  <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                  <option *ngFor="let exitType of exitTypeOptions()" [value]="exitType.value">
                     {{ exitType.label }}
                   </option>
                 </select>

@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   ActionV2,
+  ExitOutcomeId,
   OpeningHoursSlot,
   RuleV2,
   ExitOutcome,
@@ -20,7 +21,9 @@ type DayView = {
   source: string;
   ruleType: 'single-date' | 'recurring' | 'date-range' | 'weekly';
   openExitTypeLabel: string;
+  openExitTypeColor: string;
   closedExitTypeLabel: string;
+  closedExitTypeColor: string;
   inactiveRules: string[];
 };
 
@@ -32,7 +35,9 @@ type MonthDayView = {
   source: string;
   ruleType: 'single-date' | 'recurring' | 'date-range' | 'weekly';
   openExitTypeLabel: string;
+  openExitTypeColor: string;
   closedExitTypeLabel: string;
+  closedExitTypeColor: string;
   inactiveRules: string[];
 };
 
@@ -65,7 +70,9 @@ export class OpeningHoursWeekComponent {
         source: daily.source,
         ruleType: daily.ruleType,
         openExitTypeLabel: this.getOpenExitTypeSummary(daily.slots),
+        openExitTypeColor: this.getOpenExitTypeColor(daily.slots),
         closedExitTypeLabel: this.getExitTypeLabel(daily.closedExitType),
+        closedExitTypeColor: this.getExitTypeColor(daily.closedExitType),
         inactiveRules: daily.inactiveRules
       });
     }
@@ -101,7 +108,9 @@ export class OpeningHoursWeekComponent {
         source: daily.source,
         ruleType: daily.ruleType,
         openExitTypeLabel: this.getOpenExitTypeSummary(daily.slots),
+        openExitTypeColor: this.getOpenExitTypeColor(daily.slots),
         closedExitTypeLabel: this.getExitTypeLabel(daily.closedExitType),
+        closedExitTypeColor: this.getExitTypeColor(daily.closedExitType),
         inactiveRules: daily.inactiveRules
       });
     }
@@ -163,11 +172,15 @@ export class OpeningHoursWeekComponent {
     return this.getExitTypeLabel(slot.openExitType);
   }
 
+  slotExitTypeColor(slot: OpeningHoursSlot): string {
+    return this.getExitTypeColor(slot.openExitType);
+  }
+
   private resolveDailySchedule(date: Date): {
     slots: OpeningHoursSlot[];
     source: string;
     ruleType: 'single-date' | 'recurring' | 'date-range' | 'weekly';
-    closedExitType: ExitOutcome;
+    closedExitType: ExitOutcomeId;
     inactiveRules: string[];
   } {
     const schedule = this.service.scheduleV2();
@@ -210,6 +223,14 @@ export class OpeningHoursWeekComponent {
     return labels.length === 1 ? labels[0] : 'Mixed by slot';
   }
 
+  private getOpenExitTypeColor(slots: OpeningHoursSlot[]): string {
+    if (slots.length === 0) {
+      return this.getExitTypeColor(ExitOutcome.Deny);
+    }
+    const distinct = [...new Set(slots.map((slot) => slot.openExitType))];
+    return distinct.length === 1 ? this.getExitTypeColor(distinct[0]) : '#455a64';
+  }
+
   private formatRuleSource(rule: RuleV2): string {
     const prefix: Record<RuleV2['scope'], string> = {
       'single-date': 'Single date',
@@ -220,8 +241,8 @@ export class OpeningHoursWeekComponent {
     return `${prefix[rule.scope]}: ${rule.name}`;
   }
 
-  private actionToExitOutcome(action: ActionV2): ExitOutcome {
-    return action as ExitOutcome;
+  private actionToExitOutcome(action: ActionV2): ExitOutcomeId {
+    return action;
   }
 
   private ruleSlotsToLegacySlots(rule: RuleV2): OpeningHoursSlot[] {
@@ -300,17 +321,18 @@ export class OpeningHoursWeekComponent {
     return null;
   }
 
-  private getExitTypeLabel(exitType: ExitOutcome): string {
-    const labels: Record<ExitOutcome, string> = {
-      [ExitOutcome.Allow]: 'Allow',
-      [ExitOutcome.AllowWithMessage]: 'Allow with message',
-      [ExitOutcome.Defer]: 'Defer',
-      [ExitOutcome.Escalate]: 'Escalate',
-      [ExitOutcome.Review]: 'Review',
-      [ExitOutcome.DenyWithMessage]: 'Deny with message',
-      [ExitOutcome.Deny]: 'Deny'
-    };
-    return labels[exitType];
+  private getExitTypeLabel(exitType: ExitOutcomeId): string {
+    const outcome = this.service
+      .scheduleV2()
+      .exitOutcomes.find((item) => item.id === exitType);
+    return outcome?.name ?? exitType;
+  }
+
+  private getExitTypeColor(exitType: ExitOutcomeId): string {
+    const outcome = this.service
+      .scheduleV2()
+      .exitOutcomes.find((item) => item.id === exitType);
+    return outcome?.color ?? '#455a64';
   }
 
   private weekdayFromDate(date: Date): Weekday {
