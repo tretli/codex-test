@@ -49,14 +49,16 @@
         </div>
 
         <div class="weekday-pills">
-          <label class="weekday-pill" *ngFor="let weekday of weekdays">
-            <input
-              type="checkbox"
-              [checked]="hasWeekday(dayIndex, weekday.key)"
-              (change)="toggleWeekday(dayIndex, weekday.key, $any($event.target).checked)"
-            />
+          <button
+            type="button"
+            class="weekday-pill"
+            [class.active]="hasWeekday(dayIndex, weekday.key)"
+            [attr.aria-pressed]="hasWeekday(dayIndex, weekday.key)"
+            *ngFor="let weekday of weekdays"
+            (click)="toggleWeekday(dayIndex, weekday.key, !hasWeekday(dayIndex, weekday.key))"
+          >
             {{ weekday.label }}
-          </label>
+          </button>
         </div>
 
         <div class="exit-type-grid">
@@ -160,8 +162,9 @@
           <h3>{{ holiday.controls.name.value }}</h3>
 
           <label class="toggle">
-            <input type="checkbox" formControlName="closed" />
-            Closed
+            <input class="toggle-input" type="checkbox" formControlName="closed" />
+            <span class="toggle-track" aria-hidden="true"></span>
+            <span class="toggle-label">Closed</span>
           </label>
         </div>
 
@@ -238,14 +241,16 @@
           </label>
         </div>
         <div class="weekday-pills" *ngIf="holiday.controls.rule.value === 'date-range'">
-          <label class="weekday-pill" *ngFor="let weekday of weekdays">
-            <input
-              type="checkbox"
-              [checked]="hasHolidayWeekday(holidayIndex, weekday.key)"
-              (change)="toggleHolidayWeekday(holidayIndex, weekday.key, $any($event.target).checked)"
-            />
+          <button
+            type="button"
+            class="weekday-pill"
+            [class.active]="hasHolidayWeekday(holidayIndex, weekday.key)"
+            [attr.aria-pressed]="hasHolidayWeekday(holidayIndex, weekday.key)"
+            *ngFor="let weekday of weekdays"
+            (click)="toggleHolidayWeekday(holidayIndex, weekday.key, !hasHolidayWeekday(holidayIndex, weekday.key))"
+          >
             {{ weekday.label }}
-          </label>
+          </button>
         </div>
         <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['dateRangeRequired']">
           Start and end dates are required.
