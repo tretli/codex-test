@@ -2,6 +2,7 @@ import { bootstrapApplication } from '@angular/platform-browser';
 import { provideRouter, RouterOutlet } from '@angular/router';
 import { Component } from '@angular/core';
 import { OpeningHoursAdminComponent } from './app/opening-hours-admin/opening-hours-admin.component';
+import { ExitOutcomeAdminComponent } from './app/opening-hours-admin/exit-outcome-admin.component';
 import { OpeningHoursWeekComponent } from './app/opening-hours-week/opening-hours-week.component';
 
 @Component({
@@ -17,6 +18,7 @@ bootstrapApplication(AppComponent, {
     provideRouter([
       { path: '', pathMatch: 'full', redirectTo: 'admin/opening-hours' },
       { path: 'admin/opening-hours', component: OpeningHoursAdminComponent },
+      { path: 'admin/opening-hours/outcomes', component: ExitOutcomeAdminComponent },
       { path: 'admin/opening-hours/week', component: OpeningHoursWeekComponent }
     ])
   ]

@@ -3,6 +3,7 @@
     <h1>Opening Hours Admin</h1>
     <p>Configure the business opening schedule and publish once complete.</p>
     <a class="view-link" routerLink="/admin/opening-hours/week">Open Week Calendar</a>
+    <a class="view-link" routerLink="/admin/opening-hours/outcomes">Manage Exit Outcomes</a>
   </header>
 
   <section class="rules-info">
@@ -23,12 +24,6 @@
   </section>
 
   <form [formGroup]="form" (ngSubmit)="save()">
-    <app-exit-outcome-definitions
-      [outcomes]="exitOutcomeForms"
-      (add)="addExitOutcome()"
-      (remove)="removeExitOutcome($event)"
-    />
-
     <div class="meta-grid">
       <label>
         Timezone

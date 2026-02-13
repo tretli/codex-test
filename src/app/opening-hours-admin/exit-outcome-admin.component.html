@@ -1,0 +1,23 @@
+<section class="admin-card">
+  <header>
+    <h1>Exit Outcomes</h1>
+    <p>Define outcome id, name, and color for routing actions.</p>
+    <a class="view-link" routerLink="/admin/opening-hours">Back to Opening Hours</a>
+  </header>
+
+  <app-exit-outcome-definitions
+    [outcomes]="exitOutcomeForms"
+    (add)="addExitOutcome()"
+    (remove)="removeExitOutcome($event)"
+  />
+
+  <div class="actions">
+    <button type="button" (click)="save()">Save exit outcomes</button>
+  </div>
+
+  <section class="preview">
+    <h3>Exit outcomes payload</h3>
+    <pre>{{ serializedOutcomes() }}</pre>
+  </section>
+</section>
+

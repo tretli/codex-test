@@ -9,16 +9,9 @@ import {
   Validators
 } from '@angular/forms';
 import {
-  ExitOutcomeDefinitionForm,
-  ExitOutcomeDefinitionsComponent
-} from './exit-outcome-definitions.component';
-import {
-  DEFAULT_EXIT_OUTCOMES,
   DateRangeHoliday,
-  ExitOutcomeDefinition,
   ExitOutcomeId,
   OpeningHoursSchedule,
-  toOpeningHoursScheduleV2,
   RecurringHoliday,
   RecurringHolidayRule,
   ExitOutcome,
@@ -105,12 +98,7 @@ type ExitTypeOption = {
 @Component({
   selector: 'app-opening-hours-admin',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    RouterLink,
-    ExitOutcomeDefinitionsComponent
-  ],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './opening-hours-admin.component.html',
   styleUrl: './opening-hours-admin.component.scss'
 })
@@ -121,10 +109,10 @@ export class OpeningHoursAdminComponent {
   readonly currentYear = new Date().getFullYear();
   readonly weekdays = WEEKDAYS;
   readonly exitTypeOptions = computed<ReadonlyArray<ExitTypeOption>>(() =>
-    this.exitOutcomeForms.controls.map((form) => ({
-      value: form.controls.id.value.trim(),
-      label: form.controls.name.value.trim() || form.controls.id.value.trim(),
-      color: form.controls.color.value
+    this.service.scheduleV2().exitOutcomes.map((outcome) => ({
+      value: outcome.id,
+      label: outcome.name,
+      color: outcome.color
     }))
   );
   readonly timezoneOptions = this.buildTimezoneOptions();
@@ -219,15 +207,12 @@ export class OpeningHoursAdminComponent {
       validators: dateRangeOverlapValidator((value) => this.parseDateInput(value))
     })
   });
-  readonly exitOutcomeForms = this.fb.array<ExitOutcomeDefinitionForm>([]);
-
   readonly serializedScheduleV2 = computed(() =>
     JSON.stringify(this.service.scheduleV2(), null, 2)
   );
 
   constructor() {
     this.hydrate(this.service.schedule());
-    this.hydrateExitOutcomes(this.service.scheduleV2().exitOutcomes);
   }
 
   get dayForms(): FormArray<DayForm> {
@@ -491,26 +476,7 @@ export class OpeningHoursAdminComponent {
       return;
     }
 
-    const v1 = this.buildScheduleFromForm();
-    const outcomes = this.buildExitOutcomesFromForm();
-    this.service.updateScheduleV2(toOpeningHoursScheduleV2(v1, outcomes));
-  }
-
-  addExitOutcome(): void {
-    this.exitOutcomeForms.push(
-      this.createExitOutcomeForm({
-        id: `outcome-${this.exitOutcomeForms.length + 1}`,
-        name: `Outcome ${this.exitOutcomeForms.length + 1}`,
-        color: '#546e7a'
-      })
-    );
-  }
-
-  removeExitOutcome(index: number): void {
-    if (this.exitOutcomeForms.length <= 1) {
-      return;
-    }
-    this.exitOutcomeForms.removeAt(index);
+    this.service.updateSchedule(this.buildScheduleFromForm());
   }
 
   trackByDay(_index: number, dayForm: DayForm): string {
@@ -562,28 +528,6 @@ export class OpeningHoursAdminComponent {
       closesAt: [closesAt, Validators.required],
       openExitType: [openExitType, Validators.required]
     }, { validators: slotFormValidator() });
-  }
-
-  private createExitOutcomeForm(outcome: ExitOutcomeDefinition): ExitOutcomeDefinitionForm {
-    return this.fb.nonNullable.group({
-      id: [outcome.id, Validators.required],
-      name: [outcome.name, Validators.required],
-      color: [outcome.color, Validators.required]
-    });
-  }
-
-  private hydrateExitOutcomes(exitOutcomes: ExitOutcomeDefinition[]): void {
-    this.exitOutcomeForms.clear();
-    const source = exitOutcomes.length > 0 ? exitOutcomes : [...DEFAULT_EXIT_OUTCOMES];
-    source.forEach((outcome) => this.exitOutcomeForms.push(this.createExitOutcomeForm(outcome)));
-  }
-
-  private buildExitOutcomesFromForm(): ExitOutcomeDefinition[] {
-    return this.exitOutcomeForms.getRawValue().map((outcome, index) => ({
-      id: outcome.id.trim() || `outcome-${index + 1}`,
-      name: outcome.name.trim() || outcome.id.trim() || `Outcome ${index + 1}`,
-      color: outcome.color || '#546e7a'
-    }));
   }
 
   private createHolidayForm(holiday: RecurringHoliday): HolidayForm {
