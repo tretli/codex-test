@@ -31,6 +31,7 @@ import {
 type SlotForm = FormGroup<{
   opensAt: import('@angular/forms').FormControl<string>;
   closesAt: import('@angular/forms').FormControl<string>;
+  isOpen: import('@angular/forms').FormControl<boolean>;
   openExitType: import('@angular/forms').FormControl<ExitOutcome>;
 }>;
 
@@ -68,7 +69,12 @@ type HolidayFormValue = {
   weekdays: Weekday[];
   lengthDays: number;
   closed: boolean;
-  slots: { opensAt: string; closesAt: string; openExitType: ExitOutcome }[];
+  slots: {
+    opensAt: string;
+    closesAt: string;
+    isOpen: boolean;
+    openExitType: ExitOutcome;
+  }[];
   closedExitType: ExitOutcome;
 };
 
@@ -85,6 +91,11 @@ type TimezoneOption = {
 
 type ExitTypeOption = {
   value: ExitOutcome;
+  label: string;
+};
+
+type SlotStateOption = {
+  value: boolean;
   label: string;
 };
 
@@ -113,6 +124,10 @@ export class OpeningHoursAdminComponent {
   readonly timezoneOptions = this.buildTimezoneOptions();
   readonly openTimeOptions = this.buildTimeOptions(15, false);
   readonly closeTimeOptions = this.buildTimeOptions(15, true);
+  readonly slotStateOptions: ReadonlyArray<SlotStateOption> = [
+    { value: true, label: 'Open' },
+    { value: false, label: 'Closed' }
+  ];
   readonly holidayTemplates: ReadonlyArray<HolidayTemplate> = [
     this.createEasterTemplate('easter-week', 'Easter Week', -8, 10),
     this.createEasterTemplate('easter', 'Easter', -3, 5),
@@ -244,7 +259,14 @@ export class OpeningHoursAdminComponent {
     this.dayForms.push(
       this.createDayForm({
         days: [],
-        slots: [{ opensAt: '09:00', closesAt: '17:00', openExitType: ExitOutcome.Allow }],
+        slots: [
+          {
+            opensAt: '09:00',
+            closesAt: '17:00',
+            isOpen: true,
+            openExitType: ExitOutcome.Allow
+          }
+        ],
         closedExitType: ExitOutcome.Deny
       })
     );
@@ -256,7 +278,7 @@ export class OpeningHoursAdminComponent {
 
   addSlot(dayIndex: number): void {
     this.slotForms(dayIndex).push(
-      this.createSlotForm('09:00', '17:00', ExitOutcome.Allow)
+      this.createSlotForm('09:00', '17:00', true, ExitOutcome.Allow)
     );
   }
 
@@ -365,7 +387,7 @@ export class OpeningHoursAdminComponent {
 
   addHolidaySlot(holidayIndex: number): void {
     this.holidaySlotForms(holidayIndex).push(
-      this.createSlotForm('09:00', '17:00', ExitOutcome.Allow)
+      this.createSlotForm('09:00', '17:00', true, ExitOutcome.Allow)
     );
   }
 
@@ -494,6 +516,7 @@ export class OpeningHoursAdminComponent {
           this.createSlotForm(
             slot.opensAt,
             slot.closesAt,
+            slot.isOpen ?? true,
             slot.openExitType ?? ExitOutcome.Allow
           )
         )
@@ -505,11 +528,13 @@ export class OpeningHoursAdminComponent {
   private createSlotForm(
     opensAt: string,
     closesAt: string,
+    isOpen: boolean,
     openExitType: ExitOutcome
   ): SlotForm {
     return this.fb.nonNullable.group({
       opensAt: [opensAt, Validators.required],
       closesAt: [closesAt, Validators.required],
+      isOpen: [isOpen],
       openExitType: [openExitType, Validators.required]
     }, { validators: slotFormValidator() });
   }
@@ -556,6 +581,7 @@ export class OpeningHoursAdminComponent {
           this.createSlotForm(
             slot.opensAt,
             slot.closesAt,
+            slot.isOpen ?? true,
             slot.openExitType ?? ExitOutcome.Allow
           )
         )

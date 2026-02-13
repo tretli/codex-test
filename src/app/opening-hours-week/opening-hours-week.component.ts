@@ -162,8 +162,20 @@ export class OpeningHoursWeekComponent {
     return (width / (24 * 60)) * 100;
   }
 
+  slotCssClass(slot: OpeningHoursSlot): string {
+    return this.isSlotOpen(slot) ? 'slot-open' : 'slot-closed';
+  }
+
+  slotStateLabel(slot: OpeningHoursSlot): string {
+    return this.isSlotOpen(slot) ? 'Open' : 'Closed';
+  }
+
   slotExitTypeLabel(slot: OpeningHoursSlot): string {
     return this.getExitTypeLabel(slot.openExitType);
+  }
+
+  hasOpenSlots(slots: OpeningHoursSlot[]): boolean {
+    return slots.some((slot) => this.isSlotOpen(slot));
   }
 
   private resolveDailySchedule(date: Date): {
@@ -312,11 +324,14 @@ export class OpeningHoursWeekComponent {
   }
 
   private getOpenExitTypeSummary(slots: OpeningHoursSlot[]): string {
-    if (slots.length === 0) {
+    const openSlots = slots.filter((slot) => this.isSlotOpen(slot));
+    if (openSlots.length === 0) {
       return this.getExitTypeLabel(ExitOutcome.Deny);
     }
 
-    const labels = [...new Set(slots.map((slot) => this.getExitTypeLabel(slot.openExitType)))];
+    const labels = [
+      ...new Set(openSlots.map((slot) => this.getExitTypeLabel(slot.openExitType)))
+    ];
     return labels.length === 1 ? labels[0] : 'Mixed by slot';
   }
 
@@ -331,6 +346,10 @@ export class OpeningHoursWeekComponent {
       [ExitOutcome.Deny]: 'Deny'
     };
     return labels[exitType];
+  }
+
+  private isSlotOpen(slot: OpeningHoursSlot): boolean {
+    return slot.isOpen !== false;
   }
 
   private filterInactiveRules(candidates: string[], activeLabels: string[]): string[] {

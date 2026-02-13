@@ -50,7 +50,7 @@
       <p class="exit-type">
         Closed action: <strong>{{ day.closedExitTypeLabel }}</strong>
       </p>
-      <p class="exit-reason" *ngIf="day.slots.length === 0 && day.closedExitReason">
+      <p class="exit-reason" *ngIf="!hasOpenSlots(day.slots) && day.closedExitReason">
         Reason: {{ day.closedExitReason }}
       </p>
       <details class="inactive-rules" *ngIf="day.inactiveRules.length > 0">
@@ -68,11 +68,12 @@
         </div>
         <div
           class="slot-bar"
+          [ngClass]="slotCssClass(slot)"
           *ngFor="let slot of day.slots"
           [style.left.%]="slotStartPercent(slot)"
           [style.width.%]="slotWidthPercent(slot)"
         >
-          {{ slot.opensAt }} - {{ slot.closesAt }} ({{ slotExitTypeLabel(slot) }})
+          {{ slot.opensAt }} - {{ slot.closesAt }} ({{ slotStateLabel(slot) }}, {{ slotExitTypeLabel(slot) }})
         </div>
       </div>
 
@@ -94,15 +95,15 @@
       <div class="month-day-header">
         <span>{{ day.dayNumber }}</span>
       </div>
-      <p class="month-state open" *ngIf="day.slots.length > 0; else closedState">
-        Open {{ day.slots.length }} slot{{ day.slots.length === 1 ? '' : 's' }}
+      <p class="month-state open" *ngIf="hasOpenSlots(day.slots); else closedState">
+        Open
       </p>
       <ng-template #closedState>
         <p class="month-state closed">Closed</p>
       </ng-template>
       <p class="month-exit">Open: {{ day.openExitTypeLabel }}</p>
       <p class="month-exit">Closed: {{ day.closedExitTypeLabel }}</p>
-      <p class="month-reason" *ngIf="day.slots.length === 0 && day.closedExitReason">
+      <p class="month-reason" *ngIf="!hasOpenSlots(day.slots) && day.closedExitReason">
         {{ day.closedExitReason }}
       </p>
       <p class="month-source"><span class="rule-chip" [ngClass]="'rule-' + day.ruleType">{{ day.source }}</span></p>

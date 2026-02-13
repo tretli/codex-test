@@ -35,6 +35,7 @@ export class OpeningHoursService {
             {
               opensAt: '09:00',
               closesAt: '17:00',
+              isOpen: true,
               openExitType: ExitOutcome.Allow
             }
           ],
@@ -46,6 +47,7 @@ export class OpeningHoursService {
             {
               opensAt: '10:00',
               closesAt: '14:00',
+              isOpen: true,
               openExitType: ExitOutcome.Allow
             }
           ],

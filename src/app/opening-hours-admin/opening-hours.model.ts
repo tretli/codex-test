@@ -10,6 +10,7 @@ export type Weekday =
 export interface OpeningHoursSlot {
   opensAt: string; // HH:mm
   closesAt: string; // HH:mm
+  isOpen: boolean;
   openExitType: ExitOutcome;
 }
 

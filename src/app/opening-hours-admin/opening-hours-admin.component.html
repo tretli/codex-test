@@ -94,6 +94,15 @@
               </label>
 
               <label>
+                Slot state
+                <select formControlName="isOpen">
+                  <option *ngFor="let stateOption of slotStateOptions" [ngValue]="stateOption.value">
+                    {{ stateOption.label }}
+                  </option>
+                </select>
+              </label>
+
+              <label>
                 Open exit type
                 <select formControlName="openExitType">
                   <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
@@ -288,6 +297,15 @@
                 <select formControlName="closesAt">
                   <option *ngFor="let timeOption of closeTimeOptions" [value]="timeOption">
                     {{ timeOption }}
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                Slot state
+                <select formControlName="isOpen">
+                  <option *ngFor="let stateOption of slotStateOptions" [ngValue]="stateOption.value">
+                    {{ stateOption.label }}
                   </option>
                 </select>
               </label>
