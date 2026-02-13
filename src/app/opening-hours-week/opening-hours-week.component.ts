@@ -394,23 +394,38 @@ export class OpeningHoursWeekComponent {
     return new Date(year, month - 1, day);
   }
 
-  private getSwedishMidsummerDayDate(year: number): Date {
-    for (let day = 20; day <= 26; day += 1) {
+  private findWeekdayInJuneRange(
+    year: number,
+    weekday: number,
+    startDay: number,
+    endDay: number
+  ): Date | null {
+    for (let day = startDay; day <= endDay; day += 1) {
       const candidate = new Date(year, 5, day);
-      if (candidate.getDay() === 6) {
+      if (candidate.getDay() === weekday) {
         return candidate;
       }
     }
+    return null;
+  }
+
+  private getSwedishMidsummerDayDate(year: number): Date {
+    const midsummerDay =
+      this.findWeekdayInJuneRange(year, 6, 20, 26);
+    if (midsummerDay) {
+      return midsummerDay;
+    }
+    // Fallback to June 20th if no Saturday is found in the expected range.
     return new Date(year, 5, 20);
   }
 
   private getSwedishMidsummerEveDate(year: number): Date {
-    for (let day = 19; day <= 25; day += 1) {
-      const candidate = new Date(year, 5, day);
-      if (candidate.getDay() === 5) {
-        return candidate;
-      }
+    const midsummerEve =
+      this.findWeekdayInJuneRange(year, 5, 19, 25);
+    if (midsummerEve) {
+      return midsummerEve;
     }
+    // Fallback to the day before Midsummer Day if no Friday is found.
     return this.addDays(this.getSwedishMidsummerDayDate(year), -1);
   }
 }
