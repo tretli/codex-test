@@ -10,6 +10,7 @@ import {
 } from '@angular/forms';
 import {
   DateRangeHoliday,
+  ExitOutcomeId,
   OpeningHoursSchedule,
   RecurringHoliday,
   RecurringHolidayRule,
@@ -36,14 +37,14 @@ import {
 type SlotForm = FormGroup<{
   opensAt: import('@angular/forms').FormControl<string>;
   closesAt: import('@angular/forms').FormControl<string>;
-  openExitType: import('@angular/forms').FormControl<ExitOutcome>;
+  openExitType: import('@angular/forms').FormControl<ExitOutcomeId>;
 }>;
 
 type DayForm = FormGroup<{
   name: import('@angular/forms').FormControl<string>;
   days: import('@angular/forms').FormControl<Weekday[]>;
   slots: FormArray<SlotForm>;
-  closedExitType: import('@angular/forms').FormControl<ExitOutcome>;
+  closedExitType: import('@angular/forms').FormControl<ExitOutcomeId>;
 }>;
 
 type HolidayForm = FormGroup<{
@@ -59,7 +60,7 @@ type HolidayForm = FormGroup<{
   lengthDays: import('@angular/forms').FormControl<number>;
   closed: import('@angular/forms').FormControl<boolean>;
   slots: FormArray<SlotForm>;
-  closedExitType: import('@angular/forms').FormControl<ExitOutcome>;
+  closedExitType: import('@angular/forms').FormControl<ExitOutcomeId>;
 }>;
 
 type HolidayFormValue = {
@@ -77,9 +78,9 @@ type HolidayFormValue = {
   slots: {
     opensAt: string;
     closesAt: string;
-    openExitType: ExitOutcome;
+    openExitType: ExitOutcomeId;
   }[];
-  closedExitType: ExitOutcome;
+  closedExitType: ExitOutcomeId;
 };
 
 type HolidayTemplate = {
@@ -94,8 +95,9 @@ type TimezoneOption = {
 };
 
 type ExitTypeOption = {
-  value: ExitOutcome;
+  value: ExitOutcomeId;
   label: string;
+  color: string;
 };
 
 @Component({
@@ -111,15 +113,13 @@ export class OpeningHoursAdminComponent {
 
   readonly currentYear = new Date().getFullYear();
   readonly weekdays = WEEKDAYS;
-  readonly exitTypeOptions: ReadonlyArray<ExitTypeOption> = [
-    { value: ExitOutcome.Allow, label: 'Allow' },
-    { value: ExitOutcome.AllowWithMessage, label: 'Allow With Message' },
-    { value: ExitOutcome.Defer, label: 'Defer' },
-    { value: ExitOutcome.Escalate, label: 'Escalate' },
-    { value: ExitOutcome.Review, label: 'Review' },
-    { value: ExitOutcome.DenyWithMessage, label: 'Deny With Message' },
-    { value: ExitOutcome.Deny, label: 'Deny' }
-  ];
+  readonly exitTypeOptions = computed<ReadonlyArray<ExitTypeOption>>(() =>
+    this.service.scheduleV2().exitOutcomes.map((outcome) => ({
+      value: outcome.id,
+      label: outcome.name,
+      color: outcome.color
+    }))
+  );
   readonly timezoneOptions = this.buildTimezoneOptions();
   readonly openTimeOptions = this.buildTimeOptions(15, false);
   readonly closeTimeOptions = this.buildTimeOptions(15, true);
@@ -212,7 +212,6 @@ export class OpeningHoursAdminComponent {
       validators: dateRangeOverlapValidator((value) => this.parseDateInput(value))
     })
   });
-
   readonly serializedScheduleV2 = computed(() =>
     JSON.stringify(this.service.scheduleV2(), null, 2)
   );
@@ -527,7 +526,7 @@ export class OpeningHoursAdminComponent {
   private createSlotForm(
     opensAt: string,
     closesAt: string,
-    openExitType: ExitOutcome
+    openExitType: ExitOutcomeId
   ): SlotForm {
     return this.fb.nonNullable.group({
       opensAt: [opensAt, Validators.required],

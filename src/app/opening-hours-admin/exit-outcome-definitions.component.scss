@@ -1,0 +1,71 @@
+:host {
+  display: block;
+}
+
+.holiday-section {
+  margin-top: 1.2rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.holiday-section h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.day-record-toolbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.holiday-card {
+  border: 1px solid #d9e0ef;
+  border-radius: 10px;
+  padding: 1rem;
+  background: #fbfcff;
+}
+
+.slot-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+input[type='text'],
+input[type='color'] {
+  border: 1px solid #ccd3e3;
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+}
+
+input[type='color'] {
+  min-height: 2.2rem;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.55rem 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #eaf0ff;
+  color: #1f3f9f;
+}
+
+button.danger {
+  background: #ffe9ea;
+  color: #ad2532;
+}
+

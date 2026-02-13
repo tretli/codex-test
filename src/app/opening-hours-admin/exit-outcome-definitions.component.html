@@ -1,0 +1,25 @@
+<section class="holiday-section">
+  <h2>Exit Outcomes</h2>
+  <div class="day-record-toolbar">
+    <button type="button" class="secondary" (click)="onAdd()">Add exit outcome</button>
+  </div>
+
+  <article class="holiday-card" *ngFor="let outcome of outcomes.controls; let outcomeIndex = index" [formGroup]="outcome">
+    <div class="slot-row">
+      <label>
+        ID
+        <input type="text" formControlName="id" placeholder="allow" />
+      </label>
+      <label>
+        Name
+        <input type="text" formControlName="name" placeholder="Allow" />
+      </label>
+      <label>
+        Color
+        <input type="color" formControlName="color" />
+      </label>
+      <button type="button" class="danger" (click)="onRemove(outcomeIndex)">Remove</button>
+    </div>
+  </article>
+</section>
+

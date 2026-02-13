@@ -45,10 +45,10 @@
       <h2>{{ day.label }}</h2>
       <p class="source"><span class="rule-chip" [ngClass]="'rule-' + day.ruleType">{{ day.source }}</span></p>
       <p class="exit-type">
-        Open action: <strong>{{ day.openExitTypeLabel }}</strong>
+        Open action: <strong [style.color]="day.openExitTypeColor">{{ day.openExitTypeLabel }}</strong>
       </p>
       <p class="exit-type">
-        Closed action: <strong>{{ day.closedExitTypeLabel }}</strong>
+        Closed action: <strong [style.color]="day.closedExitTypeColor">{{ day.closedExitTypeLabel }}</strong>
       </p>
       <details class="inactive-rules" *ngIf="day.inactiveRules.length > 0">
         <summary>Inactive rules ({{ day.inactiveRules.length }})</summary>
@@ -66,6 +66,7 @@
         <div
           class="slot-bar"
           *ngFor="let slot of day.slots"
+          [style.backgroundColor]="slotExitTypeColor(slot)"
           [style.left.%]="slotStartPercent(slot)"
           [style.width.%]="slotWidthPercent(slot)"
         >
@@ -97,8 +98,8 @@
       <ng-template #closedState>
         <p class="month-state closed">Closed</p>
       </ng-template>
-      <p class="month-exit">Open: {{ day.openExitTypeLabel }}</p>
-      <p class="month-exit">Closed: {{ day.closedExitTypeLabel }}</p>
+      <p class="month-exit">Open: <strong [style.color]="day.openExitTypeColor">{{ day.openExitTypeLabel }}</strong></p>
+      <p class="month-exit">Closed: <strong [style.color]="day.closedExitTypeColor">{{ day.closedExitTypeLabel }}</strong></p>
       <p class="month-source"><span class="rule-chip" [ngClass]="'rule-' + day.ruleType">{{ day.source }}</span></p>
     </article>
   </div>

@@ -2,7 +2,10 @@
   <header>
     <h1>Opening Hours Admin</h1>
     <p>Configure the business opening schedule and publish once complete.</p>
-    <a class="view-link" routerLink="/admin/opening-hours/week">Open Week Calendar</a>
+    <div class="header-links">
+      <a class="view-link" routerLink="/admin/opening-hours/week">Open Week Calendar</a>
+      <a class="view-link" routerLink="/admin/opening-hours/outcomes">Manage Exit Outcomes</a>
+    </div>
   </header>
 
   <section class="rules-info">
@@ -69,7 +72,7 @@
           <label>
             Default exit type
             <select formControlName="closedExitType">
-              <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+              <option *ngFor="let exitType of exitTypeOptions()" [value]="exitType.value">
                 {{ exitType.label }}
               </option>
             </select>
@@ -100,7 +103,7 @@
               <label>
                 Exit type
                 <select formControlName="openExitType">
-                  <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                  <option *ngFor="let exitType of exitTypeOptions()" [value]="exitType.value">
                     {{ exitType.label }}
                   </option>
                 </select>
@@ -181,7 +184,7 @@
           <label>
             Default exit type
             <select formControlName="closedExitType">
-              <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+              <option *ngFor="let exitType of exitTypeOptions()" [value]="exitType.value">
                 {{ exitType.label }}
               </option>
             </select>
@@ -320,7 +323,7 @@
               <label>
                 Exit type
                 <select formControlName="openExitType">
-                  <option *ngFor="let exitType of exitTypeOptions" [value]="exitType.value">
+                  <option *ngFor="let exitType of exitTypeOptions()" [value]="exitType.value">
                     {{ exitType.label }}
                   </option>
                 </select>
