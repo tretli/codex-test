@@ -105,6 +105,17 @@ export function holidayFormValidator(parseDateInput: DateParser): ValidatorFn {
       }
     }
 
+    if (rule === 'single-date') {
+      const singleDateRaw = control.get('singleDate')?.value as string | null;
+      if (!singleDateRaw) {
+        return { singleDateRequired: true };
+      }
+      const singleDate = parseDateInput(singleDateRaw);
+      if (!singleDate) {
+        return { singleDateFormat: true };
+      }
+    }
+
     if (!closed) {
       if (slots.length === 0) {
         return { slotRequired: true };

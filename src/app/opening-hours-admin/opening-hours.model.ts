@@ -34,7 +34,8 @@ export type RecurringHolidayRule =
   | 'easter'
   | 'swedish-midsummer-day'
   | 'swedish-midsummer-eve'
-  | 'date-range';
+  | 'date-range'
+  | 'single-date';
 
 export interface RecurringHoliday {
   name: string;
@@ -44,6 +45,7 @@ export interface RecurringHoliday {
   offsetDays?: number; // day offset from Easter Sunday for easter rules
   rangeStart?: string; // ISO date for date-range rules
   rangeEnd?: string; // ISO date for date-range rules
+  singleDate?: string; // ISO date for single-date rules
   weekdays?: Weekday[]; // selected weekdays for date-range rules
   lengthDays: number; // number of consecutive days the holiday applies
   closed: boolean;
@@ -60,11 +62,17 @@ export interface DateRangeHoliday extends RecurringHoliday {
   weekdays: Weekday[];
 }
 
+export interface SingleDateHoliday extends RecurringHoliday {
+  rule: 'single-date';
+  singleDate: string; // ISO date
+}
+
 export interface OpeningHoursSchedule {
   timezone: string;
   days: WeeklyOpeningHoursRecord[];
   recurringHolidays: RecurringHoliday[];
   dateRanges: DateRangeHoliday[];
+  singleDates: SingleDateHoliday[];
 }
 
 export const WEEKDAYS: ReadonlyArray<{ key: Weekday; label: string }> = [

@@ -165,6 +165,13 @@ export class OpeningHoursWeekComponent {
     const day = this.weekdayFromDate(date);
     const isoDate = this.formatIsoDate(date);
 
+    const singleDateMatches = schedule.singleDates.filter(
+      (singleDate) => singleDate.singleDate === isoDate
+    );
+    if (singleDateMatches.length > 0) {
+      return this.resolveHolidaySlots(singleDateMatches, 'Single date');
+    }
+
     const dateRangeMatches = schedule.dateRanges.filter(
       (range) =>
         isoDate >= range.rangeStart &&

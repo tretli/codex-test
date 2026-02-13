@@ -14,6 +14,7 @@ import {
   RecurringHoliday,
   RecurringHolidayRule,
   RuleExitType,
+  SingleDateHoliday,
   WeeklyOpeningHoursRecord,
   WEEKDAYS,
   Weekday
@@ -47,6 +48,7 @@ type HolidayForm = FormGroup<{
   offsetDays: import('@angular/forms').FormControl<number | null>;
   rangeStart: import('@angular/forms').FormControl<string | null>;
   rangeEnd: import('@angular/forms').FormControl<string | null>;
+  singleDate: import('@angular/forms').FormControl<string | null>;
   weekdays: import('@angular/forms').FormControl<Weekday[]>;
   lengthDays: import('@angular/forms').FormControl<number>;
   closed: import('@angular/forms').FormControl<boolean>;
@@ -63,6 +65,7 @@ type HolidayFormValue = {
   offsetDays: number | null;
   rangeStart: string | null;
   rangeEnd: string | null;
+  singleDate: string | null;
   weekdays: Weekday[];
   lengthDays: number;
   closed: boolean;
@@ -304,6 +307,28 @@ export class OpeningHoursAdminComponent {
     this.sortHolidayFormsByDate();
   }
 
+  addSingleDateHoliday(): void {
+    const today = new Date();
+    const singleDate = this.formatIsoDate(today);
+    const sequence = this.holidayForms.controls.filter(
+      (holidayForm) => holidayForm.controls.rule.value === 'single-date'
+    ).length + 1;
+
+    this.holidayForms.push(
+      this.createHolidayForm({
+        name: `Single date ${sequence}`,
+        rule: 'single-date',
+        singleDate,
+        lengthDays: 1,
+        closed: true,
+        slots: [],
+        openExitType: RuleExitType.Proceed,
+        closedExitType: RuleExitType.Reject
+      })
+    );
+    this.sortHolidayFormsByDate();
+  }
+
   removeHoliday(index: number): void {
     this.holidayForms.removeAt(index);
   }
@@ -347,7 +372,7 @@ export class OpeningHoursAdminComponent {
 
   onDatePicked(
     holidayIndex: number,
-    field: 'rangeStart' | 'rangeEnd',
+    field: 'rangeStart' | 'rangeEnd' | 'singleDate',
     isoDateValue: string
   ): void {
     if (!isoDateValue) {
@@ -378,6 +403,12 @@ export class OpeningHoursAdminComponent {
       }
       return 'Range: set start and end date';
     }
+    if (holidayForm.controls.rule.value === 'single-date') {
+      const singleDate = holidayForm.controls.singleDate.value;
+      return singleDate
+        ? `Date: ${this.formatEuropeanDate(singleDate)}`
+        : 'Date: set single date';
+    }
 
     const startDate = this.getHolidayExampleDateForYear(
       {
@@ -385,7 +416,8 @@ export class OpeningHoursAdminComponent {
         month: holidayForm.controls.month.value ?? undefined,
         day: holidayForm.controls.day.value ?? undefined,
         offsetDays: holidayForm.controls.offsetDays.value ?? undefined,
-        rangeStart: holidayForm.controls.rangeStart.value ?? undefined
+        rangeStart: holidayForm.controls.rangeStart.value ?? undefined,
+        singleDate: holidayForm.controls.singleDate.value ?? undefined
       },
       this.currentYear
     );
@@ -437,7 +469,7 @@ export class OpeningHoursAdminComponent {
     this.dayForms.clear();
     this.holidayForms.clear();
     schedule.days.forEach((day) => this.dayForms.push(this.createDayForm(day)));
-    [...schedule.recurringHolidays, ...schedule.dateRanges]
+    [...schedule.recurringHolidays, ...schedule.dateRanges, ...schedule.singleDates]
       .sort((a, b) => this.compareHolidaysByDate(a, b))
       .forEach((holiday) =>
       this.holidayForms.push(this.createHolidayForm(holiday))
@@ -472,6 +504,10 @@ export class OpeningHoursAdminComponent {
       holiday.rule === 'date-range' && holiday.rangeEnd
         ? this.formatEuropeanDate(holiday.rangeEnd)
         : holiday.rangeEnd ?? null;
+    const singleDateValue =
+      holiday.rule === 'single-date' && holiday.singleDate
+        ? this.formatEuropeanDate(holiday.singleDate)
+        : holiday.singleDate ?? null;
 
     return this.fb.group({
       name: this.fb.nonNullable.control(holiday.name, Validators.required),
@@ -490,6 +526,7 @@ export class OpeningHoursAdminComponent {
       ]),
       rangeStart: this.fb.control(rangeStartValue),
       rangeEnd: this.fb.control(rangeEndValue),
+      singleDate: this.fb.control(singleDateValue),
       weekdays: this.fb.nonNullable.control(holiday.weekdays ?? []),
       lengthDays: this.fb.nonNullable.control(holiday.lengthDays, [
         Validators.min(1)
@@ -549,6 +586,21 @@ export class OpeningHoursAdminComponent {
       };
     }
 
+    if (holiday.rule === 'single-date') {
+      const singleDate =
+        this.normalizeDateInput(holiday.singleDate) ?? this.formatIsoDate(new Date());
+      return {
+        name: holiday.name,
+        rule: holiday.rule,
+        singleDate,
+        lengthDays: 1,
+        closed: holiday.closed,
+        slots: holiday.closed ? [] : holiday.slots,
+        openExitType: holiday.openExitType,
+        closedExitType: holiday.closedExitType
+      };
+    }
+
     return {
       name: holiday.name,
       rule: holiday.rule,
@@ -566,17 +618,21 @@ export class OpeningHoursAdminComponent {
       this.normalizeHoliday(holiday)
     );
     const recurringHolidays = normalizedHolidays.filter(
-      (holiday) => holiday.rule !== 'date-range'
+      (holiday) => holiday.rule !== 'date-range' && holiday.rule !== 'single-date'
     );
     const dateRanges = normalizedHolidays.filter(
       (holiday): holiday is DateRangeHoliday => holiday.rule === 'date-range'
+    );
+    const singleDates = normalizedHolidays.filter(
+      (holiday): holiday is SingleDateHoliday => holiday.rule === 'single-date'
     );
 
     return {
       timezone: raw.timezone,
       days: raw.days,
       recurringHolidays,
-      dateRanges
+      dateRanges,
+      singleDates
     };
   }
 
@@ -606,7 +662,7 @@ export class OpeningHoursAdminComponent {
   private getHolidayExampleDateForYear(
     holiday: Pick<
       RecurringHoliday,
-      'rule' | 'month' | 'day' | 'offsetDays' | 'rangeStart'
+      'rule' | 'month' | 'day' | 'offsetDays' | 'rangeStart' | 'singleDate'
     >,
     year: number
   ): Date | null {
@@ -627,6 +683,11 @@ export class OpeningHoursAdminComponent {
       date = this.getSwedishMidsummerEveDate(year);
     } else if (holiday.rule === 'date-range' && holiday.rangeStart) {
       const parsed = this.parseDateInput(holiday.rangeStart);
+      if (parsed) {
+        date = parsed;
+      }
+    } else if (holiday.rule === 'single-date' && holiday.singleDate) {
+      const parsed = this.parseDateInput(holiday.singleDate);
       if (parsed) {
         date = parsed;
       }

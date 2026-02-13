@@ -33,6 +33,36 @@ header p {
   font-weight: 600;
 }
 
+.rules-info {
+  margin-top: 1rem;
+  border: 1px solid #d9e0ef;
+  border-radius: 10px;
+  background: #fbfcff;
+  padding: 0.9rem 1rem;
+}
+
+.rules-info h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.rules-info p {
+  margin: 0.45rem 0 0;
+  color: #5b667d;
+  font-size: 0.9rem;
+}
+
+.rules-info ol {
+  margin: 0.55rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.rules-info li {
+  margin: 0.2rem 0;
+  color: #26324a;
+  font-size: 0.9rem;
+}
+
 .meta-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

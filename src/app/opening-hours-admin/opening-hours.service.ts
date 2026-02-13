@@ -43,7 +43,8 @@ export class OpeningHoursService {
         }
       ],
       recurringHolidays: [],
-      dateRanges: []
+      dateRanges: [],
+      singleDates: []
     };
   }
 }

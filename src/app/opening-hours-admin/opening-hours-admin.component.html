@@ -5,6 +5,23 @@
     <a class="view-link" routerLink="/admin/opening-hours/week">Open Week Calendar</a>
   </header>
 
+  <section class="rules-info">
+    <h2>Rule Priority</h2>
+    <p>
+      The system resolves each day using the first matching rule group below.
+    </p>
+    <ol>
+      <li><strong>Single date</strong> rules (`singleDates`)</li>
+      <li><strong>Date range</strong> rules (`dateRanges`)</li>
+      <li><strong>Recurring holiday</strong> rules (`recurringHolidays`)</li>
+      <li><strong>Weekly records</strong> (`days`)</li>
+    </ol>
+    <p>
+      Within one group, if multiple rules match the same day, the first matching
+      entry is used.
+    </p>
+  </section>
+
   <form [formGroup]="form" (ngSubmit)="save()">
     <div class="meta-grid">
       <label>
@@ -123,6 +140,9 @@
         <button type="button" class="secondary" (click)="addDateRangeHoliday()">
           Add date range
         </button>
+        <button type="button" class="secondary" (click)="addSingleDateHoliday()">
+          Add single date
+        </button>
       </div>
 
       <article class="holiday-card" *ngFor="let holiday of holidayForms.controls; let holidayIndex = index" [formGroupName]="holidayIndex">
@@ -195,6 +215,26 @@
             </div>
           </label>
         </div>
+        <div class="holiday-fields" *ngIf="holiday.controls.rule.value === 'single-date'">
+          <label>
+            Date
+            <div class="date-input-group">
+              <input type="text" formControlName="singleDate" placeholder="DD.MM.YYYY" />
+              <button type="button" class="secondary date-picker-button" (click)="openNativeDatePicker(singleDatePicker)">
+                Calendar
+              </button>
+              <input
+                #singleDatePicker
+                class="native-date-picker-input"
+                type="date"
+                [value]="toIsoDateValue(holiday.controls.singleDate.value)"
+                (change)="onDatePicked(holidayIndex, 'singleDate', $any($event.target).value)"
+                tabindex="-1"
+                aria-hidden="true"
+              />
+            </div>
+          </label>
+        </div>
         <div class="weekday-pills" *ngIf="holiday.controls.rule.value === 'date-range'">
           <label class="weekday-pill" *ngFor="let weekday of weekdays">
             <input
@@ -216,6 +256,12 @@
         </p>
         <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['dateRangeOrder']">
           End date must be the same as or after start date.
+        </p>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['singleDateRequired']">
+          Date is required.
+        </p>
+        <p class="validation-error" *ngIf="holiday.touched && holiday.errors?.['singleDateFormat']">
+          Use a valid date format: DD.MM.YYYY.
         </p>
 
         <div formArrayName="slots" class="slots" *ngIf="!holiday.controls.closed.value; else holidayClosedTemplate">
