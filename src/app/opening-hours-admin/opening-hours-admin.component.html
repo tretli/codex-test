@@ -193,17 +193,23 @@
             Start date
             <div class="date-input-group">
               <input type="text" formControlName="rangeStart" placeholder="DD.MM.YYYY" />
-              <button type="button" class="secondary date-picker-button" (click)="openNativeDatePicker(rangeStartPicker)">
+              <button
+                type="button"
+                class="secondary date-picker-button"
+                [attr.aria-controls]="'range-start-picker-' + holidayIndex"
+                aria-label="Open calendar for start date"
+                (click)="openNativeDatePicker(rangeStartPicker)"
+              >
                 Calendar
               </button>
               <input
                 #rangeStartPicker
+                [id]="'range-start-picker-' + holidayIndex"
                 class="native-date-picker-input"
                 type="date"
+                aria-label="Start date calendar input"
                 [value]="toIsoDateValue(holiday.controls.rangeStart.value)"
                 (change)="onDatePicked(holidayIndex, 'rangeStart', $any($event.target).value)"
-                tabindex="-1"
-                aria-hidden="true"
               />
             </div>
           </label>
@@ -212,17 +218,23 @@
             End date
             <div class="date-input-group">
               <input type="text" formControlName="rangeEnd" placeholder="DD.MM.YYYY" />
-              <button type="button" class="secondary date-picker-button" (click)="openNativeDatePicker(rangeEndPicker)">
+              <button
+                type="button"
+                class="secondary date-picker-button"
+                [attr.aria-controls]="'range-end-picker-' + holidayIndex"
+                aria-label="Open calendar for end date"
+                (click)="openNativeDatePicker(rangeEndPicker)"
+              >
                 Calendar
               </button>
               <input
                 #rangeEndPicker
+                [id]="'range-end-picker-' + holidayIndex"
                 class="native-date-picker-input"
                 type="date"
+                aria-label="End date calendar input"
                 [value]="toIsoDateValue(holiday.controls.rangeEnd.value)"
                 (change)="onDatePicked(holidayIndex, 'rangeEnd', $any($event.target).value)"
-                tabindex="-1"
-                aria-hidden="true"
               />
             </div>
           </label>
@@ -232,17 +244,23 @@
             Date
             <div class="date-input-group">
               <input type="text" formControlName="singleDate" placeholder="DD.MM.YYYY" />
-              <button type="button" class="secondary date-picker-button" (click)="openNativeDatePicker(singleDatePicker)">
+              <button
+                type="button"
+                class="secondary date-picker-button"
+                [attr.aria-controls]="'single-date-picker-' + holidayIndex"
+                aria-label="Open calendar for date"
+                (click)="openNativeDatePicker(singleDatePicker)"
+              >
                 Calendar
               </button>
               <input
                 #singleDatePicker
+                [id]="'single-date-picker-' + holidayIndex"
                 class="native-date-picker-input"
                 type="date"
+                aria-label="Single date calendar input"
                 [value]="toIsoDateValue(holiday.controls.singleDate.value)"
                 (change)="onDatePicked(holidayIndex, 'singleDate', $any($event.target).value)"
-                tabindex="-1"
-                aria-hidden="true"
               />
             </div>
           </label>
