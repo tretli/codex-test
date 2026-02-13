@@ -109,6 +109,7 @@ export class OpeningHoursAdminComponent {
     { value: ExitOutcome.Defer, label: 'Defer' },
     { value: ExitOutcome.Escalate, label: 'Escalate' },
     { value: ExitOutcome.Review, label: 'Review' },
+    { value: ExitOutcome.DenyWithMessage, label: 'Deny With Message' },
     { value: ExitOutcome.Deny, label: 'Deny' }
   ];
   readonly timezoneOptions = this.buildTimezoneOptions();
@@ -154,7 +155,7 @@ export class OpeningHoursAdminComponent {
     this.createFixedTemplate('christmas-day', 'Christmas Day', 12, 25, 1),
     this.createFixedTemplate("st-stephens-day", "St. Stephen's Day", 12, 26, 1),
     this.createFixedTemplate("new-years-eve", "New Year's Eve", 12, 31, 1),
-    this.createFixedTemplate('test', 'Test', 5, 6, 1),
+    this.createFixedTemplate('test', 'Test', 2, 22, 1),
     this.createFixedTemplate(
       'national-day-sweden',
       'National day of Sweden',
