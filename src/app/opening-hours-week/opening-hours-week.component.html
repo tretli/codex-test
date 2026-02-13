@@ -53,6 +53,12 @@
       <p class="exit-reason" *ngIf="day.slots.length === 0 && day.closedExitReason">
         Reason: {{ day.closedExitReason }}
       </p>
+      <details class="inactive-rules" *ngIf="day.inactiveRules.length > 0">
+        <summary>Inactive rules ({{ day.inactiveRules.length }})</summary>
+        <ul>
+          <li *ngFor="let rule of day.inactiveRules">{{ rule }}</li>
+        </ul>
+      </details>
 
       <div class="timeline" *ngIf="day.slots.length > 0; else closedBlock">
         <div class="hour-lines">

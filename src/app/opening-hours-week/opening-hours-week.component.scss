@@ -108,6 +108,26 @@ h2 {
   color: #5b667d;
 }
 
+.inactive-rules {
+  margin: 0 0 0.55rem;
+  font-size: 0.8rem;
+  color: #5b667d;
+}
+
+.inactive-rules summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.inactive-rules ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+}
+
+.inactive-rules li {
+  margin: 0.12rem 0;
+}
+
 .timeline {
   position: relative;
   border: 1px solid #d9e0ef;

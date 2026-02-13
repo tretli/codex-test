@@ -20,6 +20,7 @@ type DayView = {
   openExitTypeLabel: string;
   closedExitTypeLabel: string;
   closedExitReason?: string;
+  inactiveRules: string[];
 };
 
 type MonthDayView = {
@@ -31,6 +32,7 @@ type MonthDayView = {
   openExitTypeLabel: string;
   closedExitTypeLabel: string;
   closedExitReason?: string;
+  inactiveRules: string[];
 };
 
 @Component({
@@ -62,7 +64,8 @@ export class OpeningHoursWeekComponent {
         source: daily.source,
         openExitTypeLabel: this.getExitTypeLabel(daily.openExitType),
         closedExitTypeLabel: this.getExitTypeLabel(daily.closedExitType),
-        closedExitReason: daily.closedExitReason
+        closedExitReason: daily.closedExitReason,
+        inactiveRules: daily.inactiveRules
       });
     }
     return days;
@@ -97,7 +100,8 @@ export class OpeningHoursWeekComponent {
         source: daily.source,
         openExitTypeLabel: this.getExitTypeLabel(daily.openExitType),
         closedExitTypeLabel: this.getExitTypeLabel(daily.closedExitType),
-        closedExitReason: daily.closedExitReason
+        closedExitReason: daily.closedExitReason,
+        inactiveRules: daily.inactiveRules
       });
     }
     return days;
@@ -160,44 +164,92 @@ export class OpeningHoursWeekComponent {
     openExitType: ExitOutcome;
     closedExitType: ExitOutcome;
     closedExitReason?: string;
+    inactiveRules: string[];
   } {
     const schedule = this.service.schedule();
     const day = this.weekdayFromDate(date);
     const isoDate = this.formatIsoDate(date);
+    const weekdayLabel = WEEKDAYS.find((item) => item.key === day)?.label ?? day;
 
     const singleDateMatches = schedule.singleDates.filter(
       (singleDate) => singleDate.singleDate === isoDate
     );
-    if (singleDateMatches.length > 0) {
-      return this.resolveHolidaySlots(singleDateMatches, 'Single date');
-    }
-
     const dateRangeMatches = schedule.dateRanges.filter(
       (range) =>
         isoDate >= range.rangeStart &&
         isoDate <= range.rangeEnd &&
         range.weekdays.includes(day)
     );
-    if (dateRangeMatches.length > 0) {
-      return this.resolveHolidaySlots(dateRangeMatches, 'Date range');
-    }
-
     const recurringMatches = schedule.recurringHolidays.filter((holiday) =>
       this.isRecurringHolidayMatch(holiday, date)
     );
-    if (recurringMatches.length > 0) {
-      return this.resolveHolidaySlots(recurringMatches, 'Recurring holiday');
+    const weeklyMatches = schedule.days.filter((record) => record.days.includes(day));
+
+    const matchedSingleLabels = singleDateMatches.map(
+      (singleDate) => `Single date: ${singleDate.name}`
+    );
+    const matchedRangeLabels = dateRangeMatches.map(
+      (range) => `Date range: ${range.name}`
+    );
+    const matchedRecurringLabels = recurringMatches.map(
+      (holiday) => `Recurring: ${holiday.name}`
+    );
+    const matchedWeeklyLabels = weeklyMatches.map(
+      (record) =>
+        `Weekly: ${record.days
+          .map((recordDay) => WEEKDAYS.find((item) => item.key === recordDay)?.label ?? recordDay)
+          .join(', ')}`
+    );
+    if (singleDateMatches.length > 0) {
+      return {
+        ...this.resolveHolidaySlots(singleDateMatches, 'Single date'),
+        inactiveRules: this.filterInactiveRules(
+          [
+            ...matchedSingleLabels,
+            ...matchedRangeLabels,
+            ...matchedRecurringLabels,
+            ...matchedWeeklyLabels
+          ],
+          matchedSingleLabels
+        )
+      };
     }
 
-    const baseRecords = schedule.days.filter((record) => record.days.includes(day));
+    if (dateRangeMatches.length > 0) {
+      return {
+        ...this.resolveHolidaySlots(dateRangeMatches, 'Date range'),
+        inactiveRules: this.filterInactiveRules(
+          [
+            ...matchedRangeLabels,
+            ...matchedRecurringLabels,
+            ...matchedWeeklyLabels
+          ],
+          matchedRangeLabels
+        )
+      };
+    }
+
+    if (recurringMatches.length > 0) {
+      return {
+        ...this.resolveHolidaySlots(recurringMatches, 'Recurring holiday'),
+        inactiveRules: this.filterInactiveRules(
+          [...matchedRecurringLabels, ...matchedWeeklyLabels],
+          matchedRecurringLabels
+        )
+      };
+    }
+
+    const baseRecords = weeklyMatches;
     const baseSlots = baseRecords.flatMap((record) => record.slots);
+    const inactiveRules = this.filterInactiveRules(matchedWeeklyLabels, matchedWeeklyLabels);
     if (baseRecords.length === 0) {
       return {
         slots: [],
         source: 'Weekly schedule',
         openExitType: ExitOutcome.Deny,
         closedExitType: ExitOutcome.Deny,
-        closedExitReason: 'No matching opening rule for this weekday'
+        closedExitReason: `No weekly rule configured for ${weekdayLabel}`,
+        inactiveRules
       };
     }
 
@@ -207,7 +259,8 @@ export class OpeningHoursWeekComponent {
         source: 'Weekly schedule',
         openExitType: baseRecords[0].openExitType,
         closedExitType: baseRecords[0].closedExitType,
-        closedExitReason: baseRecords[0].closedExitReason || 'Closed by weekly schedule'
+        closedExitReason: baseRecords[0].closedExitReason || 'Closed by weekly schedule',
+        inactiveRules
       };
     }
 
@@ -216,7 +269,8 @@ export class OpeningHoursWeekComponent {
       source: 'Weekly schedule',
       openExitType: baseRecords[0].openExitType,
       closedExitType: baseRecords[0].closedExitType,
-      closedExitReason: baseRecords[0].closedExitReason
+      closedExitReason: baseRecords[0].closedExitReason,
+      inactiveRules
     };
   }
 
@@ -260,6 +314,11 @@ export class OpeningHoursWeekComponent {
       [ExitOutcome.Deny]: 'Deny'
     };
     return labels[exitType];
+  }
+
+  private filterInactiveRules(candidates: string[], activeLabels: string[]): string[] {
+    const active = new Set(activeLabels);
+    return [...new Set(candidates)].filter((label) => !active.has(label));
   }
 
   private isRecurringHolidayMatch(holiday: RecurringHoliday, date: Date): boolean {
@@ -397,4 +456,3 @@ export class OpeningHoursWeekComponent {
     return this.addDays(this.getSwedishMidsummerDayDate(year), -1);
   }
 }
-
