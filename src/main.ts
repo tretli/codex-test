@@ -5,6 +5,7 @@ import { OpeningHoursAdminComponent } from './app/opening-hours-admin/opening-ho
 import { ExitOutcomeAdminComponent } from './app/opening-hours-admin/exit-outcome-admin.component';
 import { OpeningHoursWeekComponent } from './app/opening-hours-week/opening-hours-week.component';
 import { MainMenuComponent } from './app/main-menu/main-menu.component';
+import { IvrBuilderComponent } from './app/ivr-builder/ivr-builder.component';
 
 @Component({
   selector: 'app-root',
@@ -19,6 +20,7 @@ bootstrapApplication(AppComponent, {
     provideRouter([
       { path: '', pathMatch: 'full', redirectTo: 'main-menu' },
       { path: 'main-menu', component: MainMenuComponent },
+      { path: 'ivr-builder', component: IvrBuilderComponent },
       { path: 'admin/opening-hours', component: OpeningHoursAdminComponent },
       { path: 'admin/opening-hours/outcomes', component: ExitOutcomeAdminComponent },
       { path: 'admin/opening-hours/week', component: OpeningHoursWeekComponent }

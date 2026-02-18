@@ -1,0 +1,78 @@
+<section class="ivr-builder">
+  <header class="top-row">
+    <div>
+      <h1>IVR Builder</h1>
+      <p>{{ enabledCount() }} active module(s) of {{ modules().length }}</p>
+    </div>
+    <a routerLink="/main-menu" class="back-link">Back to Main Menu</a>
+  </header>
+
+  <section class="palette">
+    <h2>Add Module</h2>
+    <div class="palette-controls">
+      <label for="module-type">Module type</label>
+      <select
+        id="module-type"
+        [ngModel]="selectedTemplate()"
+        (ngModelChange)="selectedTemplate.set($event)"
+      >
+        <option *ngFor="let item of templates" [ngValue]="item.type">{{ item.label }}</option>
+      </select>
+      <button type="button" (click)="addModule()">Add module</button>
+    </div>
+  </section>
+
+  <section class="canvas">
+    <h2>Flow Modules</h2>
+    <article class="module-card" *ngFor="let module of modules(); let i = index">
+      <div class="card-head">
+        <strong>{{ i + 1 }}. {{ module.type }}</strong>
+        <label>
+          <input
+            type="checkbox"
+            [checked]="module.enabled"
+            (change)="toggleEnabled(module.id)"
+          />
+          Enabled
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Name</span>
+        <input
+          type="text"
+          [value]="module.name"
+          (input)="updateName(module.id, $any($event.target).value)"
+        />
+      </label>
+
+      <label class="field">
+        <span>Prompt</span>
+        <textarea
+          rows="3"
+          [value]="module.prompt"
+          (input)="updatePrompt(module.id, $any($event.target).value)"
+        ></textarea>
+      </label>
+
+      <label class="field">
+        <span>Next module</span>
+        <select
+          [ngModel]="module.nextModuleId ?? ''"
+          (ngModelChange)="updateNextModule(module.id, $event)"
+        >
+          <option value="">End flow</option>
+          <option *ngFor="let candidate of modules()" [value]="candidate.id" [disabled]="candidate.id === module.id">
+            {{ candidate.name }}
+          </option>
+        </select>
+      </label>
+
+      <div class="actions">
+        <button type="button" (click)="moveUp(module.id)">Move Up</button>
+        <button type="button" (click)="moveDown(module.id)">Move Down</button>
+        <button type="button" class="danger" (click)="removeModule(module.id)">Remove</button>
+      </div>
+    </article>
+  </section>
+</section>
