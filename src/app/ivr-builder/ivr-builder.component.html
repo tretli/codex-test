@@ -3,22 +3,41 @@
     <div>
       <h1>IVR Builder</h1>
       <p>
-        {{ enabledCount() }} active module(s), {{ connections().length }} connection(s)
+        {{ moduleCount() }} module(s), {{ connectionCount() }} connection(s)
       </p>
     </div>
     <a routerLink="/main-menu" class="back-link">Back to Main Menu</a>
   </header>
 
+  <section class="json-panel">
+    <h2>Backend JSON Model</h2>
+    <p>Paste your module array, then import to build the graph.</p>
+    <textarea
+      rows="12"
+      [ngModel]="jsonInput()"
+      (ngModelChange)="jsonInput.set($event)"
+    ></textarea>
+    <div class="panel-actions">
+      <button type="button" (click)="importFromJson()">Import JSON</button>
+      <button type="button" class="secondary" (click)="resetToSample()">
+        Load sample
+      </button>
+    </div>
+    <p class="validation-error" *ngIf="parseError()">{{ parseError() }}</p>
+  </section>
+
   <section class="palette">
     <h2>Add Module</h2>
     <div class="palette-controls">
-      <label for="module-type">Module type</label>
+      <label for="module-type">Service module type</label>
       <select
         id="module-type"
-        [ngModel]="selectedTemplate()"
-        (ngModelChange)="selectedTemplate.set($event)"
+        [ngModel]="selectedTypeId()"
+        (ngModelChange)="selectedTypeId.set($event)"
       >
-        <option *ngFor="let item of templates" [ngValue]="item.type">{{ item.label }}</option>
+        <option *ngFor="let item of templates" [ngValue]="item.serviceModuleTypeId">
+          {{ item.label }} ({{ item.serviceModuleTypeId }})
+        </option>
       </select>
       <button type="button" (click)="addModule()">Add module</button>
     </div>
@@ -27,7 +46,7 @@
   <section class="canvas-panel">
     <h2>Flow Canvas</h2>
     <p class="hint">
-      Drag modules to position them. Drag from an output dot to an input dot to create arrows.
+      Drag cards to position. Pick a link field, then drag from output port to target module.
     </p>
 
     <div
@@ -58,7 +77,8 @@
           [attr.d]="connection.path"
           marker-end="url(#arrowhead)"
           class="connection-line"
-          (dblclick)="removeConnection(connection.id)"
+          [attr.title]="connection.field"
+          (dblclick)="removeConnection(connection)"
         ></path>
         <path
           *ngIf="connectionDraft()"
@@ -70,34 +90,35 @@
 
       <article
         class="module-card"
-        *ngFor="let module of modules(); let i = index"
-        [style.left.px]="module.x"
-        [style.top.px]="module.y"
-        (pointerdown)="setCanvasRef(canvasRoot); startModuleDrag(module.id, $event)"
+        *ngFor="let node of nodes(); trackBy: trackByNode"
+        [style.left.px]="node.x"
+        [style.top.px]="node.y"
+        (pointerdown)="setCanvasRef(canvasRoot); startModuleDrag(node.module.id, $event)"
       >
         <div class="card-head">
-          <strong>{{ i + 1 }}. {{ module.type }}</strong>
-          <label>
-            <input
-              type="checkbox"
-              [checked]="module.enabled"
-              (change)="toggleEnabled(module.id)"
-            />
-            Enabled
-          </label>
+          <strong>{{ node.module.name || 'Unnamed module' }}</strong>
+          <button type="button" class="danger small" (click)="removeModule(node.module.id)">
+            Remove
+          </button>
         </div>
+
+        <p class="meta">
+          ID {{ node.module.id }} | {{ moduleTypeLabel(node.module.serviceModuleTypeId) }}
+          ({{ node.module.serviceModuleTypeId }})
+        </p>
+
         <div class="ports">
           <button
             type="button"
             class="port input"
-            [attr.data-port-input]="module.id"
+            [attr.data-port-input]="node.module.id"
             title="Drop an arrow here"
           ></button>
           <button
             type="button"
             class="port output"
-            (pointerdown)="setCanvasRef(canvasRoot); startConnectionDrag(module.id, $event)"
-            title="Drag to connect"
+            (pointerdown)="setCanvasRef(canvasRoot); startConnectionDrag(node, $event)"
+            title="Drag to connect selected field"
           ></button>
         </div>
 
@@ -105,25 +126,73 @@
           <span>Name</span>
           <input
             type="text"
-            [value]="module.name"
-            (input)="updateName(module.id, $any($event.target).value)"
+            [value]="node.module.name || ''"
+            (input)="updateName(node.module.id, $any($event.target).value)"
           />
         </label>
 
         <label class="field">
-          <span>Prompt</span>
-          <textarea
-            rows="2"
-            [value]="module.prompt"
-            (input)="updatePrompt(module.id, $any($event.target).value)"
-          ></textarea>
+          <span>Link field used by output port</span>
+          <select
+            [value]="node.linkField"
+            (change)="updateLinkField(node.module.id, $any($event.target).value)"
+          >
+            <option *ngFor="let field of nodeLinkFields(node)" [value]="field">
+              {{ field }}
+            </option>
+          </select>
         </label>
 
-        <div class="actions">
-          <button type="button" (click)="moveUp(module.id)">Bring Forward</button>
-          <button type="button" class="danger" (click)="removeModule(module.id)">Remove</button>
+        <div class="field-grid">
+          <ng-container *ngFor="let field of editableFields(node)">
+            <label class="field" *ngIf="field.kind === 'string'">
+              <span>{{ field.label }}</span>
+              <input
+                type="text"
+                [value]="fieldStringValue(node, field.key)"
+                (input)="updateFieldValue(node.module.id, field.key, 'string', $any($event.target).value)"
+              />
+            </label>
+
+            <label class="field" *ngIf="field.kind === 'number'">
+              <span>{{ field.label }}</span>
+              <input
+                type="number"
+                [value]="fieldNumberValue(node, field.key)"
+                (input)="updateFieldValue(node.module.id, field.key, 'number', $any($event.target).value)"
+              />
+            </label>
+
+            <label class="field checkbox" *ngIf="field.kind === 'boolean'">
+              <input
+                type="checkbox"
+                [checked]="fieldBooleanValue(node, field.key)"
+                (change)="updateFieldValue(node.module.id, field.key, 'boolean', $any($event.target).checked)"
+              />
+              <span>{{ field.label }}</span>
+            </label>
+
+            <label class="field" *ngIf="field.kind === 'link'">
+              <span>{{ field.label }}</span>
+              <select
+                [value]="linkFieldValue(node, field.key)"
+                (change)="updateFieldValue(node.module.id, field.key, 'link', $any($event.target).value)"
+              >
+                <option [ngValue]="0">No target</option>
+                <option *ngFor="let target of moduleTargets(node)" [ngValue]="target.id">
+                  {{ target.label }}
+                </option>
+              </select>
+            </label>
+          </ng-container>
         </div>
       </article>
     </div>
+  </section>
+
+  <section class="json-panel">
+    <h2>Export JSON</h2>
+    <p>Current graph serialized back to module array.</p>
+    <pre>{{ serializedModules() }}</pre>
   </section>
 </section>
