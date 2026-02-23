@@ -16,7 +16,31 @@
       </label>
       <label>
         Color
-        <input type="color" formControlName="color" />
+        <button
+          type="button"
+          class="color-button"
+          [style.--selected-color]="outcome.controls.color.value"
+          [attr.aria-label]="'Selected color ' + outcome.controls.color.value"
+          [attr.aria-expanded]="isPaletteOpen(outcomeIndex)"
+          aria-haspopup="dialog"
+          (click)="togglePalette(outcomeIndex)"
+        >
+          <span class="color-chip" aria-hidden="true"></span>
+        </button>
+        <div class="palette-popover" *ngIf="isPaletteOpen(outcomeIndex)">
+          <div class="palette-grid">
+            <button
+              type="button"
+              class="palette-swatch"
+              *ngFor="let preset of predefinedColors"
+              [style.background]="preset.value"
+              [title]="preset.name + ' ' + preset.value"
+              [attr.aria-label]="preset.name + ' ' + preset.value"
+              [class.selected]="isPresetSelected(outcome.controls.color.value, preset.value)"
+              (click)="onPresetColorSelected(outcomeIndex, preset.value)"
+            ></button>
+          </div>
+        </div>
       </label>
     </div>
   </article>
