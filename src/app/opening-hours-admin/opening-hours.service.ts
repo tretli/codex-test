@@ -3,6 +3,8 @@ import {
   DEFAULT_EXIT_OUTCOMES,
   ExitOutcomeDefinition,
   fromOpeningHoursScheduleV2,
+  normalizeExitOutcomes,
+  normalizeScheduleV2,
   OpeningHoursSchedule,
   OpeningHoursScheduleV2,
   OpeningHoursSlot,
@@ -14,7 +16,9 @@ import {
 @Injectable({ providedIn: 'root' })
 export class OpeningHoursService {
   private readonly scheduleV2Signal = signal<OpeningHoursScheduleV2>(
-    toOpeningHoursScheduleV2(this.createDefaultSchedule(), [...DEFAULT_EXIT_OUTCOMES])
+    normalizeScheduleV2(
+      toOpeningHoursScheduleV2(this.createDefaultSchedule(), [...DEFAULT_EXIT_OUTCOMES])
+    )
   );
 
   readonly scheduleV2 = this.scheduleV2Signal.asReadonly();
@@ -22,17 +26,19 @@ export class OpeningHoursService {
 
   updateSchedule(schedule: OpeningHoursSchedule): void {
     const currentOutcomes = this.scheduleV2Signal().exitOutcomes;
-    this.scheduleV2Signal.set(toOpeningHoursScheduleV2(schedule, currentOutcomes));
+    this.scheduleV2Signal.set(
+      normalizeScheduleV2(toOpeningHoursScheduleV2(schedule, currentOutcomes))
+    );
   }
 
   updateScheduleV2(schedule: OpeningHoursScheduleV2): void {
-    this.scheduleV2Signal.set(schedule);
+    this.scheduleV2Signal.set(normalizeScheduleV2(schedule));
   }
 
   updateExitOutcomes(exitOutcomes: ExitOutcomeDefinition[]): void {
     this.scheduleV2Signal.update((current) => ({
       ...current,
-      exitOutcomes
+      exitOutcomes: normalizeExitOutcomes(exitOutcomes)
     }));
   }
 

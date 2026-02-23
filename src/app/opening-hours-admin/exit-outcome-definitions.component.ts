@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ExitOutcomeId } from './opening-hours.model';
 
 export type ExitOutcomeDefinitionForm = FormGroup<{
-  id: FormControl<string>;
+  id: FormControl<ExitOutcomeId>;
   name: FormControl<string>;
   color: FormControl<string>;
 }>;
@@ -17,15 +18,5 @@ export type ExitOutcomeDefinitionForm = FormGroup<{
 })
 export class ExitOutcomeDefinitionsComponent {
   @Input({ required: true }) outcomes!: FormArray<ExitOutcomeDefinitionForm>;
-  @Output() add = new EventEmitter<void>();
-  @Output() remove = new EventEmitter<number>();
-
-  onAdd(): void {
-    this.add.emit();
-  }
-
-  onRemove(index: number): void {
-    this.remove.emit(index);
-  }
 }
 

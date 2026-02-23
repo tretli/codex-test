@@ -6,7 +6,11 @@ import {
   ExitOutcomeDefinitionForm,
   ExitOutcomeDefinitionsComponent
 } from './exit-outcome-definitions.component';
-import { ExitOutcomeDefinition } from './opening-hours.model';
+import {
+  ExitOutcomeDefinition,
+  ExitOutcomeId,
+  normalizeExitOutcomes
+} from './opening-hours.model';
 import { OpeningHoursService } from './opening-hours.service';
 
 @Component({
@@ -26,24 +30,9 @@ export class ExitOutcomeAdminComponent {
   );
 
   constructor() {
-    this.hydrateExitOutcomes(this.service.scheduleV2().exitOutcomes);
-  }
-
-  addExitOutcome(): void {
-    this.exitOutcomeForms.push(
-      this.createExitOutcomeForm({
-        id: `outcome-${this.exitOutcomeForms.length + 1}`,
-        name: `Outcome ${this.exitOutcomeForms.length + 1}`,
-        color: '#546e7a'
-      })
+    this.hydrateExitOutcomes(
+      normalizeExitOutcomes(this.service.scheduleV2().exitOutcomes)
     );
-  }
-
-  removeExitOutcome(index: number): void {
-    if (this.exitOutcomeForms.length <= 1) {
-      return;
-    }
-    this.exitOutcomeForms.removeAt(index);
   }
 
   save(): void {
@@ -55,10 +44,10 @@ export class ExitOutcomeAdminComponent {
   }
 
   private createExitOutcomeForm(outcome: ExitOutcomeDefinition): ExitOutcomeDefinitionForm {
-    return this.fb.nonNullable.group({
-      id: [outcome.id, Validators.required],
-      name: [outcome.name, Validators.required],
-      color: [outcome.color, Validators.required]
+    return this.fb.group({
+      id: this.fb.nonNullable.control<ExitOutcomeId>(outcome.id, Validators.required),
+      name: this.fb.nonNullable.control(outcome.name, Validators.required),
+      color: this.fb.nonNullable.control(outcome.color, Validators.required)
     });
   }
 
@@ -70,9 +59,9 @@ export class ExitOutcomeAdminComponent {
   }
 
   private buildExitOutcomesFromForm(): ExitOutcomeDefinition[] {
-    return this.exitOutcomeForms.getRawValue().map((outcome, index) => ({
-      id: outcome.id.trim() || `outcome-${index + 1}`,
-      name: outcome.name.trim() || outcome.id.trim() || `Outcome ${index + 1}`,
+    return this.exitOutcomeForms.getRawValue().map((outcome) => ({
+      id: outcome.id,
+      name: outcome.name.trim() || `Outcome ${outcome.id}`,
       color: outcome.color || '#546e7a'
     }));
   }

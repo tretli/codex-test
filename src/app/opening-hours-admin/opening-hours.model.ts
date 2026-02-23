@@ -14,16 +14,30 @@ export interface OpeningHoursSlot {
 }
 
 export enum ExitOutcome {
-  Allow = 'allow', // Continue normally.
-  AllowWithMessage = 'allow-with-message', // Continue and surface an informational message.
-  Defer = 'defer', // Do not process now; retry/schedule later.
-  Escalate = 'escalate', // Hand off to a higher tier or special handling path.
-  Review = 'review', // Hold for human/policy review before proceeding.
-  DenyWithMessage = 'deny-with-message', // Stop: play message before do not proceed.
-  Deny = 'deny' // Hard stop: do not proceed.
+  Allow = '1', // Continue normally.
+  AllowWithMessage = '2', // Continue and surface an informational message.
+  Defer = '3', // Do not process now; retry/schedule later.
+  Escalate = '4', // Hand off to a higher tier or special handling path.
+  Review = '5', // Hold for human/policy review before proceeding.
+  DenyWithMessage = '6', // Stop: play message before do not proceed.
+  Deny = '7', // Hard stop: do not proceed.
+  Outcome8 = '8', // Reserved generic outcome.
+  Outcome9 = '9' // Reserved generic outcome.
 }
 
-export type ExitOutcomeId = string;
+export const STATIC_EXIT_OUTCOME_IDS = [
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9'
+] as const;
+
+export type ExitOutcomeId = (typeof STATIC_EXIT_OUTCOME_IDS)[number];
 
 export interface ExitOutcomeDefinition {
   id: ExitOutcomeId;
@@ -38,8 +52,68 @@ export const DEFAULT_EXIT_OUTCOMES: ReadonlyArray<ExitOutcomeDefinition> = [
   { id: ExitOutcome.Escalate, name: 'Escalate', color: '#ef6c00' },
   { id: ExitOutcome.Review, name: 'Review', color: '#5e35b1' },
   { id: ExitOutcome.DenyWithMessage, name: 'Deny with message', color: '#ad1457' },
-  { id: ExitOutcome.Deny, name: 'Deny', color: '#c62828' }
+  { id: ExitOutcome.Deny, name: 'Deny', color: '#c62828' },
+  { id: ExitOutcome.Outcome8, name: 'Outcome 8', color: '#00897b' },
+  { id: ExitOutcome.Outcome9, name: 'Outcome 9', color: '#546e7a' }
 ] as const;
+
+const LEGACY_EXIT_OUTCOME_ID_MAP: Record<string, ExitOutcomeId> = {
+  allow: ExitOutcome.Allow,
+  'allow-with-message': ExitOutcome.AllowWithMessage,
+  defer: ExitOutcome.Defer,
+  escalate: ExitOutcome.Escalate,
+  review: ExitOutcome.Review,
+  'deny-with-message': ExitOutcome.DenyWithMessage,
+  deny: ExitOutcome.Deny
+};
+
+export function isExitOutcomeId(value: string): value is ExitOutcomeId {
+  return STATIC_EXIT_OUTCOME_IDS.includes(value as ExitOutcomeId);
+}
+
+export function normalizeExitOutcomeId(
+  value: string | null | undefined
+): ExitOutcomeId {
+  if (!value) {
+    return ExitOutcome.Allow;
+  }
+  if (isExitOutcomeId(value)) {
+    return value;
+  }
+  return LEGACY_EXIT_OUTCOME_ID_MAP[value] ?? ExitOutcome.Allow;
+}
+
+export function normalizeExitOutcomes(
+  exitOutcomes: ExitOutcomeDefinition[]
+): ExitOutcomeDefinition[] {
+  const normalizedById = new Map<ExitOutcomeId, ExitOutcomeDefinition>();
+
+  exitOutcomes.forEach((item) => {
+    const normalizedId = normalizeExitOutcomeId(item.id);
+    if (!normalizedById.has(normalizedId)) {
+      normalizedById.set(normalizedId, {
+        id: normalizedId,
+        name: item.name?.trim() || `Outcome ${normalizedId}`,
+        color: item.color || '#546e7a'
+      });
+    }
+  });
+
+  return DEFAULT_EXIT_OUTCOMES.map((defaultItem) => {
+    const existing = normalizedById.get(defaultItem.id);
+    return existing
+      ? {
+          id: defaultItem.id,
+          name: existing.name,
+          color: existing.color
+        }
+      : {
+          id: defaultItem.id,
+          name: defaultItem.name,
+          color: defaultItem.color
+        };
+  });
+}
 
 export interface WeeklyOpeningHoursRecord {
   name?: string;
@@ -142,6 +216,25 @@ export interface OpeningHoursScheduleV2 {
   rules: RuleV2[];
 }
 
+export function normalizeScheduleV2(
+  schedule: OpeningHoursScheduleV2
+): OpeningHoursScheduleV2 {
+  return {
+    ...schedule,
+    exitOutcomes: normalizeExitOutcomes(schedule.exitOutcomes),
+    rules: schedule.rules.map((rule) => ({
+      ...rule,
+      slots: rule.slots.map((slot) => ({
+        ...slot,
+        action: normalizeExitOutcomeId(slot.action)
+      })),
+      defaultClosed: {
+        action: normalizeExitOutcomeId(rule.defaultClosed.action)
+      }
+    }))
+  };
+}
+
 export function toOpeningHoursScheduleV2(
   schedule: OpeningHoursSchedule,
   exitOutcomes: ExitOutcomeDefinition[] = [...DEFAULT_EXIT_OUTCOMES]
@@ -215,7 +308,7 @@ export function toOpeningHoursScheduleV2(
 
   return {
     timezone: schedule.timezone,
-    exitOutcomes,
+    exitOutcomes: normalizeExitOutcomes(exitOutcomes),
     rules
   };
 }
@@ -267,7 +360,7 @@ export function fromOpeningHoursScheduleV2(
 
   sortedRules.forEach((rule, index) => {
     const slots = mapSlotsFromV2(rule.slots);
-    const closedExitType = rule.defaultClosed.action;
+    const closedExitType = normalizeExitOutcomeId(rule.defaultClosed.action);
 
     if (rule.scope === 'weekly') {
       days.push({
@@ -376,7 +469,7 @@ function mapSlotsFromV2(slots: TimeSlotV2[]): OpeningHoursSlot[] {
   return slots.map((slot) => ({
     opensAt: slot.start,
     closesAt: slot.end,
-    openExitType: slot.action
+    openExitType: normalizeExitOutcomeId(slot.action)
   }));
 }
 
