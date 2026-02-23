@@ -52,6 +52,19 @@ type RenderedConnection = {
   path: string;
 };
 
+type GraphEdge = {
+  fromId: number;
+  toId: number;
+};
+
+type UnlinkedZone = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  count: number;
+};
+
 type FieldKind = 'string' | 'number' | 'boolean' | 'link';
 type FieldSchema = {
   key: string;
@@ -268,6 +281,19 @@ export class IvrBuilderComponent {
       });
     });
     return connections;
+  });
+  readonly unlinkedZone = computed<UnlinkedZone | null>(() => {
+    const nodes = this.nodes();
+    if (nodes.length === 0) {
+      return null;
+    }
+    const nodeById = new Map(nodes.map((node) => [node.module.id, node]));
+    const edges = this.collectGraphEdges(nodes, nodeById);
+    const isolatedIds = this.getIsolatedNodeIds(nodes, edges);
+    if (isolatedIds.length === 0) {
+      return null;
+    }
+    return this.buildUnlinkedZone(isolatedIds, nodeById);
   });
 
   readonly draftPath = computed(() => {
@@ -512,6 +538,50 @@ export class IvrBuilderComponent {
     this.updateNodeModule(connection.fromId, (module) => ({ ...module, [connection.field]: 0 }));
   }
 
+  autoLayoutModules(): void {
+    const currentNodes = this.nodes();
+    if (currentNodes.length < 2) {
+      return;
+    }
+
+    const nodeById = new Map(currentNodes.map((node) => [node.module.id, node]));
+    const edges = this.collectGraphEdges(currentNodes, nodeById);
+    const isolatedIdSet = new Set(this.getIsolatedNodeIds(currentNodes, edges));
+    const linkedNodes = currentNodes.filter((node) => !isolatedIdSet.has(node.module.id));
+    const outgoing = new Map<number, number[]>();
+    const incoming = new Map<number, number[]>();
+    linkedNodes.forEach((node) => {
+      outgoing.set(node.module.id, []);
+      incoming.set(node.module.id, []);
+    });
+    edges.forEach((edge) => {
+      if (isolatedIdSet.has(edge.fromId) || isolatedIdSet.has(edge.toId)) {
+        return;
+      }
+      outgoing.get(edge.fromId)?.push(edge.toId);
+      incoming.get(edge.toId)?.push(edge.fromId);
+    });
+
+    const positioned = new Map<number, { x: number; y: number }>();
+    if (linkedNodes.length > 0) {
+      const layerById = this.assignLayers(linkedNodes, outgoing, incoming);
+      const orderedLayers = this.orderLayersToReduceCrossings(linkedNodes, layerById, outgoing, incoming);
+      this.positionOrderedLayers(orderedLayers, nodeById).forEach((value, id) => positioned.set(id, value));
+    }
+
+    this.positionIsolatedNodes(
+      currentNodes.filter((node) => isolatedIdSet.has(node.module.id)),
+      positioned
+    ).forEach((value, id) => positioned.set(id, value));
+
+    this.nodes.update((nodes) =>
+      nodes.map((node) => {
+        const next = positioned.get(node.module.id);
+        return next ? { ...node, x: next.x, y: next.y } : node;
+      })
+    );
+  }
+
   trackByNode(_index: number, node: BuilderNode): number {
     return node.module.id;
   }
@@ -584,7 +654,10 @@ export class IvrBuilderComponent {
       return null;
     }
     const rect = canvas.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    return {
+      x: event.clientX - rect.left + canvas.scrollLeft,
+      y: event.clientY - rect.top + canvas.scrollTop
+    };
   }
 
   private getPortPoint(moduleId: number, kind: 'in' | 'out'): { x: number; y: number } | null {
@@ -600,5 +673,231 @@ export class IvrBuilderComponent {
     const c1x = startX + delta;
     const c2x = endX - delta;
     return `M ${startX} ${startY} C ${c1x} ${startY}, ${c2x} ${endY}, ${endX} ${endY}`;
+  }
+
+  private collectGraphEdges(nodes: BuilderNode[], nodeById: Map<number, BuilderNode>): GraphEdge[] {
+    const edges: GraphEdge[] = [];
+    const seen = new Set<string>();
+    nodes.forEach((node) => {
+      this.getLinkFields(node.module).forEach((field) => {
+        const targetId = this.asPositiveId(node.module[field]);
+        if (targetId === null || !nodeById.has(targetId) || targetId === node.module.id) {
+          return;
+        }
+        const key = `${node.module.id}:${targetId}`;
+        if (seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        edges.push({ fromId: node.module.id, toId: targetId });
+      });
+    });
+    return edges;
+  }
+
+  private getIsolatedNodeIds(nodes: BuilderNode[], edges: GraphEdge[]): number[] {
+    const degree = new Map<number, number>();
+    nodes.forEach((node) => degree.set(node.module.id, 0));
+    edges.forEach((edge) => {
+      degree.set(edge.fromId, (degree.get(edge.fromId) ?? 0) + 1);
+      degree.set(edge.toId, (degree.get(edge.toId) ?? 0) + 1);
+    });
+    return nodes
+      .filter((node) => (degree.get(node.module.id) ?? 0) === 0)
+      .map((node) => node.module.id);
+  }
+
+  private assignLayers(
+    nodes: BuilderNode[],
+    outgoing: Map<number, number[]>,
+    incoming: Map<number, number[]>
+  ): Map<number, number> {
+    const layerById = new Map<number, number>();
+    const indegree = new Map<number, number>();
+    nodes.forEach((node) => {
+      indegree.set(node.module.id, incoming.get(node.module.id)?.length ?? 0);
+      layerById.set(node.module.id, 0);
+    });
+
+    const queue = nodes
+      .filter((node) => (indegree.get(node.module.id) ?? 0) === 0)
+      .sort((a, b) => a.y - b.y || a.module.id - b.module.id)
+      .map((node) => node.module.id);
+
+    while (queue.length > 0) {
+      const id = queue.shift() as number;
+      const baseLayer = layerById.get(id) ?? 0;
+      (outgoing.get(id) ?? []).forEach((nextId) => {
+        layerById.set(nextId, Math.max(layerById.get(nextId) ?? 0, baseLayer + 1));
+        indegree.set(nextId, (indegree.get(nextId) ?? 0) - 1);
+        if ((indegree.get(nextId) ?? 0) === 0) {
+          queue.push(nextId);
+        }
+      });
+    }
+
+    nodes
+      .filter((node) => (indegree.get(node.module.id) ?? 0) > 0)
+      .sort((a, b) => a.x - b.x || a.module.id - b.module.id)
+      .forEach((node) => {
+        const fromLayers = (incoming.get(node.module.id) ?? []).map((id) => layerById.get(id) ?? 0);
+        const fallback = fromLayers.length > 0 ? Math.max(...fromLayers) + 1 : 0;
+        layerById.set(node.module.id, Math.max(layerById.get(node.module.id) ?? 0, fallback));
+      });
+
+    return layerById;
+  }
+
+  private orderLayersToReduceCrossings(
+    nodes: BuilderNode[],
+    layerById: Map<number, number>,
+    outgoing: Map<number, number[]>,
+    incoming: Map<number, number[]>
+  ): number[][] {
+    const maxLayer = Math.max(...nodes.map((node) => layerById.get(node.module.id) ?? 0));
+    const layers: number[][] = Array.from({ length: maxLayer + 1 }, () => []);
+    nodes
+      .slice()
+      .sort((a, b) => a.y - b.y || a.module.id - b.module.id)
+      .forEach((node) => {
+        layers[layerById.get(node.module.id) ?? 0].push(node.module.id);
+      });
+
+    for (let i = 0; i < 6; i += 1) {
+      for (let layer = 1; layer < layers.length; layer += 1) {
+        this.sortLayerByNeighbors(layers[layer], layers[layer - 1], incoming);
+      }
+      for (let layer = layers.length - 2; layer >= 0; layer -= 1) {
+        this.sortLayerByNeighbors(layers[layer], layers[layer + 1], outgoing);
+      }
+    }
+
+    return layers;
+  }
+
+  private sortLayerByNeighbors(layer: number[], neighborLayer: number[], neighbors: Map<number, number[]>): void {
+    const neighborRank = new Map<number, number>();
+    neighborLayer.forEach((id, index) => neighborRank.set(id, index));
+
+    const score = (id: number): number => {
+      const ranked = (neighbors.get(id) ?? [])
+        .map((neighborId) => neighborRank.get(neighborId))
+        .filter((value): value is number => value !== undefined)
+        .sort((a, b) => a - b);
+      if (ranked.length === 0) {
+        return Number.POSITIVE_INFINITY;
+      }
+      const mid = Math.floor(ranked.length / 2);
+      return ranked.length % 2 === 0 ? (ranked[mid - 1] + ranked[mid]) / 2 : ranked[mid];
+    };
+
+    layer.sort((a, b) => {
+      const scoreA = score(a);
+      const scoreB = score(b);
+      const finiteA = Number.isFinite(scoreA);
+      const finiteB = Number.isFinite(scoreB);
+      if (finiteA && finiteB) {
+        const delta = scoreA - scoreB;
+        return delta === 0 ? a - b : delta;
+      }
+      if (finiteA) {
+        return -1;
+      }
+      if (finiteB) {
+        return 1;
+      }
+      return a - b;
+    });
+  }
+
+  private positionOrderedLayers(
+    layers: number[][],
+    nodeById: Map<number, BuilderNode>
+  ): Map<number, { x: number; y: number }> {
+    const left = 64;
+    const top = 64;
+    const horizontalGap = 180;
+    const verticalGap = 40;
+    const positions = new Map<number, { x: number; y: number }>();
+
+    layers.forEach((layer, layerIndex) => {
+      let y = top;
+      const x = left + layerIndex * (this.nodeWidth + horizontalGap);
+      layer.forEach((id) => {
+        const node = nodeById.get(id);
+        if (!node) {
+          return;
+        }
+        positions.set(id, { x, y });
+        y += this.estimatedNodeHeight(node) + verticalGap;
+      });
+    });
+
+    return positions;
+  }
+
+  private positionIsolatedNodes(
+    isolatedNodes: BuilderNode[],
+    positionedLinkedNodes: Map<number, { x: number; y: number }>
+  ): Map<number, { x: number; y: number }> {
+    const positions = new Map<number, { x: number; y: number }>();
+    if (isolatedNodes.length === 0) {
+      return positions;
+    }
+    const top = 64;
+    const verticalGap = 40;
+    const linkedMaxX =
+      positionedLinkedNodes.size === 0
+        ? 64
+        : Math.max(...Array.from(positionedLinkedNodes.values()).map((value) => value.x));
+    const x = linkedMaxX + this.nodeWidth + 220;
+    let y = top;
+    isolatedNodes
+      .slice()
+      .sort((a, b) => a.y - b.y || a.module.id - b.module.id)
+      .forEach((node) => {
+        positions.set(node.module.id, { x, y });
+        y += this.estimatedNodeHeight(node) + verticalGap;
+      });
+    return positions;
+  }
+
+  private buildUnlinkedZone(isolatedIds: number[], nodeById: Map<number, BuilderNode>): UnlinkedZone | null {
+    const zonePadding = 20;
+    const zoneHeader = 26;
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    isolatedIds.forEach((id) => {
+      const node = nodeById.get(id);
+      if (!node) {
+        return;
+      }
+      const nodeBottom = node.y + this.estimatedNodeHeight(node);
+      minX = Math.min(minX, node.x);
+      minY = Math.min(minY, node.y);
+      maxX = Math.max(maxX, node.x + this.nodeWidth);
+      maxY = Math.max(maxY, nodeBottom);
+    });
+
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+      return null;
+    }
+
+    return {
+      x: minX - zonePadding,
+      y: Math.max(12, minY - zonePadding - zoneHeader),
+      width: Math.max(this.nodeWidth + zonePadding * 2, maxX - minX + zonePadding * 2),
+      height: maxY - minY + zonePadding * 2 + zoneHeader,
+      count: isolatedIds.length
+    };
+  }
+
+  private estimatedNodeHeight(node: BuilderNode): number {
+    const baseHeight = 190;
+    const rowHeight = 46;
+    return baseHeight + this.editableFields(node).length * rowHeight;
   }
 }

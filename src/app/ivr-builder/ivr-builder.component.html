@@ -48,6 +48,11 @@
     <p class="hint">
       Drag cards to position. Pick a link field, then drag from output port to target module.
     </p>
+    <div class="panel-actions">
+      <button type="button" class="secondary" (click)="autoLayoutModules()">
+        Auto-layout modules
+      </button>
+    </div>
 
     <div
       class="canvas"
@@ -59,6 +64,16 @@
       (pointerleave)="onCanvasPointerUp($event)"
     >
       <div class="canvas-grid"></div>
+      <div
+        class="unlinked-zone"
+        *ngIf="unlinkedZone() as zone"
+        [style.left.px]="zone.x"
+        [style.top.px]="zone.y"
+        [style.width.px]="zone.width"
+        [style.height.px]="zone.height"
+      >
+        <span class="unlinked-zone__label">Unlinked modules ({{ zone.count }})</span>
+      </div>
       <svg class="connections">
         <defs>
           <marker
