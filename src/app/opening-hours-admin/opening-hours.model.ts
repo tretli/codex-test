@@ -158,7 +158,7 @@ export function toOpeningHoursScheduleV2(
       appliesOn: { date: singleDate.singleDate },
       slots: mapSlotsToV2(singleDate.slots),
       defaultClosed: {
-        action: mapExitToAction(singleDate.closedExitType)
+        action: singleDate.closedExitType
       }
     });
   });
@@ -174,7 +174,7 @@ export function toOpeningHoursScheduleV2(
       },
       slots: mapSlotsToV2(holiday.slots),
       defaultClosed: {
-        action: mapExitToAction(holiday.closedExitType)
+        action: holiday.closedExitType
       }
     });
   });
@@ -192,7 +192,7 @@ export function toOpeningHoursScheduleV2(
       },
       slots: mapSlotsToV2(range.slots),
       defaultClosed: {
-        action: mapExitToAction(range.closedExitType)
+        action: range.closedExitType
       }
     });
   });
@@ -208,7 +208,7 @@ export function toOpeningHoursScheduleV2(
       },
       slots: mapSlotsToV2(weekly.slots),
       defaultClosed: {
-        action: mapExitToAction(weekly.closedExitType)
+        action: weekly.closedExitType
       }
     });
   });
@@ -224,7 +224,7 @@ function mapSlotsToV2(slots: OpeningHoursSlot[]): TimeSlotV2[] {
   return slots.map((slot) => ({
     start: slot.opensAt,
     end: slot.closesAt,
-    action: mapExitToAction(slot.openExitType)
+    action: slot.openExitType
   }));
 }
 
@@ -253,10 +253,6 @@ function mapRecurringToV2(
     return { kind: 'swedish-midsummer-eve', lengthDays: holiday.lengthDays };
   }
   return undefined;
-}
-
-function mapExitToAction(exit: ExitOutcomeId): ActionV2 {
-  return exit;
 }
 
 export function fromOpeningHoursScheduleV2(
