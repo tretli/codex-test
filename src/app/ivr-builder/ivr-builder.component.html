@@ -2,7 +2,9 @@
   <header class="top-row">
     <div>
       <h1>IVR Builder</h1>
-      <p>{{ enabledCount() }} active module(s) of {{ modules().length }}</p>
+      <p>
+        {{ enabledCount() }} active module(s), {{ connections().length }} connection(s)
+      </p>
     </div>
     <a routerLink="/main-menu" class="back-link">Back to Main Menu</a>
   </header>
@@ -22,57 +24,106 @@
     </div>
   </section>
 
-  <section class="canvas">
-    <h2>Flow Modules</h2>
-    <article class="module-card" *ngFor="let module of modules(); let i = index">
-      <div class="card-head">
-        <strong>{{ i + 1 }}. {{ module.type }}</strong>
-        <label>
+  <section class="canvas-panel">
+    <h2>Flow Canvas</h2>
+    <p class="hint">
+      Drag modules to position them. Drag from an output dot to an input dot to create arrows.
+    </p>
+
+    <div
+      class="canvas"
+      #canvasRoot
+      (pointerenter)="setCanvasRef(canvasRoot)"
+      (pointermove)="onCanvasPointerMove($event)"
+      (pointerup)="onCanvasPointerUp($event)"
+      (pointercancel)="onCanvasPointerUp($event)"
+      (pointerleave)="onCanvasPointerUp($event)"
+    >
+      <div class="canvas-grid"></div>
+      <svg class="connections">
+        <defs>
+          <marker
+            id="arrowhead"
+            markerWidth="10"
+            markerHeight="7"
+            refX="8"
+            refY="3.5"
+            orient="auto"
+          >
+            <polygon points="0 0, 10 3.5, 0 7"></polygon>
+          </marker>
+        </defs>
+        <path
+          *ngFor="let connection of renderedConnections()"
+          [attr.d]="connection.path"
+          marker-end="url(#arrowhead)"
+          class="connection-line"
+          (dblclick)="removeConnection(connection.id)"
+        ></path>
+        <path
+          *ngIf="connectionDraft()"
+          [attr.d]="draftPath()"
+          marker-end="url(#arrowhead)"
+          class="connection-line draft"
+        ></path>
+      </svg>
+
+      <article
+        class="module-card"
+        *ngFor="let module of modules(); let i = index"
+        [style.left.px]="module.x"
+        [style.top.px]="module.y"
+        (pointerdown)="setCanvasRef(canvasRoot); startModuleDrag(module.id, $event)"
+      >
+        <div class="card-head">
+          <strong>{{ i + 1 }}. {{ module.type }}</strong>
+          <label>
+            <input
+              type="checkbox"
+              [checked]="module.enabled"
+              (change)="toggleEnabled(module.id)"
+            />
+            Enabled
+          </label>
+        </div>
+        <div class="ports">
+          <button
+            type="button"
+            class="port input"
+            [attr.data-port-input]="module.id"
+            title="Drop an arrow here"
+          ></button>
+          <button
+            type="button"
+            class="port output"
+            (pointerdown)="setCanvasRef(canvasRoot); startConnectionDrag(module.id, $event)"
+            title="Drag to connect"
+          ></button>
+        </div>
+
+        <label class="field">
+          <span>Name</span>
           <input
-            type="checkbox"
-            [checked]="module.enabled"
-            (change)="toggleEnabled(module.id)"
+            type="text"
+            [value]="module.name"
+            (input)="updateName(module.id, $any($event.target).value)"
           />
-          Enabled
         </label>
-      </div>
 
-      <label class="field">
-        <span>Name</span>
-        <input
-          type="text"
-          [value]="module.name"
-          (input)="updateName(module.id, $any($event.target).value)"
-        />
-      </label>
+        <label class="field">
+          <span>Prompt</span>
+          <textarea
+            rows="2"
+            [value]="module.prompt"
+            (input)="updatePrompt(module.id, $any($event.target).value)"
+          ></textarea>
+        </label>
 
-      <label class="field">
-        <span>Prompt</span>
-        <textarea
-          rows="3"
-          [value]="module.prompt"
-          (input)="updatePrompt(module.id, $any($event.target).value)"
-        ></textarea>
-      </label>
-
-      <label class="field">
-        <span>Next module</span>
-        <select
-          [ngModel]="module.nextModuleId ?? ''"
-          (ngModelChange)="updateNextModule(module.id, $event)"
-        >
-          <option value="">End flow</option>
-          <option *ngFor="let candidate of modules()" [value]="candidate.id" [disabled]="candidate.id === module.id">
-            {{ candidate.name }}
-          </option>
-        </select>
-      </label>
-
-      <div class="actions">
-        <button type="button" (click)="moveUp(module.id)">Move Up</button>
-        <button type="button" (click)="moveDown(module.id)">Move Down</button>
-        <button type="button" class="danger" (click)="removeModule(module.id)">Remove</button>
-      </div>
-    </article>
+        <div class="actions">
+          <button type="button" (click)="moveUp(module.id)">Bring Forward</button>
+          <button type="button" class="danger" (click)="removeModule(module.id)">Remove</button>
+        </div>
+      </article>
+    </div>
   </section>
 </section>
