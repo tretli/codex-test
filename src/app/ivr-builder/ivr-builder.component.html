@@ -52,6 +52,16 @@
       <button type="button" class="secondary" (click)="autoLayoutModules()">
         Auto-layout modules
       </button>
+      <label class="route-mode-control">
+        <span>Connection style</span>
+        <select
+          [ngModel]="connectionRouteStyle()"
+          (ngModelChange)="connectionRouteStyle.set($event)"
+        >
+          <option value="straight">Straight</option>
+          <option value="curved">Curved</option>
+        </select>
+      </label>
     </div>
 
     <div

@@ -83,6 +83,20 @@ type ConnectionTooltip = {
   y: number;
 };
 
+type Point = {
+  x: number;
+  y: number;
+};
+
+type Rect = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+};
+
+type ConnectionRouteStyle = 'straight' | 'curved';
+
 type FieldKind = 'string' | 'number' | 'boolean' | 'link';
 type FieldSchema = {
   key: string;
@@ -281,6 +295,7 @@ export class IvrBuilderComponent {
   ];
 
   readonly selectedTypeId = signal<number>(30);
+  readonly connectionRouteStyle = signal<ConnectionRouteStyle>('straight');
   readonly jsonInput = signal<string>(JSON.stringify(DEFAULT_IVR_SAMPLE_MODULES, null, 2));
   readonly parseError = signal<string | null>(null);
   readonly nodes = signal<BuilderNode[]>([]);
@@ -291,6 +306,7 @@ export class IvrBuilderComponent {
   readonly canvasRef = signal<HTMLDivElement | null>(null);
 
   readonly renderedConnections = computed<RenderedConnection[]>(() => {
+    const routeStyle = this.connectionRouteStyle();
     const nodes = this.nodes();
     const moduleById = new Map(nodes.map((node) => [node.module.id, node]));
     const connections: RenderedConnection[] = [];
@@ -311,7 +327,7 @@ export class IvrBuilderComponent {
           fromId: node.module.id,
           toId: targetId,
           field: link.field,
-          path: this.buildPath(start.x, start.y, end.x, end.y),
+          path: this.buildConnectionPath(node.module.id, targetId, start, end, nodes, routeStyle),
           color: this.moduleTypeColor(node.module.serviceModuleTypeId),
           tooltip: [
             `From: ${node.module.name || 'Unnamed module'} (ID ${node.module.id})`,
@@ -371,6 +387,12 @@ export class IvrBuilderComponent {
     const draft = this.connectionDraft();
     if (!draft) {
       return '';
+    }
+    if (this.connectionRouteStyle() === 'straight') {
+      return this.buildStraightPreviewPath(
+        { x: draft.startX, y: draft.startY },
+        { x: draft.currentX, y: draft.currentY }
+      );
     }
     return this.buildPath(draft.startX, draft.startY, draft.currentX, draft.currentY);
   });
@@ -883,6 +905,202 @@ export class IvrBuilderComponent {
       x: node.x + this.nodeWidth / 2,
       y: kind === 'out' ? node.y + this.visibleNodeHeight(node) : node.y
     };
+  }
+
+  private buildConnectionPath(
+    fromId: number,
+    toId: number,
+    start: Point,
+    end: Point,
+    nodes: BuilderNode[],
+    routeStyle: ConnectionRouteStyle
+  ): string {
+    if (routeStyle === 'curved') {
+      return this.buildPath(start.x, start.y, end.x, end.y);
+    }
+    const direction = end.y >= start.y ? 1 : -1;
+    const startAnchor: Point = { x: start.x, y: start.y + direction * 28 };
+    const endAnchor: Point = { x: end.x, y: end.y - direction * 28 };
+    const routed = this.findOrthogonalRoute(fromId, toId, startAnchor, endAnchor, nodes);
+    if (!routed) {
+      return this.buildPath(start.x, start.y, end.x, end.y);
+    }
+    const points = [start, ...routed, end];
+    return this.buildPolylinePath(points);
+  }
+
+  private buildStraightPreviewPath(start: Point, end: Point): string {
+    const midY = start.y + (end.y - start.y) / 2;
+    return this.buildPolylinePath([
+      start,
+      { x: start.x, y: midY },
+      { x: end.x, y: midY },
+      end
+    ]);
+  }
+
+  private buildPolylinePath(points: Point[]): string {
+    if (points.length < 2) {
+      return '';
+    }
+    const cleaned: Point[] = [];
+    points.forEach((point) => {
+      const last = cleaned[cleaned.length - 1];
+      if (!last || Math.hypot(point.x - last.x, point.y - last.y) > 0.5) {
+        cleaned.push(point);
+      }
+    });
+    const simplified: Point[] = [];
+    cleaned.forEach((point) => {
+      if (simplified.length < 2) {
+        simplified.push(point);
+        return;
+      }
+      const prev = simplified[simplified.length - 1];
+      const prevPrev = simplified[simplified.length - 2];
+      const sameX = Math.abs(prevPrev.x - prev.x) < 0.5 && Math.abs(prev.x - point.x) < 0.5;
+      const sameY = Math.abs(prevPrev.y - prev.y) < 0.5 && Math.abs(prev.y - point.y) < 0.5;
+      if (sameX || sameY) {
+        simplified[simplified.length - 1] = point;
+      } else {
+        simplified.push(point);
+      }
+    });
+    if (simplified.length < 2) {
+      return '';
+    }
+    const [first, ...rest] = simplified;
+    return `M ${first.x} ${first.y} ` + rest.map((point) => `L ${point.x} ${point.y}`).join(' ');
+  }
+
+  private findOrthogonalRoute(fromId: number, toId: number, start: Point, end: Point, nodes: BuilderNode[]): Point[] | null {
+    const grid = 28;
+    const obstaclePadding = 16;
+    const routePadding = 96;
+    const obstacles = this.buildObstacleRects(nodes, fromId, toId, obstaclePadding);
+    const minX = Math.max(0, Math.min(start.x, end.x, ...obstacles.map((rect) => rect.left)) - routePadding);
+    const maxX = Math.max(start.x, end.x, ...obstacles.map((rect) => rect.right)) + routePadding;
+    const minY = Math.max(0, Math.min(start.y, end.y, ...obstacles.map((rect) => rect.top)) - routePadding);
+    const maxY = Math.max(start.y, end.y, ...obstacles.map((rect) => rect.bottom)) + routePadding;
+
+    const toCellX = (x: number) => Math.round((x - minX) / grid);
+    const toCellY = (y: number) => Math.round((y - minY) / grid);
+    const toWorld = (cx: number, cy: number): Point => ({ x: minX + cx * grid, y: minY + cy * grid });
+    const keyOf = (cx: number, cy: number) => `${cx},${cy}`;
+
+    const blocked = new Set<string>();
+    const maxCellX = Math.ceil((maxX - minX) / grid);
+    const maxCellY = Math.ceil((maxY - minY) / grid);
+
+    const markBlocked = (rect: Rect): void => {
+      const left = Math.max(0, Math.floor((rect.left - minX) / grid));
+      const right = Math.min(maxCellX, Math.ceil((rect.right - minX) / grid));
+      const top = Math.max(0, Math.floor((rect.top - minY) / grid));
+      const bottom = Math.min(maxCellY, Math.ceil((rect.bottom - minY) / grid));
+      for (let cx = left; cx <= right; cx += 1) {
+        for (let cy = top; cy <= bottom; cy += 1) {
+          blocked.add(keyOf(cx, cy));
+        }
+      }
+    };
+
+    obstacles.forEach(markBlocked);
+    const startCell = { x: toCellX(start.x), y: toCellY(start.y) };
+    const endCell = { x: toCellX(end.x), y: toCellY(end.y) };
+    blocked.delete(keyOf(startCell.x, startCell.y));
+    blocked.delete(keyOf(endCell.x, endCell.y));
+
+    const heuristic = (cx: number, cy: number) => Math.abs(cx - endCell.x) + Math.abs(cy - endCell.y);
+    const open: Array<{ x: number; y: number; f: number }> = [{ x: startCell.x, y: startCell.y, f: heuristic(startCell.x, startCell.y) }];
+    const cameFrom = new Map<string, string>();
+    const gScore = new Map<string, number>([[keyOf(startCell.x, startCell.y), 0]]);
+    const inOpen = new Set<string>([keyOf(startCell.x, startCell.y)]);
+    const visited = new Set<string>();
+    const neighbors = [
+      { x: 1, y: 0 },
+      { x: -1, y: 0 },
+      { x: 0, y: 1 },
+      { x: 0, y: -1 }
+    ];
+
+    let iterations = 0;
+    const maxIterations = 12000;
+    while (open.length > 0 && iterations < maxIterations) {
+      iterations += 1;
+      open.sort((a, b) => a.f - b.f);
+      const current = open.shift() as { x: number; y: number; f: number };
+      const currentKey = keyOf(current.x, current.y);
+      inOpen.delete(currentKey);
+      if (current.x === endCell.x && current.y === endCell.y) {
+        const cells: Array<{ x: number; y: number }> = [];
+        let walkKey = currentKey;
+        while (walkKey) {
+          const [sx, sy] = walkKey.split(',').map(Number);
+          cells.push({ x: sx, y: sy });
+          const prev = cameFrom.get(walkKey);
+          if (!prev) {
+            break;
+          }
+          walkKey = prev;
+        }
+        cells.reverse();
+        if (cells.length < 2) {
+          return null;
+        }
+        const points = cells.map((cell) => toWorld(cell.x, cell.y));
+        points[0] = start;
+        points[points.length - 1] = end;
+        return points;
+      }
+      if (visited.has(currentKey)) {
+        continue;
+      }
+      visited.add(currentKey);
+
+      const currentG = gScore.get(currentKey) ?? Number.POSITIVE_INFINITY;
+      neighbors.forEach((delta) => {
+        const nx = current.x + delta.x;
+        const ny = current.y + delta.y;
+        if (nx < 0 || ny < 0 || nx > maxCellX || ny > maxCellY) {
+          return;
+        }
+        const neighborKey = keyOf(nx, ny);
+        if (blocked.has(neighborKey) || visited.has(neighborKey)) {
+          return;
+        }
+        const tentative = currentG + 1;
+        if (tentative >= (gScore.get(neighborKey) ?? Number.POSITIVE_INFINITY)) {
+          return;
+        }
+        cameFrom.set(neighborKey, currentKey);
+        gScore.set(neighborKey, tentative);
+        const f = tentative + heuristic(nx, ny);
+        if (!inOpen.has(neighborKey)) {
+          inOpen.add(neighborKey);
+          open.push({ x: nx, y: ny, f });
+        } else {
+          const existing = open.find((item) => item.x === nx && item.y === ny);
+          if (existing) {
+            existing.f = f;
+          }
+        }
+      });
+    }
+    return null;
+  }
+
+  private buildObstacleRects(nodes: BuilderNode[], fromId: number, toId: number, padding: number): Rect[] {
+    return nodes
+      .filter((node) => node.module.id !== fromId && node.module.id !== toId)
+      .map((node) => {
+        const height = this.visibleNodeHeight(node);
+        return {
+          left: node.x - padding,
+          top: node.y - padding,
+          right: node.x + this.nodeWidth + padding,
+          bottom: node.y + height + padding
+        };
+      });
   }
 
   private buildPath(startX: number, startY: number, endX: number, endY: number): string {

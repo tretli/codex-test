@@ -38,7 +38,22 @@ p {
 .panel-actions {
   margin-top: 0.75rem;
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.route-mode-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+  color: #334155;
+}
+
+.route-mode-control select {
+  width: auto;
+  min-width: 120px;
 }
 
 .palette-controls {
