@@ -140,20 +140,20 @@
           ({{ node.module.serviceModuleTypeId }})
         </p>
 
-        <div class="ports" *ngIf="selectedModuleId() === node.module.id">
-          <button
-            type="button"
-            class="port input"
-            [attr.data-port-input]="node.module.id"
-            title="Drop an arrow here"
-          ></button>
-          <button
-            type="button"
-            class="port output"
-            (pointerdown)="setCanvasRef(canvasRoot); startConnectionDrag(node, $event)"
-            title="Drag to connect selected field"
-          ></button>
-        </div>
+        <button
+          *ngIf="selectedModuleId() === node.module.id"
+          type="button"
+          class="port input"
+          [attr.data-port-input]="node.module.id"
+          title="Drop an arrow here"
+        ></button>
+        <button
+          *ngIf="selectedModuleId() === node.module.id"
+          type="button"
+          class="port output"
+          (pointerdown)="setCanvasRef(canvasRoot); startConnectionDrag(node, $event)"
+          title="Drag to connect selected field"
+        ></button>
 
         <label class="field" *ngIf="selectedModuleId() === node.module.id">
           <span>Name</span>

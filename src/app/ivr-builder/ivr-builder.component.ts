@@ -196,7 +196,7 @@ const TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
 })
 export class IvrBuilderComponent {
   private readonly nodeWidth = 320;
-  private readonly portOffsetY = 56;
+  private readonly collapsedNodeHeight = 86;
   private readonly moduleTypeColors: Record<number, string> = {
     1: '#64748b',
     2: '#ef4444',
@@ -292,16 +292,17 @@ export class IvrBuilderComponent {
         if (!target) {
           return;
         }
-        const startX = node.x + this.nodeWidth;
-        const startY = node.y + this.portOffsetY;
-        const endX = target.x;
-        const endY = target.y + this.portOffsetY;
+        const start = this.getPortPoint(node.module.id, 'out');
+        const end = this.getPortPoint(target.module.id, 'in');
+        if (!start || !end) {
+          return;
+        }
         connections.push({
           id: `${node.module.id}:${link.field}:${targetId}`,
           fromId: node.module.id,
           toId: targetId,
           field: link.field,
-          path: this.buildPath(startX, startY, endX, endY)
+          path: this.buildPath(start.x, start.y, end.x, end.y)
         });
       });
     });
@@ -805,14 +806,17 @@ export class IvrBuilderComponent {
     if (!node) {
       return null;
     }
-    return { x: kind === 'out' ? node.x + this.nodeWidth : node.x, y: node.y + this.portOffsetY };
+    return {
+      x: node.x + this.nodeWidth / 2,
+      y: kind === 'out' ? node.y + this.visibleNodeHeight(node) : node.y
+    };
   }
 
   private buildPath(startX: number, startY: number, endX: number, endY: number): string {
-    const delta = Math.max(80, Math.abs(endX - startX) * 0.45);
-    const c1x = startX + delta;
-    const c2x = endX - delta;
-    return `M ${startX} ${startY} C ${c1x} ${startY}, ${c2x} ${endY}, ${endX} ${endY}`;
+    const delta = Math.max(80, Math.abs(endY - startY) * 0.45);
+    const c1y = startY + delta;
+    const c2y = endY - delta;
+    return `M ${startX} ${startY} C ${startX} ${c1y}, ${endX} ${c2y}, ${endX} ${endY}`;
   }
 
   private collectGraphEdges(nodes: BuilderNode[], nodeById: Map<number, BuilderNode>): GraphEdge[] {
@@ -957,21 +961,26 @@ export class IvrBuilderComponent {
   ): Map<number, { x: number; y: number }> {
     const left = 64;
     const top = 64;
-    const horizontalGap = 180;
-    const verticalGap = 40;
+    const horizontalGap = 120;
+    const verticalGap = 96;
+    const centerX = 900;
     const positions = new Map<number, { x: number; y: number }>();
+    let y = top;
 
-    layers.forEach((layer, layerIndex) => {
-      let y = top;
-      const x = left + layerIndex * (this.nodeWidth + horizontalGap);
+    layers.forEach((layer) => {
+      const layerWidth = layer.length * this.nodeWidth + Math.max(0, layer.length - 1) * horizontalGap;
+      let x = Math.max(left, centerX - layerWidth / 2);
+      let rowHeight = 0;
       layer.forEach((id) => {
         const node = nodeById.get(id);
         if (!node) {
           return;
         }
         positions.set(id, { x, y });
-        y += this.nodeHeight(node, measuredHeights) + verticalGap;
+        rowHeight = Math.max(rowHeight, this.nodeHeight(node, measuredHeights));
+        x += this.nodeWidth + horizontalGap;
       });
+      y += Math.max(120, rowHeight) + verticalGap;
     });
 
     return positions;
@@ -1064,5 +1073,12 @@ export class IvrBuilderComponent {
     const baseHeight = 260;
     const rowHeight = 62;
     return baseHeight + this.editableFields(node).length * rowHeight;
+  }
+
+  private visibleNodeHeight(node: BuilderNode): number {
+    if (this.selectedModuleId() === node.module.id) {
+      return this.nodeHeight(node);
+    }
+    return this.collapsedNodeHeight;
   }
 }

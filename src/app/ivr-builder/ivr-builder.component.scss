@@ -157,26 +157,25 @@ p {
   font-size: 0.9rem;
 }
 
-.ports {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.65rem;
-}
-
 .port {
+  position: absolute;
   width: 14px;
   height: 14px;
   border-radius: 999px;
   border: none;
   padding: 0;
+  left: calc(50% - 7px);
+  z-index: 3;
 }
 
 .port.input {
   background: #0891b2;
+  top: -7px;
 }
 
 .port.output {
   background: #2563eb;
+  bottom: -7px;
 }
 
 .field {
