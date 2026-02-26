@@ -36,75 +36,9 @@
             }
         ]
     },
-    {
-        "numberListId": 6,
-        "matchModuleId": 15,
-        "noMatchModuleId": 513,
-        "id": 346,
-        "guid": "17861b62-5e87-489e-9f2a-2081f96f21b6",
-        "customerId": 2,
-        "serviceModuleTypeId": 11,
-        "name": "",
-        "order": 0,
-        "serviceGroupId": 0,
-        "callLogVisible": false
-    },
-    {
-        "variable": "z9601_use_security",
-        "value": "0",
-        "permanent": false,
-        "nextModuleId": 514,
-        "id": 513,
-        "guid": "a881544f-187d-414d-91ab-e1b09a7e3f39",
-        "customerId": 2,
-        "serviceModuleTypeId": 19,
-        "name": "set bypass",
-        "order": 17,
-        "serviceGroupId": 0,
-        "callLogVisible": true
-    },
-    {
-        "variable": "z9601_use_security",
-        "onModuleId": 515,
-        "offModuleId": 13,
-        "id": 514,
-        "guid": "08fd9966-d729-468c-a798-3b899d1ac908",
-        "customerId": 2,
-        "serviceModuleTypeId": 14,
-        "name": "bypass security",
-        "order": 18,
-        "serviceGroupId": 0,
-        "callLogVisible": false
-    },
-    {
-        "answer": true,
-        "background": true,
-        "soundFile": "Test 1",
-        "interval": 1,
-        "count": 2,
-        "key0ModuleId": 547,
-        "key1ModuleId": 15,
-        "key2ModuleId": 22,
-        "key3ModuleId": 15,
-        "key4ModuleId": 15,
-        "key5ModuleId": 22,
-        "key6ModuleId": 547,
-        "key7ModuleId": 547,
-        "key8ModuleId": 547,
-        "key9ModuleId": 547,
-        "keyStarModuleId": 14,
-        "keyHashModuleId": 547,
-        "loopExhaustedModuleId": 15,
-        "surveyModule": false,
-        "id": 547,
-        "guid": "167712c8-bff1-400d-b89f-4eb75c41083c",
-        "customerId": 2,
-        "serviceModuleTypeId": 30,
-        "name": "Thomas menu",
-        "order": 21,
-        "serviceGroupId": 0,
-        "callLogVisible": false
-    },
+   
+    
+   
     {
         "answer": true,
         "background": true,

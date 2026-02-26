@@ -103,23 +103,45 @@ p {
   top: 0;
   left: 0;
   pointer-events: none;
+  z-index: 1;
 }
 
 .connections marker polygon {
-  fill: #1d4ed8;
+  fill: context-stroke;
 }
 
 .connection-line {
   fill: none;
-  stroke: #1d4ed8;
+  stroke: var(--connection-color, #1d4ed8);
   stroke-width: 2.5;
-  pointer-events: auto;
-  cursor: pointer;
+  pointer-events: none;
 }
 
 .connection-line.draft {
   stroke-dasharray: 8 6;
   opacity: 0.7;
+}
+
+.connection-hitline {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.connection-tooltip {
+  position: absolute;
+  max-width: 420px;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.45rem;
+  background: rgba(15, 23, 42, 0.94);
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  pointer-events: none;
+  z-index: 20;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
 }
 
 .module-card {
@@ -134,6 +156,10 @@ p {
   touch-action: none;
   cursor: grab;
   z-index: 2;
+}
+
+.module-card.selected {
+  z-index: 10;
 }
 
 .module-card.collapsed {

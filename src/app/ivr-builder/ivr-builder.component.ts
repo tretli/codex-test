@@ -50,6 +50,8 @@ type RenderedConnection = {
   toId: number;
   field: string;
   path: string;
+  color: string;
+  tooltip: string;
 };
 
 type GraphEdge = {
@@ -73,6 +75,12 @@ type UnlinkedZone = {
 type CanvasExtent = {
   width: number;
   height: number;
+};
+
+type ConnectionTooltip = {
+  text: string;
+  x: number;
+  y: number;
 };
 
 type FieldKind = 'string' | 'number' | 'boolean' | 'link';
@@ -279,6 +287,7 @@ export class IvrBuilderComponent {
   readonly selectedModuleId = signal<number | null>(null);
   readonly dragState = signal<DragState | null>(null);
   readonly connectionDraft = signal<ConnectionDraft | null>(null);
+  readonly connectionTooltip = signal<ConnectionTooltip | null>(null);
   readonly canvasRef = signal<HTMLDivElement | null>(null);
 
   readonly renderedConnections = computed<RenderedConnection[]>(() => {
@@ -302,7 +311,14 @@ export class IvrBuilderComponent {
           fromId: node.module.id,
           toId: targetId,
           field: link.field,
-          path: this.buildPath(start.x, start.y, end.x, end.y)
+          path: this.buildPath(start.x, start.y, end.x, end.y),
+          color: this.moduleTypeColor(node.module.serviceModuleTypeId),
+          tooltip: [
+            `From: ${node.module.name || 'Unnamed module'} (ID ${node.module.id})`,
+            `Type: ${this.moduleTypeLabel(node.module.serviceModuleTypeId)} (${node.module.serviceModuleTypeId})`,
+            `Field: ${link.field}`,
+            `To ID: ${targetId}`
+          ].join(' | ')
         });
       });
     });
@@ -357,6 +373,14 @@ export class IvrBuilderComponent {
       return '';
     }
     return this.buildPath(draft.startX, draft.startY, draft.currentX, draft.currentY);
+  });
+  readonly draftColor = computed(() => {
+    const draft = this.connectionDraft();
+    if (!draft) {
+      return '#1d4ed8';
+    }
+    const fromNode = this.nodes().find((node) => node.module.id === draft.fromId);
+    return fromNode ? this.moduleTypeColor(fromNode.module.serviceModuleTypeId) : '#1d4ed8';
   });
   readonly serializedModules = computed(() => JSON.stringify(this.exportModules(), null, 2));
   readonly moduleCount = computed(() => this.nodes().length);
@@ -606,6 +630,38 @@ export class IvrBuilderComponent {
     });
   }
 
+  showConnectionTooltip(connection: RenderedConnection, event: MouseEvent): void {
+    const point = this.toCanvasMousePoint(event);
+    if (!point) {
+      return;
+    }
+    this.connectionTooltip.set({
+      text: connection.tooltip,
+      x: point.x + 14,
+      y: point.y + 14
+    });
+  }
+
+  moveConnectionTooltip(event: MouseEvent): void {
+    const existing = this.connectionTooltip();
+    if (!existing) {
+      return;
+    }
+    const point = this.toCanvasMousePoint(event);
+    if (!point) {
+      return;
+    }
+    this.connectionTooltip.set({
+      ...existing,
+      x: point.x + 14,
+      y: point.y + 14
+    });
+  }
+
+  hideConnectionTooltip(): void {
+    this.connectionTooltip.set(null);
+  }
+
   autoLayoutModules(): void {
     const currentNodes = this.nodes();
     if (currentNodes.length < 2) {
@@ -665,7 +721,12 @@ export class IvrBuilderComponent {
     if (!target) {
       return;
     }
-    if (target.closest('.module-card') || target.closest('.port') || target.closest('.connection-line')) {
+    if (
+      target.closest('.module-card') ||
+      target.closest('.port') ||
+      target.closest('.connection-line') ||
+      target.closest('.connection-hitline')
+    ) {
       return;
     }
     this.selectedModuleId.set(null);
@@ -790,6 +851,18 @@ export class IvrBuilderComponent {
   }
 
   private toCanvasPoint(event: PointerEvent): { x: number; y: number } | null {
+    const canvas = this.canvasRef();
+    if (!canvas) {
+      return null;
+    }
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: event.clientX - rect.left + canvas.scrollLeft,
+      y: event.clientY - rect.top + canvas.scrollTop
+    };
+  }
+
+  private toCanvasMousePoint(event: MouseEvent): { x: number; y: number } | null {
     const canvas = this.canvasRef();
     if (!canvas) {
       return null;

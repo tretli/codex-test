@@ -105,23 +105,42 @@
         <path
           *ngFor="let connection of renderedConnections()"
           [attr.d]="connection.path"
+          class="connection-hitline"
+          [attr.title]="connection.tooltip"
+          (mouseenter)="showConnectionTooltip(connection, $event)"
+          (mousemove)="moveConnectionTooltip($event)"
+          (mouseleave)="hideConnectionTooltip()"
+          (dblclick)="removeConnection(connection)"
+        ></path>
+        <path
+          *ngFor="let connection of renderedConnections()"
+          [attr.d]="connection.path"
+          [style.--connection-color]="connection.color"
           marker-end="url(#arrowhead)"
           class="connection-line"
-          [attr.title]="connection.field"
-          (dblclick)="removeConnection(connection)"
         ></path>
         <path
           *ngIf="connectionDraft()"
           [attr.d]="draftPath()"
+          [style.--connection-color]="draftColor()"
           marker-end="url(#arrowhead)"
           class="connection-line draft"
         ></path>
       </svg>
+      <div
+        class="connection-tooltip"
+        *ngIf="connectionTooltip() as tooltip"
+        [style.left.px]="tooltip.x"
+        [style.top.px]="tooltip.y"
+      >
+        {{ tooltip.text }}
+      </div>
 
       <article
         class="module-card"
         *ngFor="let node of nodes(); trackBy: trackByNode"
         [class.collapsed]="selectedModuleId() !== node.module.id"
+        [class.selected]="selectedModuleId() === node.module.id"
         [attr.data-module-id]="node.module.id"
         [style.--module-color]="moduleTypeColor(node.module.serviceModuleTypeId)"
         [style.left.px]="node.x"
