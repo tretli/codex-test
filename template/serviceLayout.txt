@@ -1,5 +1,5 @@
-export const DEFAULT_IVR_SAMPLE_MODULES = [
-    {
+[
+	{
         "closedModuleId": 17,
         "timeZone": "Europe/Oslo",
         "id": 13,
@@ -10,22 +10,9 @@ export const DEFAULT_IVR_SAMPLE_MODULES = [
         "order": 1,
         "serviceGroupId": 0,
         "callLogVisible": true,
-        "exits": [
-            {
-                "id": 1,
-                "nextModuleId": 346
-            },
-            {
-                "id": 2,
-                "nextModuleId": 17
-            },
-            {
-                "id": 3,
-                "nextModuleId": 8710
-            }
-        ]
+		"exits":[{"id":1,"nextModuleId":346},{"id":2,"nextModuleId":17},{"id":3, "nextModuleId":8710]
     },
-    {
+	   {
         "numberListId": 6,
         "matchModuleId": 15,
         "noMatchModuleId": 513,
@@ -38,7 +25,7 @@ export const DEFAULT_IVR_SAMPLE_MODULES = [
         "serviceGroupId": 0,
         "callLogVisible": false
     },
-    {
+	{
         "variable": "z9601_use_security",
         "value": "0",
         "permanent": false,
@@ -52,7 +39,7 @@ export const DEFAULT_IVR_SAMPLE_MODULES = [
         "serviceGroupId": 0,
         "callLogVisible": true
     },
-    {
+	 {
         "variable": "z9601_use_security",
         "onModuleId": 515,
         "offModuleId": 13,
@@ -143,7 +130,7 @@ export const DEFAULT_IVR_SAMPLE_MODULES = [
         "customerId": 2,
         "serviceModuleTypeId": 21,
         "name": "voice",
-        "nextModuleId": 547,
+		"nextModuleId":547
         "order": 22,
         "serviceGroupId": 0,
         "callLogVisible": false
@@ -285,38 +272,39 @@ export const DEFAULT_IVR_SAMPLE_MODULES = [
         "name": "multiswitch",
         "order": 20,
         "serviceGroupId": 0,
-        "callLogVisible": true,
-        "exits": [
-            {
-                "id": 1367,
-                "multiSwitchModuleId": 543,
-                "valueFrom": "2015",
-                "valueTo": null,
-                "nextModuleId": 866
-            },
-            {
-                "id": 1368,
-                "multiSwitchModuleId": 543,
-                "valueFrom": "2011",
-                "valueTo": null,
-                "nextModuleId": 867
-            },
-            {
-                "id": 1369,
-                "multiSwitchModuleId": 543,
-                "valueFrom": "2000",
-                "valueTo": "2010",
-                "nextModuleId": 18
-            },
-            {
-                "id": 1370,
-                "multiSwitchModuleId": 543,
-                "valueFrom": "2016",
-                "valueTo": "2300",
-                "nextModuleId": 18
-            }
-        ]
+        "callLogVisible": true
+		"exits":[
+    {
+        "id": 1367,
+        "multiSwitchModuleId": 543,
+        "valueFrom": "2015",
+        "valueTo": null,
+        "nextModuleId": 866
     },
+    {
+        "id": 1368,
+        "multiSwitchModuleId": 543,
+        "valueFrom": "2011",
+        "valueTo": null,
+        "nextModuleId": 867
+    },
+    {
+        "id": 1369,
+        "multiSwitchModuleId": 543,
+        "valueFrom": "2000",
+        "valueTo": "2010",
+        "nextModuleId": 18
+    },
+    {
+        "id": 1370,
+        "multiSwitchModuleId": 543,
+        "valueFrom": "2016",
+        "valueTo": "2300",
+        "nextModuleId": 18
+    }
+]
+    },
+ 
     {
         "queueId": 3,
         "queuePriority": 0,
@@ -433,6 +421,7 @@ export const DEFAULT_IVR_SAMPLE_MODULES = [
         "serviceGroupId": 0,
         "callLogVisible": false
     },
+    
     {
         "variable": "z9601_vcode",
         "value": "9988",
@@ -469,6 +458,8 @@ export const DEFAULT_IVR_SAMPLE_MODULES = [
         "serviceGroupId": 0,
         "callLogVisible": false
     },
+   
+    
     {
         "wait": 5000,
         "nextModuleId": 14,
@@ -493,4 +484,4 @@ export const DEFAULT_IVR_SAMPLE_MODULES = [
         "serviceGroupId": 0,
         "callLogVisible": false
     }
-];
+]

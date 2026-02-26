@@ -1,4 +1,4 @@
-export const DEFAULT_IVR_SAMPLE_MODULES = [
+[
     {
         "closedModuleId": 17,
         "timeZone": "Europe/Oslo",
@@ -493,4 +493,4 @@ export const DEFAULT_IVR_SAMPLE_MODULES = [
         "serviceGroupId": 0,
         "callLogVisible": false
     }
-];
+]

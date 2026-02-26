@@ -58,12 +58,22 @@
       class="canvas"
       #canvasRoot
       (pointerenter)="setCanvasRef(canvasRoot)"
+      (pointerdown)="clearSelectionIfCanvasBackground($event)"
       (pointermove)="onCanvasPointerMove($event)"
       (pointerup)="onCanvasPointerUp($event)"
       (pointercancel)="onCanvasPointerUp($event)"
       (pointerleave)="onCanvasPointerUp($event)"
     >
-      <div class="canvas-grid"></div>
+      <div
+        class="canvas-size-proxy"
+        [style.width.px]="canvasExtent().width"
+        [style.height.px]="canvasExtent().height"
+      ></div>
+      <div
+        class="canvas-grid"
+        [style.width.px]="canvasExtent().width"
+        [style.height.px]="canvasExtent().height"
+      ></div>
       <div
         class="unlinked-zone"
         *ngIf="unlinkedZone() as zone"
@@ -74,7 +84,12 @@
       >
         <span class="unlinked-zone__label">Unlinked modules ({{ zone.count }})</span>
       </div>
-      <svg class="connections">
+      <svg
+        class="connections"
+        [attr.width]="canvasExtent().width"
+        [attr.height]="canvasExtent().height"
+        [attr.viewBox]="'0 0 ' + canvasExtent().width + ' ' + canvasExtent().height"
+      >
         <defs>
           <marker
             id="arrowhead"
@@ -106,9 +121,12 @@
       <article
         class="module-card"
         *ngFor="let node of nodes(); trackBy: trackByNode"
+        [class.collapsed]="selectedModuleId() !== node.module.id"
+        [attr.data-module-id]="node.module.id"
+        [style.--module-color]="moduleTypeColor(node.module.serviceModuleTypeId)"
         [style.left.px]="node.x"
         [style.top.px]="node.y"
-        (pointerdown)="setCanvasRef(canvasRoot); startModuleDrag(node.module.id, $event)"
+        (pointerdown)="setCanvasRef(canvasRoot); selectModule(node.module.id); startModuleDrag(node.module.id, $event)"
       >
         <div class="card-head">
           <strong>{{ node.module.name || 'Unnamed module' }}</strong>
@@ -122,7 +140,7 @@
           ({{ node.module.serviceModuleTypeId }})
         </p>
 
-        <div class="ports">
+        <div class="ports" *ngIf="selectedModuleId() === node.module.id">
           <button
             type="button"
             class="port input"
@@ -137,7 +155,7 @@
           ></button>
         </div>
 
-        <label class="field">
+        <label class="field" *ngIf="selectedModuleId() === node.module.id">
           <span>Name</span>
           <input
             type="text"
@@ -146,19 +164,23 @@
           />
         </label>
 
-        <label class="field">
+        <label class="field" *ngIf="selectedModuleId() === node.module.id">
           <span>Link field used by output port</span>
           <select
             [value]="node.linkField"
+            [disabled]="nodeLinkFields(node).length === 0"
             (change)="updateLinkField(node.module.id, $any($event.target).value)"
           >
+            <option *ngIf="nodeLinkFields(node).length === 0" value="">
+              No link fields available
+            </option>
             <option *ngFor="let field of nodeLinkFields(node)" [value]="field">
               {{ field }}
             </option>
           </select>
         </label>
 
-        <div class="field-grid">
+        <div class="field-grid" *ngIf="selectedModuleId() === node.module.id">
           <ng-container *ngFor="let field of editableFields(node)">
             <label class="field" *ngIf="field.kind === 'string'">
               <span>{{ field.label }}</span>

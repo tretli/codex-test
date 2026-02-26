@@ -57,12 +57,22 @@ type GraphEdge = {
   toId: number;
 };
 
+type ModuleLink = {
+  field: string;
+  toId: number;
+};
+
 type UnlinkedZone = {
   x: number;
   y: number;
   width: number;
   height: number;
   count: number;
+};
+
+type CanvasExtent = {
+  width: number;
+  height: number;
 };
 
 type FieldKind = 'string' | 'number' | 'boolean' | 'link';
@@ -72,7 +82,7 @@ type FieldSchema = {
   kind: FieldKind;
 };
 
-const LINK_FIELD_PATTERN = /ModuleId$/;
+const LINK_FIELD_PATTERN = /moduleid$/i;
 const BASE_FIELD_SCHEMAS: ReadonlyArray<FieldSchema> = [
   { key: 'order', label: 'Order', kind: 'number' },
   { key: 'serviceGroupId', label: 'Service group ID', kind: 'number' },
@@ -187,6 +197,23 @@ const TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
 export class IvrBuilderComponent {
   private readonly nodeWidth = 320;
   private readonly portOffsetY = 56;
+  private readonly moduleTypeColors: Record<number, string> = {
+    1: '#64748b',
+    2: '#ef4444',
+    5: '#22c55e',
+    7: '#eab308',
+    11: '#86efac',
+    13: '#facc15',
+    14: '#ca8a04',
+    17: '#d946ef',
+    19: '#06b6d4',
+    21: '#c084fc',
+    23: '#fb923c',
+    24: '#14b8a6',
+    30: '#0ea5e9',
+    34: '#a3e635',
+    39: '#4338ca'
+  };
 
   readonly templates: ModuleTemplate[] = [
     {
@@ -249,6 +276,7 @@ export class IvrBuilderComponent {
   readonly jsonInput = signal<string>(JSON.stringify(DEFAULT_IVR_SAMPLE_MODULES, null, 2));
   readonly parseError = signal<string | null>(null);
   readonly nodes = signal<BuilderNode[]>([]);
+  readonly selectedModuleId = signal<number | null>(null);
   readonly dragState = signal<DragState | null>(null);
   readonly connectionDraft = signal<ConnectionDraft | null>(null);
   readonly canvasRef = signal<HTMLDivElement | null>(null);
@@ -258,11 +286,8 @@ export class IvrBuilderComponent {
     const moduleById = new Map(nodes.map((node) => [node.module.id, node]));
     const connections: RenderedConnection[] = [];
     nodes.forEach((node) => {
-      this.getLinkFields(node.module).forEach((field) => {
-        const targetId = this.asPositiveId(node.module[field]);
-        if (targetId === null) {
-          return;
-        }
+      this.getModuleLinks(node.module).forEach((link) => {
+        const targetId = link.toId;
         const target = moduleById.get(targetId);
         if (!target) {
           return;
@@ -272,10 +297,10 @@ export class IvrBuilderComponent {
         const endX = target.x;
         const endY = target.y + this.portOffsetY;
         connections.push({
-          id: `${node.module.id}:${field}:${targetId}`,
+          id: `${node.module.id}:${link.field}:${targetId}`,
           fromId: node.module.id,
           toId: targetId,
-          field,
+          field: link.field,
           path: this.buildPath(startX, startY, endX, endY)
         });
       });
@@ -294,6 +319,35 @@ export class IvrBuilderComponent {
       return null;
     }
     return this.buildUnlinkedZone(isolatedIds, nodeById);
+  });
+  readonly canvasExtent = computed<CanvasExtent>(() => {
+    const minWidth = 1400;
+    const minHeight = 1000;
+    const padding = 140;
+    let maxX = 0;
+    let maxY = 0;
+
+    this.nodes().forEach((node) => {
+      maxX = Math.max(maxX, node.x + this.nodeWidth + padding);
+      maxY = Math.max(maxY, node.y + this.nodeHeight(node) + padding);
+    });
+
+    const zone = this.unlinkedZone();
+    if (zone) {
+      maxX = Math.max(maxX, zone.x + zone.width + padding);
+      maxY = Math.max(maxY, zone.y + zone.height + padding);
+    }
+
+    const draft = this.connectionDraft();
+    if (draft) {
+      maxX = Math.max(maxX, draft.startX + padding, draft.currentX + padding);
+      maxY = Math.max(maxY, draft.startY + padding, draft.currentY + padding);
+    }
+
+    return {
+      width: Math.max(minWidth, Math.ceil(maxX)),
+      height: Math.max(minHeight, Math.ceil(maxY))
+    };
   });
 
   readonly draftPath = computed(() => {
@@ -340,6 +394,7 @@ export class IvrBuilderComponent {
         return;
       }
       this.nodes.set(this.modulesToNodes(modules));
+      this.selectedModuleId.set(null);
     } catch {
       this.parseError.set('Invalid JSON.');
     }
@@ -364,7 +419,7 @@ export class IvrBuilderComponent {
     };
     this.nodes.update((current) => [
       ...current,
-      { module, x: 80 + (count % 3) * 360, y: 120 + Math.floor(count / 3) * 250, linkField: template.preferredLinkField }
+      { module, x: 80 + (count % 3) * 360, y: 120 + Math.floor(count / 3) * 250, linkField: this.defaultLinkField(module) }
     ]);
   }
 
@@ -374,6 +429,9 @@ export class IvrBuilderComponent {
         .filter((node) => node.module.id !== moduleId)
         .map((node) => this.clearLinksTo(node, moduleId))
     );
+    if (this.selectedModuleId() === moduleId) {
+      this.selectedModuleId.set(null);
+    }
   }
 
   updateName(moduleId: number, value: string): void {
@@ -406,6 +464,10 @@ export class IvrBuilderComponent {
   moduleTypeLabel(serviceModuleTypeId: number): string {
     const template = this.templates.find((item) => item.serviceModuleTypeId === serviceModuleTypeId);
     return template ? template.label : `Type ${serviceModuleTypeId}`;
+  }
+
+  moduleTypeColor(serviceModuleTypeId: number): string {
+    return this.moduleTypeColors[serviceModuleTypeId] ?? '#475569';
   }
 
   moduleTargets(node: BuilderNode): Array<{ id: number; label: string }> {
@@ -535,7 +597,12 @@ export class IvrBuilderComponent {
   }
 
   removeConnection(connection: RenderedConnection): void {
-    this.updateNodeModule(connection.fromId, (module) => ({ ...module, [connection.field]: 0 }));
+    this.updateNodeModule(connection.fromId, (module) => {
+      if (!(connection.field in module) || connection.field.includes('.') || connection.field.includes('[')) {
+        return module;
+      }
+      return { ...module, [connection.field]: 0 };
+    });
   }
 
   autoLayoutModules(): void {
@@ -544,6 +611,7 @@ export class IvrBuilderComponent {
       return;
     }
 
+    const measuredHeights = this.measureNodeHeights();
     const nodeById = new Map(currentNodes.map((node) => [node.module.id, node]));
     const edges = this.collectGraphEdges(currentNodes, nodeById);
     const isolatedIdSet = new Set(this.getIsolatedNodeIds(currentNodes, edges));
@@ -566,12 +634,13 @@ export class IvrBuilderComponent {
     if (linkedNodes.length > 0) {
       const layerById = this.assignLayers(linkedNodes, outgoing, incoming);
       const orderedLayers = this.orderLayersToReduceCrossings(linkedNodes, layerById, outgoing, incoming);
-      this.positionOrderedLayers(orderedLayers, nodeById).forEach((value, id) => positioned.set(id, value));
+      this.positionOrderedLayers(orderedLayers, nodeById, measuredHeights).forEach((value, id) => positioned.set(id, value));
     }
 
     this.positionIsolatedNodes(
       currentNodes.filter((node) => isolatedIdSet.has(node.module.id)),
-      positioned
+      positioned,
+      measuredHeights
     ).forEach((value, id) => positioned.set(id, value));
 
     this.nodes.update((nodes) =>
@@ -584,6 +653,21 @@ export class IvrBuilderComponent {
 
   trackByNode(_index: number, node: BuilderNode): number {
     return node.module.id;
+  }
+
+  selectModule(moduleId: number): void {
+    this.selectedModuleId.set(moduleId);
+  }
+
+  clearSelectionIfCanvasBackground(event: PointerEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+    if (target.closest('.module-card') || target.closest('.port') || target.closest('.connection-line')) {
+      return;
+    }
+    this.selectedModuleId.set(null);
   }
 
   private modulesToNodes(modules: IvrModuleRecord[]): BuilderNode[] {
@@ -611,19 +695,64 @@ export class IvrBuilderComponent {
   private getLinkFields(module: IvrModuleRecord): string[] {
     const existing = Object.keys(module).filter((key) => LINK_FIELD_PATTERN.test(key));
     const typed = (TYPE_SCHEMAS[module.serviceModuleTypeId] ?? []).filter((item) => item.kind === 'link').map((item) => item.key);
-    return [...new Set([...this.preferredFieldsForType(module.serviceModuleTypeId), ...typed, ...existing])];
+    return [...new Set([...typed, ...existing])];
   }
 
-  private preferredFieldsForType(serviceModuleTypeId: number): string[] {
-    if (serviceModuleTypeId === 30) {
-      return ['key1ModuleId', 'key2ModuleId', 'key3ModuleId', 'key4ModuleId', 'key5ModuleId', 'key6ModuleId', 'key7ModuleId', 'key8ModuleId', 'key9ModuleId', 'key0ModuleId', 'keyStarModuleId', 'keyHashModuleId', 'loopExhaustedModuleId'];
-    }
-    return ['nextModuleId', 'continueModuleId', 'timeoutModuleId', 'offModuleId', 'onModuleId', 'closedModuleId', 'noMatchModuleId', 'matchModuleId'];
+  private getModuleLinks(module: IvrModuleRecord): ModuleLink[] {
+    const links: ModuleLink[] = [];
+    const seen = new Set<string>();
+
+    const addLink = (field: string, rawValue: unknown): void => {
+      const toId = this.asPositiveId(rawValue);
+      if (toId === null) {
+        return;
+      }
+      const key = `${field}:${toId}`;
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      links.push({ field, toId });
+    };
+
+    Object.keys(module).forEach((field) => {
+      if (LINK_FIELD_PATTERN.test(field)) {
+        addLink(field, module[field]);
+      }
+    });
+
+    const visit = (value: unknown, path: string, depth: number): void => {
+      if (depth > 4 || value === null || value === undefined) {
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach((item, index) => visit(item, `${path}[${index}]`, depth + 1));
+        return;
+      }
+      if (typeof value !== 'object') {
+        return;
+      }
+      Object.entries(value as Record<string, unknown>).forEach(([key, nested]) => {
+        const nextPath = path ? `${path}.${key}` : key;
+        if (LINK_FIELD_PATTERN.test(key)) {
+          addLink(nextPath, nested);
+        }
+        visit(nested, nextPath, depth + 1);
+      });
+    };
+
+    Object.entries(module).forEach(([key, value]) => {
+      if (!LINK_FIELD_PATTERN.test(key)) {
+        visit(value, key, 1);
+      }
+    });
+
+    return links;
   }
 
   private defaultLinkField(module: IvrModuleRecord): string {
     const links = this.getLinkFields(module);
-    return links[0] ?? 'nextModuleId';
+    return links[0] ?? '';
   }
 
   private clearLinksTo(node: BuilderNode, targetId: number): BuilderNode {
@@ -641,7 +770,18 @@ export class IvrBuilderComponent {
   }
 
   private asPositiveId(value: unknown): number | null {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+    return null;
   }
 
   private toLabel(key: string): string {
@@ -679,12 +819,12 @@ export class IvrBuilderComponent {
     const edges: GraphEdge[] = [];
     const seen = new Set<string>();
     nodes.forEach((node) => {
-      this.getLinkFields(node.module).forEach((field) => {
-        const targetId = this.asPositiveId(node.module[field]);
-        if (targetId === null || !nodeById.has(targetId) || targetId === node.module.id) {
+      this.getModuleLinks(node.module).forEach((link) => {
+        const targetId = link.toId;
+        if (!nodeById.has(targetId) || targetId === node.module.id) {
           return;
         }
-        const key = `${node.module.id}:${targetId}`;
+        const key = `${node.module.id}:${link.field}:${targetId}`;
         if (seen.has(key)) {
           return;
         }
@@ -812,7 +952,8 @@ export class IvrBuilderComponent {
 
   private positionOrderedLayers(
     layers: number[][],
-    nodeById: Map<number, BuilderNode>
+    nodeById: Map<number, BuilderNode>,
+    measuredHeights: Map<number, number>
   ): Map<number, { x: number; y: number }> {
     const left = 64;
     const top = 64;
@@ -829,7 +970,7 @@ export class IvrBuilderComponent {
           return;
         }
         positions.set(id, { x, y });
-        y += this.estimatedNodeHeight(node) + verticalGap;
+        y += this.nodeHeight(node, measuredHeights) + verticalGap;
       });
     });
 
@@ -838,7 +979,8 @@ export class IvrBuilderComponent {
 
   private positionIsolatedNodes(
     isolatedNodes: BuilderNode[],
-    positionedLinkedNodes: Map<number, { x: number; y: number }>
+    positionedLinkedNodes: Map<number, { x: number; y: number }>,
+    measuredHeights: Map<number, number>
   ): Map<number, { x: number; y: number }> {
     const positions = new Map<number, { x: number; y: number }>();
     if (isolatedNodes.length === 0) {
@@ -857,7 +999,7 @@ export class IvrBuilderComponent {
       .sort((a, b) => a.y - b.y || a.module.id - b.module.id)
       .forEach((node) => {
         positions.set(node.module.id, { x, y });
-        y += this.estimatedNodeHeight(node) + verticalGap;
+        y += this.nodeHeight(node, measuredHeights) + verticalGap;
       });
     return positions;
   }
@@ -875,7 +1017,7 @@ export class IvrBuilderComponent {
       if (!node) {
         return;
       }
-      const nodeBottom = node.y + this.estimatedNodeHeight(node);
+      const nodeBottom = node.y + this.nodeHeight(node);
       minX = Math.min(minX, node.x);
       minY = Math.min(minY, node.y);
       maxX = Math.max(maxX, node.x + this.nodeWidth);
@@ -895,9 +1037,32 @@ export class IvrBuilderComponent {
     };
   }
 
-  private estimatedNodeHeight(node: BuilderNode): number {
-    const baseHeight = 190;
-    const rowHeight = 46;
+  private measureNodeHeights(): Map<number, number> {
+    const heights = new Map<number, number>();
+    const canvas = this.canvasRef() ?? (document.querySelector('.canvas') as HTMLDivElement | null);
+    if (!canvas) {
+      return heights;
+    }
+    canvas.querySelectorAll<HTMLElement>('.module-card[data-module-id]').forEach((element) => {
+      const id = Number(element.dataset['moduleId'] ?? '');
+      if (!Number.isFinite(id) || id <= 0) {
+        return;
+      }
+      const height = element.getBoundingClientRect().height;
+      if (height > 0) {
+        heights.set(id, Math.ceil(height));
+      }
+    });
+    return heights;
+  }
+
+  private nodeHeight(node: BuilderNode, measuredHeights?: Map<number, number>): number {
+    const measured = measuredHeights?.get(node.module.id);
+    if (measured && measured > 0) {
+      return measured;
+    }
+    const baseHeight = 260;
+    const rowHeight = 62;
     return baseHeight + this.editableFields(node).length * rowHeight;
   }
 }
