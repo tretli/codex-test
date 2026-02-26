@@ -1,16 +1,16 @@
 [
     {
-        "nextModuleId": 13,
-        "id": 1,
-        "guid": "00000000-0000-0000-0000-000000000000",
+        "nextModuleId": 14,
+        "id": -1,
+        "guid": "d1c8e5b7-9a0c-4f1b-9c3a-8e7c0d2e6f1b",
         "customerId": 2,
-        "serviceModuleTypeId": 0,
-        "name": "Start",
-        "order": 0,
+        "serviceModuleTypeId": 34,
+        "name": "start",
+        "order": 1,
         "serviceGroupId": 0,
-        "callLogVisible": true
+        "callLogVisible": false
     },
-    {
+     {
         "closedModuleId": 17,
         "timeZone": "Europe/Oslo",
         "id": 13,
@@ -18,92 +18,15 @@
         "customerId": 2,
         "serviceModuleTypeId": 5,
         "name": "Tidsstyring",
-        "order": 1,
+        "order": 0,
         "serviceGroupId": 0,
         "callLogVisible": true,
         "exits": [
-            {
+  {
                 "id": 1,
-                "nextModuleId": 346
-            },
-            {
-                "id": 2,
-                "nextModuleId": 17
-            },
-            {
-                "id": 3,
                 "nextModuleId": 8710
             }
         ]
-    },
-    {
-        "numberListId": 6,
-        "matchModuleId": 15,
-        "noMatchModuleId": 513,
-        "id": 346,
-        "guid": "17861b62-5e87-489e-9f2a-2081f96f21b6",
-        "customerId": 2,
-        "serviceModuleTypeId": 11,
-        "name": "",
-        "order": 0,
-        "serviceGroupId": 0,
-        "callLogVisible": false
-    },
-    {
-        "variable": "z9601_use_security",
-        "value": "0",
-        "permanent": false,
-        "nextModuleId": 514,
-        "id": 513,
-        "guid": "a881544f-187d-414d-91ab-e1b09a7e3f39",
-        "customerId": 2,
-        "serviceModuleTypeId": 19,
-        "name": "set bypass",
-        "order": 17,
-        "serviceGroupId": 0,
-        "callLogVisible": true
-    },
-    {
-        "variable": "z9601_use_security",
-        "onModuleId": 515,
-        "offModuleId": 13,
-        "id": 514,
-        "guid": "08fd9966-d729-468c-a798-3b899d1ac908",
-        "customerId": 2,
-        "serviceModuleTypeId": 14,
-        "name": "bypass security",
-        "order": 18,
-        "serviceGroupId": 0,
-        "callLogVisible": false
-    },
-    {
-        "answer": true,
-        "background": true,
-        "soundFile": "Test 1",
-        "interval": 1,
-        "count": 2,
-        "key0ModuleId": 547,
-        "key1ModuleId": 15,
-        "key2ModuleId": 22,
-        "key3ModuleId": 15,
-        "key4ModuleId": 15,
-        "key5ModuleId": 22,
-        "key6ModuleId": 547,
-        "key7ModuleId": 547,
-        "key8ModuleId": 547,
-        "key9ModuleId": 547,
-        "keyStarModuleId": 14,
-        "keyHashModuleId": 547,
-        "loopExhaustedModuleId": 15,
-        "surveyModule": false,
-        "id": 547,
-        "guid": "167712c8-bff1-400d-b89f-4eb75c41083c",
-        "customerId": 2,
-        "serviceModuleTypeId": 30,
-        "name": "Thomas menu",
-        "order": 21,
-        "serviceGroupId": 0,
-        "callLogVisible": false
     },
     {
         "answer": true,
@@ -130,7 +53,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 30,
         "name": "My menu",
-        "order": 27,
+        "order": 15,
         "serviceGroupId": 0,
         "callLogVisible": false
     },
@@ -143,19 +66,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 39,
         "name": "contactLookup",
-        "order": 26,
-        "serviceGroupId": 0,
-        "callLogVisible": false
-    },
-    {
-        "targetServiceGroupId": 24,
-        "id": 558,
-        "guid": "62f175f3-207f-458a-857f-72be0b87d985",
-        "customerId": 2,
-        "serviceModuleTypeId": 21,
-        "name": "voice",
-        "nextModuleId": 547,
-        "order": 22,
+        "order": 14,
         "serviceGroupId": 0,
         "callLogVisible": false
     },
@@ -166,7 +77,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 1,
         "name": "Slutt",
-        "order": 9,
+        "order": 7,
         "serviceGroupId": 0,
         "callLogVisible": true
     },
@@ -177,29 +88,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 1,
         "name": "Slutt",
-        "order": 12,
-        "serviceGroupId": 0,
-        "callLogVisible": true
-    },
-    {
-        "cause": "normal",
-        "id": 21,
-        "guid": "012b501e-3189-4545-aff9-9425e3acdc48",
-        "customerId": 2,
-        "serviceModuleTypeId": 1,
-        "name": "Slutt",
-        "order": 14,
-        "serviceGroupId": 0,
-        "callLogVisible": true
-    },
-    {
-        "cause": "normal",
-        "id": 23,
-        "guid": "d4aff98e-8b06-43cb-ac4a-9e48083040bf",
-        "customerId": 2,
-        "serviceModuleTypeId": 1,
-        "name": "Slutt",
-        "order": 16,
+        "order": 10,
         "serviceGroupId": 0,
         "callLogVisible": true
     },
@@ -213,7 +102,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 2,
         "name": "ÅPENT: Velkomstmelding",
-        "order": 3,
+        "order": 1,
         "serviceGroupId": 0,
         "callLogVisible": true
     },
@@ -227,7 +116,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 2,
         "name": "STENGT: Ordinær stengtmelding",
-        "order": 10,
+        "order": 8,
         "serviceGroupId": 0,
         "callLogVisible": true
     },
@@ -241,7 +130,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 2,
         "name": "STENGT: Helligdag stengtmelding",
-        "order": 11,
+        "order": 9,
         "serviceGroupId": 0,
         "callLogVisible": true
     },
@@ -255,7 +144,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 2,
         "name": "Martine",
-        "order": 23,
+        "order": 12,
         "serviceGroupId": 0,
         "callLogVisible": false
     },
@@ -269,7 +158,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 2,
         "name": "Amalie",
-        "order": 24,
+        "order": 13,
         "serviceGroupId": 0,
         "callLogVisible": false
     },
@@ -282,7 +171,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 13,
         "name": "eniro",
-        "order": 6,
+        "order": 4,
         "serviceGroupId": 0,
         "callLogVisible": false
     },
@@ -294,37 +183,24 @@
         "customerId": 2,
         "serviceModuleTypeId": 24,
         "name": "multiswitch",
-        "order": 20,
+        "order": 11,
         "serviceGroupId": 0,
         "callLogVisible": true,
         "exits": [
             {
-                "id": 1367,
-                "multiSwitchModuleId": 543,
-                "valueFrom": "2015",
-                "valueTo": null,
-                "nextModuleId": 866
-            },
-            {
-                "id": 1368,
-                "multiSwitchModuleId": 543,
-                "valueFrom": "2011",
-                "valueTo": null,
+                "id": 1,
+                "rule": "1",
                 "nextModuleId": 867
             },
             {
-                "id": 1369,
-                "multiSwitchModuleId": 543,
-                "valueFrom": "2000",
-                "valueTo": "2010",
-                "nextModuleId": 18
+                "id": 2,
+                "rule": "2",    
+                "nextModuleId": 866
             },
             {
-                "id": 1370,
-                "multiSwitchModuleId": 543,
-                "valueFrom": "2016",
-                "valueTo": "2300",
-                "nextModuleId": 18
+                "id": 3,
+                "rule": "3",
+                "nextModuleId": 370
             }
         ]
     },
@@ -348,55 +224,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 7,
         "name": "Sentralbord",
-        "order": 8,
-        "serviceGroupId": 0,
-        "callLogVisible": true
-    },
-    {
-        "queueId": 4,
-        "queuePriority": 0,
-        "queueTimeout": 0,
-        "queueOptions": null,
-        "answer": true,
-        "extraTime": 0,
-        "timeoutModuleId": 21,
-        "joinEmptyModuleId": 21,
-        "leaveEmptyModuleId": 21,
-        "joinUnavailModuleId": 21,
-        "leaveUnavailModuleId": 21,
-        "fullModuleId": 21,
-        "continueModuleId": 21,
-        "surveyModuleId": 0,
-        "id": 20,
-        "guid": "701a4b83-934e-4118-87b1-a0f6a7fb8105",
-        "customerId": 2,
-        "serviceModuleTypeId": 7,
-        "name": "Ringegruppe 1",
-        "order": 13,
-        "serviceGroupId": 0,
-        "callLogVisible": true
-    },
-    {
-        "queueId": 5,
-        "queuePriority": 0,
-        "queueTimeout": 0,
-        "queueOptions": null,
-        "answer": true,
-        "extraTime": 0,
-        "timeoutModuleId": 23,
-        "joinEmptyModuleId": 23,
-        "leaveEmptyModuleId": 23,
-        "joinUnavailModuleId": 23,
-        "leaveUnavailModuleId": 23,
-        "fullModuleId": 23,
-        "continueModuleId": 23,
-        "surveyModuleId": 0,
-        "id": 22,
-        "guid": "9df414ff-60d5-4fed-9029-314db022c560",
-        "customerId": 2,
-        "serviceModuleTypeId": 7,
-        "name": "Ringegruppe 2",
-        "order": 15,
+        "order": 6,
         "serviceGroupId": 0,
         "callLogVisible": true
     },
@@ -420,7 +248,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 7,
         "name": "Test qeueu",
-        "order": 28,
+        "order": 16,
         "serviceGroupId": 0,
         "callLogVisible": false
     },
@@ -440,21 +268,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 23,
         "name": "z9601_vcode",
-        "order": 5,
-        "serviceGroupId": 0,
-        "callLogVisible": false
-    },
-    {
-        "variable": "z9601_vcode",
-        "value": "9988",
-        "permanent": false,
-        "nextModuleId": 558,
-        "id": 515,
-        "guid": "ce5762bd-1cb6-42b7-abc0-2b9af1178628",
-        "customerId": 2,
-        "serviceModuleTypeId": 19,
-        "name": "varCode",
-        "order": 19,
+        "order": 3,
         "serviceGroupId": 0,
         "callLogVisible": false
     },
@@ -465,33 +279,11 @@
         "customerId": 2,
         "serviceModuleTypeId": 34,
         "name": "SetVariable",
-        "order": 7,
+        "order": 5,
         "serviceGroupId": 0,
         "callLogVisible": false
     },
-    {
-        "nextModuleId": 13,
-        "id": 1043,
-        "guid": "3ec84e6f-70d5-435e-bbbc-964a07887ee4",
-        "customerId": 2,
-        "serviceModuleTypeId": 34,
-        "name": "",
-        "order": 25,
-        "serviceGroupId": 0,
-        "callLogVisible": false
-    },
-    {
-        "wait": 5000,
-        "nextModuleId": 14,
-        "id": 409,
-        "guid": "5ef1a714-80a1-4319-892a-a6404d26a29c",
-        "customerId": 2,
-        "serviceModuleTypeId": 17,
-        "name": "Wait",
-        "order": 2,
-        "serviceGroupId": 0,
-        "callLogVisible": false
-    },
+   
     {
         "wait": 2000,
         "nextModuleId": 407,
@@ -500,7 +292,7 @@
         "customerId": 2,
         "serviceModuleTypeId": 17,
         "name": "wait2",
-        "order": 4,
+        "order": 2,
         "serviceGroupId": 0,
         "callLogVisible": false
     }
