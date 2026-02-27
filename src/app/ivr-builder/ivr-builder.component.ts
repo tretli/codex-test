@@ -309,8 +309,13 @@ export class IvrBuilderComponent {
     const routeStyle = this.connectionRouteStyle();
     const nodes = this.nodes();
     const moduleById = new Map(nodes.map((node) => [node.module.id, node]));
+    const edges = this.collectGraphEdges(nodes, moduleById);
+    const laneIdSet = new Set(this.getLaneNodeIds(nodes, edges));
     const connections: RenderedConnection[] = [];
     nodes.forEach((node) => {
+      if (laneIdSet.has(node.module.id)) {
+        return;
+      }
       this.getModuleLinks(node.module).forEach((link) => {
         const targetId = link.toId;
         const target = moduleById.get(targetId);
@@ -347,11 +352,11 @@ export class IvrBuilderComponent {
     }
     const nodeById = new Map(nodes.map((node) => [node.module.id, node]));
     const edges = this.collectGraphEdges(nodes, nodeById);
-    const isolatedIds = this.getIsolatedNodeIds(nodes, edges);
+    const isolatedIds = this.getLaneNodeIds(nodes, edges);
     if (isolatedIds.length === 0) {
       return null;
     }
-    return this.buildUnlinkedZone(isolatedIds, nodeById);
+    return this.buildUnlinkedZone(nodes, isolatedIds, nodeById);
   });
   readonly canvasExtent = computed<CanvasExtent>(() => {
     const minWidth = 1400;
@@ -693,7 +698,7 @@ export class IvrBuilderComponent {
     const measuredHeights = this.measureNodeHeights();
     const nodeById = new Map(currentNodes.map((node) => [node.module.id, node]));
     const edges = this.collectGraphEdges(currentNodes, nodeById);
-    const isolatedIdSet = new Set(this.getIsolatedNodeIds(currentNodes, edges));
+    const isolatedIdSet = new Set(this.getLaneNodeIds(currentNodes, edges));
     const linkedNodes = currentNodes.filter((node) => !isolatedIdSet.has(node.module.id));
     const outgoing = new Map<number, number[]>();
     const incoming = new Map<number, number[]>();
@@ -1130,16 +1135,46 @@ export class IvrBuilderComponent {
     return edges;
   }
 
-  private getIsolatedNodeIds(nodes: BuilderNode[], edges: GraphEdge[]): number[] {
-    const degree = new Map<number, number>();
-    nodes.forEach((node) => degree.set(node.module.id, 0));
+  private getLaneNodeIds(nodes: BuilderNode[], edges: GraphEdge[]): number[] {
+    const incoming = new Map<number, Set<number>>();
+    nodes.forEach((node) => incoming.set(node.module.id, new Set<number>()));
     edges.forEach((edge) => {
-      degree.set(edge.fromId, (degree.get(edge.fromId) ?? 0) + 1);
-      degree.set(edge.toId, (degree.get(edge.toId) ?? 0) + 1);
+      incoming.get(edge.toId)?.add(edge.fromId);
     });
-    return nodes
-      .filter((node) => (degree.get(node.module.id) ?? 0) === 0)
-      .map((node) => node.module.id);
+
+    const isMainRoot = (node: BuilderNode): boolean => {
+      const name = (node.module.name ?? '').trim().toLowerCase();
+      return node.module.id < 0 || name === 'start';
+    };
+
+    const laneIds = new Set<number>();
+    nodes.forEach((node) => {
+      const parentCount = incoming.get(node.module.id)?.size ?? 0;
+      if (parentCount === 0 && !isMainRoot(node)) {
+        laneIds.add(node.module.id);
+      }
+    });
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      nodes.forEach((node) => {
+        if (laneIds.has(node.module.id)) {
+          return;
+        }
+        const parents = incoming.get(node.module.id);
+        if (!parents || parents.size === 0) {
+          return;
+        }
+        const allParentsInLane = Array.from(parents).every((parentId) => laneIds.has(parentId));
+        if (allParentsInLane) {
+          laneIds.add(node.module.id);
+          changed = true;
+        }
+      });
+    }
+
+    return nodes.filter((node) => laneIds.has(node.module.id)).map((node) => node.module.id);
   }
 
   private assignLayers(
@@ -1288,11 +1323,13 @@ export class IvrBuilderComponent {
     }
     const top = 64;
     const verticalGap = 40;
-    const linkedMaxX =
+    const linkedMaxRight =
       positionedLinkedNodes.size === 0
-        ? 64
-        : Math.max(...Array.from(positionedLinkedNodes.values()).map((value) => value.x));
-    const x = linkedMaxX + this.nodeWidth + 220;
+        ? 64 + this.nodeWidth
+        : Math.max(...Array.from(positionedLinkedNodes.values()).map((value) => value.x + this.nodeWidth));
+    const laneX = linkedMaxRight + 120;
+    const laneWidth = this.nodeWidth + 120;
+    const x = laneX + Math.max(0, (laneWidth - this.nodeWidth) / 2);
     let y = top;
     isolatedNodes
       .slice()
@@ -1304,35 +1341,38 @@ export class IvrBuilderComponent {
     return positions;
   }
 
-  private buildUnlinkedZone(isolatedIds: number[], nodeById: Map<number, BuilderNode>): UnlinkedZone | null {
-    const zonePadding = 20;
-    const zoneHeader = 26;
-    let minX = Number.POSITIVE_INFINITY;
-    let minY = Number.POSITIVE_INFINITY;
-    let maxX = Number.NEGATIVE_INFINITY;
-    let maxY = Number.NEGATIVE_INFINITY;
-
-    isolatedIds.forEach((id) => {
-      const node = nodeById.get(id);
-      if (!node) {
-        return;
-      }
-      const nodeBottom = node.y + this.nodeHeight(node);
-      minX = Math.min(minX, node.x);
-      minY = Math.min(minY, node.y);
-      maxX = Math.max(maxX, node.x + this.nodeWidth);
-      maxY = Math.max(maxY, nodeBottom);
-    });
-
-    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+  private buildUnlinkedZone(
+    nodes: BuilderNode[],
+    isolatedIds: number[],
+    nodeById: Map<number, BuilderNode>
+  ): UnlinkedZone | null {
+    const isolatedSet = new Set(isolatedIds);
+    const linkedNodes = nodes.filter((node) => !isolatedSet.has(node.module.id));
+    if (linkedNodes.length === 0) {
       return null;
     }
+    const linkedMaxRight = Math.max(...linkedNodes.map((node) => node.x + this.nodeWidth));
+    const laneX = linkedMaxRight + 120;
+    const laneWidth = this.nodeWidth + 120;
+    const laneTop = 24;
+
+    const isolatedBottom = Math.max(
+      ...isolatedIds.map((id) => {
+        const node = nodeById.get(id);
+        if (!node) {
+          return laneTop;
+        }
+        return node.y + this.nodeHeight(node);
+      })
+    );
+    const linkedBottom = Math.max(...linkedNodes.map((node) => node.y + this.nodeHeight(node)));
+    const laneHeight = Math.max(420, Math.max(isolatedBottom, linkedBottom) - laneTop + 100);
 
     return {
-      x: minX - zonePadding,
-      y: Math.max(12, minY - zonePadding - zoneHeader),
-      width: Math.max(this.nodeWidth + zonePadding * 2, maxX - minX + zonePadding * 2),
-      height: maxY - minY + zonePadding * 2 + zoneHeader,
+      x: laneX,
+      y: laneTop,
+      width: laneWidth,
+      height: laneHeight,
       count: isolatedIds.length
     };
   }
