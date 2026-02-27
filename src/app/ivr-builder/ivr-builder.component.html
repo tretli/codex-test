@@ -46,7 +46,7 @@
   <section class="canvas-panel">
     <h2>Flow Canvas</h2>
     <p class="hint">
-      Drag cards to position. Pick a link field, then drag from output port to target module.
+      Drag cards to position. Click a module to edit it in the details panel.
     </p>
     <div class="panel-actions">
       <button type="button" class="secondary" (click)="autoLayoutModules()">
@@ -63,196 +63,210 @@
         </select>
       </label>
     </div>
+    <div class="canvas-workspace">
+      <div
+        class="canvas"
+        #canvasRoot
+        (pointerenter)="setCanvasRef(canvasRoot)"
+        (pointerdown)="clearSelectionIfCanvasBackground($event)"
+        (pointermove)="onCanvasPointerMove($event)"
+        (pointerup)="onCanvasPointerUp($event)"
+        (pointercancel)="onCanvasPointerUp($event)"
+        (pointerleave)="onCanvasPointerUp($event)"
+      >
+        <div
+          class="canvas-size-proxy"
+          [style.width.px]="canvasExtent().width"
+          [style.height.px]="canvasExtent().height"
+        ></div>
+        <div
+          class="canvas-grid"
+          [style.width.px]="canvasExtent().width"
+          [style.height.px]="canvasExtent().height"
+        ></div>
+        <div
+          class="unlinked-zone"
+          *ngIf="unlinkedZone() as zone"
+          [style.left.px]="zone.x"
+          [style.top.px]="zone.y"
+          [style.width.px]="zone.width"
+          [style.height.px]="zone.height"
+        >
+          <span class="unlinked-zone__label">Unlinked modules ({{ zone.count }})</span>
+        </div>
+        <svg
+          class="connections"
+          [attr.width]="canvasExtent().width"
+          [attr.height]="canvasExtent().height"
+          [attr.viewBox]="'0 0 ' + canvasExtent().width + ' ' + canvasExtent().height"
+        >
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="10"
+              markerHeight="7"
+              refX="8"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3.5, 0 7"></polygon>
+            </marker>
+          </defs>
+          <path
+            *ngFor="let connection of renderedConnections()"
+            [attr.d]="connection.path"
+            class="connection-hitline"
+            [attr.title]="connection.tooltip"
+            (mouseenter)="showConnectionTooltip(connection, $event)"
+            (mousemove)="moveConnectionTooltip($event)"
+            (mouseleave)="hideConnectionTooltip()"
+            (dblclick)="removeConnection(connection)"
+          ></path>
+          <path
+            *ngFor="let connection of renderedConnections()"
+            [attr.d]="connection.path"
+            [style.--connection-color]="connection.color"
+            marker-end="url(#arrowhead)"
+            class="connection-line"
+          ></path>
+          <path
+            *ngIf="connectionDraft()"
+            [attr.d]="draftPath()"
+            [style.--connection-color]="draftColor()"
+            marker-end="url(#arrowhead)"
+            class="connection-line draft"
+          ></path>
+        </svg>
+        <div
+          class="connection-tooltip"
+          *ngIf="connectionTooltip() as tooltip"
+          [style.left.px]="tooltip.x"
+          [style.top.px]="tooltip.y"
+        >
+          {{ tooltip.text }}
+        </div>
 
-    <div
-      class="canvas"
-      #canvasRoot
-      (pointerenter)="setCanvasRef(canvasRoot)"
-      (pointerdown)="clearSelectionIfCanvasBackground($event)"
-      (pointermove)="onCanvasPointerMove($event)"
-      (pointerup)="onCanvasPointerUp($event)"
-      (pointercancel)="onCanvasPointerUp($event)"
-      (pointerleave)="onCanvasPointerUp($event)"
-    >
-      <div
-        class="canvas-size-proxy"
-        [style.width.px]="canvasExtent().width"
-        [style.height.px]="canvasExtent().height"
-      ></div>
-      <div
-        class="canvas-grid"
-        [style.width.px]="canvasExtent().width"
-        [style.height.px]="canvasExtent().height"
-      ></div>
-      <div
-        class="unlinked-zone"
-        *ngIf="unlinkedZone() as zone"
-        [style.left.px]="zone.x"
-        [style.top.px]="zone.y"
-        [style.width.px]="zone.width"
-        [style.height.px]="zone.height"
-      >
-        <span class="unlinked-zone__label">Unlinked modules ({{ zone.count }})</span>
-      </div>
-      <svg
-        class="connections"
-        [attr.width]="canvasExtent().width"
-        [attr.height]="canvasExtent().height"
-        [attr.viewBox]="'0 0 ' + canvasExtent().width + ' ' + canvasExtent().height"
-      >
-        <defs>
-          <marker
-            id="arrowhead"
-            markerWidth="10"
-            markerHeight="7"
-            refX="8"
-            refY="3.5"
-            orient="auto"
-          >
-            <polygon points="0 0, 10 3.5, 0 7"></polygon>
-          </marker>
-        </defs>
-        <path
-          *ngFor="let connection of renderedConnections()"
-          [attr.d]="connection.path"
-          class="connection-hitline"
-          [attr.title]="connection.tooltip"
-          (mouseenter)="showConnectionTooltip(connection, $event)"
-          (mousemove)="moveConnectionTooltip($event)"
-          (mouseleave)="hideConnectionTooltip()"
-          (dblclick)="removeConnection(connection)"
-        ></path>
-        <path
-          *ngFor="let connection of renderedConnections()"
-          [attr.d]="connection.path"
-          [style.--connection-color]="connection.color"
-          marker-end="url(#arrowhead)"
-          class="connection-line"
-        ></path>
-        <path
-          *ngIf="connectionDraft()"
-          [attr.d]="draftPath()"
-          [style.--connection-color]="draftColor()"
-          marker-end="url(#arrowhead)"
-          class="connection-line draft"
-        ></path>
-      </svg>
-      <div
-        class="connection-tooltip"
-        *ngIf="connectionTooltip() as tooltip"
-        [style.left.px]="tooltip.x"
-        [style.top.px]="tooltip.y"
-      >
-        {{ tooltip.text }}
+        <article
+          class="module-card collapsed"
+          *ngFor="let node of nodes(); trackBy: trackByNode"
+          [class.selected]="selectedModuleId() === node.module.id"
+          [attr.data-module-id]="node.module.id"
+          [style.--module-color]="moduleTypeColor(node.module.serviceModuleTypeId)"
+          [style.left.px]="node.x"
+          [style.top.px]="node.y"
+          (pointerdown)="setCanvasRef(canvasRoot); selectModule(node.module.id); startModuleDrag(node.module.id, $event)"
+        >
+          <div class="card-head">
+            <strong>{{ node.module.name || 'Unnamed module' }}</strong>
+          </div>
+
+          <p class="meta">
+            ID {{ node.module.id }} | {{ moduleTypeLabel(node.module.serviceModuleTypeId) }}
+            ({{ node.module.serviceModuleTypeId }})
+          </p>
+
+          <button
+            *ngIf="selectedModuleId() === node.module.id"
+            type="button"
+            class="port input"
+            [attr.data-port-input]="node.module.id"
+            title="Drop an arrow here"
+          ></button>
+          <button
+            *ngIf="selectedModuleId() === node.module.id"
+            type="button"
+            class="port output"
+            (pointerdown)="setCanvasRef(canvasRoot); startConnectionDrag(node, $event)"
+            title="Drag to connect selected field"
+          ></button>
+        </article>
       </div>
 
-      <article
-        class="module-card"
-        *ngFor="let node of nodes(); trackBy: trackByNode"
-        [class.collapsed]="selectedModuleId() !== node.module.id"
-        [class.selected]="selectedModuleId() === node.module.id"
-        [attr.data-module-id]="node.module.id"
-        [style.--module-color]="moduleTypeColor(node.module.serviceModuleTypeId)"
-        [style.left.px]="node.x"
-        [style.top.px]="node.y"
-        (pointerdown)="setCanvasRef(canvasRoot); selectModule(node.module.id); startModuleDrag(node.module.id, $event)"
-      >
-        <div class="card-head">
-          <strong>{{ node.module.name || 'Unnamed module' }}</strong>
-          <button type="button" class="danger small" (click)="removeModule(node.module.id)">
-            Remove
+      <aside class="module-details-panel">
+        <h3>Module Details</h3>
+        <ng-container *ngIf="selectedNode() as selected; else noModuleSelected">
+          <p class="meta">
+            ID {{ selected.module.id }} | {{ moduleTypeLabel(selected.module.serviceModuleTypeId) }}
+            ({{ selected.module.serviceModuleTypeId }})
+          </p>
+
+          <label class="field">
+            <span>Name</span>
+            <input
+              type="text"
+              [value]="selected.module.name || ''"
+              (input)="updateName(selected.module.id, $any($event.target).value)"
+            />
+          </label>
+
+          <label class="field">
+            <span>Link field used by output port</span>
+            <select
+              [value]="selected.linkField"
+              [disabled]="nodeLinkFields(selected).length === 0"
+              (change)="updateLinkField(selected.module.id, $any($event.target).value)"
+            >
+              <option *ngIf="nodeLinkFields(selected).length === 0" value="">
+                No link fields available
+              </option>
+              <option *ngFor="let field of nodeLinkFields(selected)" [value]="field">
+                {{ field }}
+              </option>
+            </select>
+          </label>
+
+          <div class="field-grid">
+            <ng-container *ngFor="let field of editableFields(selected)">
+              <label class="field" *ngIf="field.kind === 'string'">
+                <span>{{ field.label }}</span>
+                <input
+                  type="text"
+                  [value]="fieldStringValue(selected, field.key)"
+                  (input)="updateFieldValue(selected.module.id, field.key, 'string', $any($event.target).value)"
+                />
+              </label>
+
+              <label class="field" *ngIf="field.kind === 'number'">
+                <span>{{ field.label }}</span>
+                <input
+                  type="number"
+                  [value]="fieldNumberValue(selected, field.key)"
+                  (input)="updateFieldValue(selected.module.id, field.key, 'number', $any($event.target).value)"
+                />
+              </label>
+
+              <label class="field checkbox" *ngIf="field.kind === 'boolean'">
+                <input
+                  type="checkbox"
+                  [checked]="fieldBooleanValue(selected, field.key)"
+                  (change)="updateFieldValue(selected.module.id, field.key, 'boolean', $any($event.target).checked)"
+                />
+                <span>{{ field.label }}</span>
+              </label>
+
+              <label class="field" *ngIf="field.kind === 'link'">
+                <span>{{ field.label }}</span>
+                <select
+                  [ngModel]="linkFieldValue(selected, field.key)"
+                  (ngModelChange)="updateFieldValue(selected.module.id, field.key, 'link', $event)"
+                >
+                  <option [ngValue]="0">No target</option>
+                  <option *ngFor="let target of moduleTargets(selected)" [ngValue]="target.id">
+                    {{ target.label }}
+                  </option>
+                </select>
+              </label>
+            </ng-container>
+          </div>
+
+          <button type="button" class="danger" (click)="removeModule(selected.module.id)">
+            Remove module
           </button>
-        </div>
-
-        <p class="meta">
-          ID {{ node.module.id }} | {{ moduleTypeLabel(node.module.serviceModuleTypeId) }}
-          ({{ node.module.serviceModuleTypeId }})
-        </p>
-
-        <button
-          *ngIf="selectedModuleId() === node.module.id"
-          type="button"
-          class="port input"
-          [attr.data-port-input]="node.module.id"
-          title="Drop an arrow here"
-        ></button>
-        <button
-          *ngIf="selectedModuleId() === node.module.id"
-          type="button"
-          class="port output"
-          (pointerdown)="setCanvasRef(canvasRoot); startConnectionDrag(node, $event)"
-          title="Drag to connect selected field"
-        ></button>
-
-        <label class="field" *ngIf="selectedModuleId() === node.module.id">
-          <span>Name</span>
-          <input
-            type="text"
-            [value]="node.module.name || ''"
-            (input)="updateName(node.module.id, $any($event.target).value)"
-          />
-        </label>
-
-        <label class="field" *ngIf="selectedModuleId() === node.module.id">
-          <span>Link field used by output port</span>
-          <select
-            [value]="node.linkField"
-            [disabled]="nodeLinkFields(node).length === 0"
-            (change)="updateLinkField(node.module.id, $any($event.target).value)"
-          >
-            <option *ngIf="nodeLinkFields(node).length === 0" value="">
-              No link fields available
-            </option>
-            <option *ngFor="let field of nodeLinkFields(node)" [value]="field">
-              {{ field }}
-            </option>
-          </select>
-        </label>
-
-        <div class="field-grid" *ngIf="selectedModuleId() === node.module.id">
-          <ng-container *ngFor="let field of editableFields(node)">
-            <label class="field" *ngIf="field.kind === 'string'">
-              <span>{{ field.label }}</span>
-              <input
-                type="text"
-                [value]="fieldStringValue(node, field.key)"
-                (input)="updateFieldValue(node.module.id, field.key, 'string', $any($event.target).value)"
-              />
-            </label>
-
-            <label class="field" *ngIf="field.kind === 'number'">
-              <span>{{ field.label }}</span>
-              <input
-                type="number"
-                [value]="fieldNumberValue(node, field.key)"
-                (input)="updateFieldValue(node.module.id, field.key, 'number', $any($event.target).value)"
-              />
-            </label>
-
-            <label class="field checkbox" *ngIf="field.kind === 'boolean'">
-              <input
-                type="checkbox"
-                [checked]="fieldBooleanValue(node, field.key)"
-                (change)="updateFieldValue(node.module.id, field.key, 'boolean', $any($event.target).checked)"
-              />
-              <span>{{ field.label }}</span>
-            </label>
-
-            <label class="field" *ngIf="field.kind === 'link'">
-              <span>{{ field.label }}</span>
-              <select
-                [value]="linkFieldValue(node, field.key)"
-                (change)="updateFieldValue(node.module.id, field.key, 'link', $any($event.target).value)"
-              >
-                <option [ngValue]="0">No target</option>
-                <option *ngFor="let target of moduleTargets(node)" [ngValue]="target.id">
-                  {{ target.label }}
-                </option>
-              </select>
-            </label>
-          </ng-container>
-        </div>
-      </article>
+        </ng-container>
+        <ng-template #noModuleSelected>
+          <p class="hint">Select a module in the canvas to edit its details.</p>
+        </ng-template>
+      </aside>
     </div>
   </section>
 

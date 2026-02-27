@@ -104,7 +104,7 @@ type FieldSchema = {
   kind: FieldKind;
 };
 
-const LINK_FIELD_PATTERN = /moduleid$/i;
+const LINK_FIELD_PATTERN = /(moduleid$|^exits\d+$)/i;
 const BASE_FIELD_SCHEMAS: ReadonlyArray<FieldSchema> = [
   { key: 'order', label: 'Order', kind: 'number' },
   { key: 'serviceGroupId', label: 'Service group ID', kind: 'number' },
@@ -121,7 +121,15 @@ const TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
   ],
   5: [
     { key: 'timeZone', label: 'Time zone', kind: 'string' },
-    { key: 'closedModuleId', label: 'Closed module', kind: 'link' }
+    { key: 'closedModuleId', label: 'Closed module', kind: 'link' },
+    { key: 'exits1', label: 'Exit 1', kind: 'link' },
+    { key: 'exits2', label: 'Exit 2', kind: 'link' },
+    { key: 'exits3', label: 'Exit 3', kind: 'link' },
+    { key: 'exits4', label: 'Exit 4', kind: 'link' },
+    { key: 'exits5', label: 'Exit 5', kind: 'link' },
+    { key: 'exits6', label: 'Exit 6', kind: 'link' },
+    { key: 'exits7', label: 'Exit 7', kind: 'link' },
+    { key: 'exits8', label: 'Exit 8', kind: 'link' }
   ],
   7: [
     { key: 'queueId', label: 'Queue ID', kind: 'number' },
@@ -304,6 +312,13 @@ export class IvrBuilderComponent {
   readonly connectionDraft = signal<ConnectionDraft | null>(null);
   readonly connectionTooltip = signal<ConnectionTooltip | null>(null);
   readonly canvasRef = signal<HTMLDivElement | null>(null);
+  readonly selectedNode = computed<BuilderNode | null>(() => {
+    const id = this.selectedModuleId();
+    if (id === null) {
+      return null;
+    }
+    return this.nodes().find((node) => node.module.id === id) ?? null;
+  });
 
   readonly renderedConnections = computed<RenderedConnection[]>(() => {
     const routeStyle = this.connectionRouteStyle();
@@ -462,6 +477,7 @@ export class IvrBuilderComponent {
     const maxOrder = modules.reduce((max, item) => Math.max(max, typeof item.order === 'number' ? item.order : 0), 0);
     const id = maxId + 1;
     const count = this.nodes().length;
+    const spawn = this.getVisibleSpawnPoint(count);
     const module: IvrModuleRecord = {
       id,
       name: `${template.defaultName} ${id}`,
@@ -471,8 +487,9 @@ export class IvrBuilderComponent {
     };
     this.nodes.update((current) => [
       ...current,
-      { module, x: 80 + (count % 3) * 360, y: 120 + Math.floor(count / 3) * 250, linkField: this.defaultLinkField(module) }
+      { module, x: spawn.x, y: spawn.y, linkField: this.defaultLinkField(module) }
     ]);
+    this.selectedModuleId.set(id);
   }
 
   removeModule(moduleId: number): void {
@@ -874,6 +891,10 @@ export class IvrBuilderComponent {
   }
 
   private toLabel(key: string): string {
+    const exitMatch = /^exits(\d+)$/i.exec(key);
+    if (exitMatch) {
+      return `Exit ${exitMatch[1]}`;
+    }
     return key.replace(/ModuleId$/, ' module').replace(/([A-Z])/g, ' $1').replace(/^./, (text) => text.toUpperCase()).trim();
   }
 
@@ -1177,6 +1198,20 @@ export class IvrBuilderComponent {
     return nodes.filter((node) => laneIds.has(node.module.id)).map((node) => node.module.id);
   }
 
+  private getVisibleSpawnPoint(count: number): { x: number; y: number } {
+    const canvas = this.canvasRef();
+    if (!canvas) {
+      return {
+        x: 80 + (count % 3) * 360,
+        y: 120 + Math.floor(count / 3) * 250
+      };
+    }
+    const margin = 36;
+    const x = canvas.scrollLeft + margin;
+    const y = canvas.scrollTop + margin;
+    return { x, y };
+  }
+
   private assignLayers(
     nodes: BuilderNode[],
     outgoing: Map<number, number[]>,
@@ -1401,15 +1436,10 @@ export class IvrBuilderComponent {
     if (measured && measured > 0) {
       return measured;
     }
-    const baseHeight = 260;
-    const rowHeight = 62;
-    return baseHeight + this.editableFields(node).length * rowHeight;
+    return this.collapsedNodeHeight;
   }
 
   private visibleNodeHeight(node: BuilderNode): number {
-    if (this.selectedModuleId() === node.module.id) {
-      return this.nodeHeight(node);
-    }
     return this.collapsedNodeHeight;
   }
 }

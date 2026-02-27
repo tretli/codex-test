@@ -21,12 +21,14 @@ export const DEFAULT_IVR_SAMPLE_MODULES = [
         "order": 0,
         "serviceGroupId": 0,
         "callLogVisible": true,
-        "exits": [
-  {
-                "id": 1,
-                "nextModuleId": 8710
-            }
-        ]
+        "exits1": 8710,
+        "exits2": 18,
+        "exits3": -1,
+        "exits4": -1,
+        "exits5": -1,
+        "exits6": -1,
+        "exits7": -1,
+        "exits8": -1
     },
     {
         "answer": true,
