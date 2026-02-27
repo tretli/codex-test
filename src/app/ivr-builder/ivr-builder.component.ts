@@ -2,9 +2,10 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { CallModuleType, type ServiceModule } from '../models/models';
 import { DEFAULT_IVR_SAMPLE_MODULES } from './ivr-sample-data';
 
-type IvrModuleRecord = {
+type IvrModuleRecord = Partial<ServiceModule> & {
   id: number;
   serviceModuleTypeId: number;
   name?: string;
@@ -142,14 +143,14 @@ const BASE_FIELD_SCHEMAS: ReadonlyArray<FieldSchema> = [
 ];
 
 const TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
-  1: [{ key: 'cause', label: 'Cause', kind: 'string' }],
-  2: [
+  [CallModuleType.Hangup]: [{ key: 'cause', label: 'Cause', kind: 'string' }],
+  [CallModuleType.Info]: [
     { key: 'soundFile', label: 'Sound file', kind: 'string' },
     { key: 'answer', label: 'Answer', kind: 'boolean' },
     { key: 'background', label: 'Background', kind: 'boolean' },
     { key: 'nextModuleId', label: 'Next module', kind: 'link' }
   ],
-  5: [
+  [CallModuleType.Time]: [
     { key: 'timeZone', label: 'Time zone', kind: 'string' },
     { key: 'closedModuleId', label: 'Closed module', kind: 'link' },
     { key: 'exits1', label: 'Exit 1', kind: 'link' },
@@ -161,7 +162,7 @@ const TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
     { key: 'exits7', label: 'Exit 7', kind: 'link' },
     { key: 'exits8', label: 'Exit 8', kind: 'link' }
   ],
-  7: [
+  [CallModuleType.Queue]: [
     { key: 'queueId', label: 'Queue ID', kind: 'number' },
     { key: 'queuePriority', label: 'Queue priority', kind: 'number' },
     { key: 'queueTimeout', label: 'Queue timeout', kind: 'number' },
@@ -176,33 +177,33 @@ const TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
     { key: 'continueModuleId', label: 'Continue module', kind: 'link' },
     { key: 'surveyModuleId', label: 'Survey module', kind: 'link' }
   ],
-  11: [
+  [CallModuleType.NumberListMatch]: [
     { key: 'numberListId', label: 'Number list ID', kind: 'number' },
     { key: 'matchModuleId', label: 'Match module', kind: 'link' },
     { key: 'noMatchModuleId', label: 'No match module', kind: 'link' }
   ],
-  13: [
+  [CallModuleType.Macro]: [
     { key: 'macro', label: 'Macro', kind: 'string' },
     { key: 'macroArgs', label: 'Macro args', kind: 'string' },
     { key: 'nextModuleId', label: 'Next module', kind: 'link' }
   ],
-  14: [
+  [CallModuleType.Switch]: [
     { key: 'variable', label: 'Variable', kind: 'string' },
     { key: 'onModuleId', label: 'On module', kind: 'link' },
     { key: 'offModuleId', label: 'Off module', kind: 'link' }
   ],
-  17: [
+  [CallModuleType.Wait]: [
     { key: 'wait', label: 'Wait (ms)', kind: 'number' },
     { key: 'nextModuleId', label: 'Next module', kind: 'link' }
   ],
-  19: [
+  [CallModuleType.SetVar]: [
     { key: 'variable', label: 'Variable', kind: 'string' },
     { key: 'value', label: 'Value', kind: 'string' },
     { key: 'permanent', label: 'Permanent', kind: 'boolean' },
     { key: 'nextModuleId', label: 'Next module', kind: 'link' }
   ],
-  21: [{ key: 'targetServiceGroupId', label: 'Target service group ID', kind: 'number' }],
-  23: [
+  [CallModuleType.Group]: [{ key: 'targetServiceGroupId', label: 'Target service group ID', kind: 'number' }],
+  [CallModuleType.ReadDtmf]: [
     { key: 'soundFile', label: 'Sound file', kind: 'string' },
     { key: 'variable', label: 'Variable', kind: 'string' },
     { key: 'maxDigits', label: 'Max digits', kind: 'number' },
@@ -214,11 +215,11 @@ const TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
     { key: 'nextModuleId', label: 'Next module', kind: 'link' },
     { key: 'timeoutModuleId', label: 'Timeout module', kind: 'link' }
   ],
-  24: [
+  [CallModuleType.MultiSwitch]: [
     { key: 'variable', label: 'Variable', kind: 'string' },
     { key: 'noMatchModuleId', label: 'No match module', kind: 'link' }
   ],
-  30: [
+  [CallModuleType.AdvancedMenu]: [
     { key: 'soundFile', label: 'Sound file', kind: 'string' },
     { key: 'answer', label: 'Answer', kind: 'boolean' },
     { key: 'background', label: 'Background', kind: 'boolean' },
@@ -239,8 +240,8 @@ const TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
     { key: 'keyHashModuleId', label: 'Key #', kind: 'link' },
     { key: 'loopExhaustedModuleId', label: 'Loop exhausted', kind: 'link' }
   ],
-  34: [{ key: 'nextModuleId', label: 'Next module', kind: 'link' }],
-  39: [
+  [CallModuleType.SessionFields]: [{ key: 'nextModuleId', label: 'Next module', kind: 'link' }],
+  [CallModuleType.ContactLookup]: [
     { key: 'internalLookup', label: 'Internal lookup', kind: 'boolean' },
     { key: 'yellowPagesLookup', label: 'Yellow pages lookup', kind: 'boolean' },
     { key: 'nextModuleId', label: 'Next module', kind: 'link' }
@@ -261,26 +262,26 @@ export class IvrBuilderComponent {
   private pointerCaptureTarget: Element | null = null;
   private pointerCaptureId: number | null = null;
   private readonly moduleTypeColors: Record<number, string> = {
-    1: '#64748b',
-    2: '#ef4444',
-    5: '#22c55e',
-    7: '#eab308',
-    11: '#86efac',
-    13: '#facc15',
-    14: '#ca8a04',
-    17: '#d946ef',
-    19: '#06b6d4',
-    21: '#c084fc',
-    23: '#fb923c',
-    24: '#14b8a6',
-    30: '#0ea5e9',
-    34: '#a3e635',
-    39: '#4338ca'
+    [CallModuleType.Hangup]: '#64748b',
+    [CallModuleType.Info]: '#ef4444',
+    [CallModuleType.Time]: '#22c55e',
+    [CallModuleType.Queue]: '#eab308',
+    [CallModuleType.NumberListMatch]: '#86efac',
+    [CallModuleType.Macro]: '#facc15',
+    [CallModuleType.Switch]: '#ca8a04',
+    [CallModuleType.Wait]: '#d946ef',
+    [CallModuleType.SetVar]: '#06b6d4',
+    [CallModuleType.Group]: '#c084fc',
+    [CallModuleType.ReadDtmf]: '#fb923c',
+    [CallModuleType.MultiSwitch]: '#14b8a6',
+    [CallModuleType.AdvancedMenu]: '#0ea5e9',
+    [CallModuleType.SessionFields]: '#a3e635',
+    [CallModuleType.ContactLookup]: '#4338ca'
   };
 
   readonly templates: ModuleTemplate[] = [
     {
-      serviceModuleTypeId: 30,
+      serviceModuleTypeId: CallModuleType.AdvancedMenu,
       label: 'Menu',
       defaultName: 'Menu',
       defaults: {
@@ -298,14 +299,14 @@ export class IvrBuilderComponent {
       preferredLinkField: 'key1ModuleId'
     },
     {
-      serviceModuleTypeId: 2,
+      serviceModuleTypeId: CallModuleType.Info,
       label: 'Playback',
       defaultName: 'Playback',
       defaults: { answer: true, background: false, soundFile: '', nextModuleId: 0 },
       preferredLinkField: 'nextModuleId'
     },
     {
-      serviceModuleTypeId: 7,
+      serviceModuleTypeId: CallModuleType.Queue,
       label: 'Queue',
       defaultName: 'Queue',
       defaults: {
@@ -320,14 +321,14 @@ export class IvrBuilderComponent {
       preferredLinkField: 'continueModuleId'
     },
     {
-      serviceModuleTypeId: 17,
+      serviceModuleTypeId: CallModuleType.Wait,
       label: 'Wait',
       defaultName: 'Wait',
       defaults: { wait: 1000, nextModuleId: 0 },
       preferredLinkField: 'nextModuleId'
     },
     {
-      serviceModuleTypeId: 1,
+      serviceModuleTypeId: CallModuleType.Hangup,
       label: 'Hangup',
       defaultName: 'Hangup',
       defaults: { cause: 'normal' },
