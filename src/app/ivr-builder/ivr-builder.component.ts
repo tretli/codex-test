@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, HostListener, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DEFAULT_IVR_SAMPLE_MODULES } from './ivr-sample-data';
@@ -44,12 +44,19 @@ type ConnectionDraft = {
   currentY: number;
 };
 
+type AnchorDragState = {
+  connectionId: string;
+  pointerId: number;
+};
+
 type RenderedConnection = {
   id: string;
   fromId: number;
   toId: number;
   field: string;
   path: string;
+  start: Point;
+  end: Point;
   color: string;
   tooltip: string;
 };
@@ -102,6 +109,29 @@ type FieldSchema = {
   key: string;
   label: string;
   kind: FieldKind;
+};
+
+type IvrLayoutNode = {
+  moduleId: number;
+  x: number;
+  y: number;
+};
+
+type IvrLayoutAnchor = {
+  connectionId: string;
+  x: number;
+  y: number;
+};
+
+type IvrLayoutSection = {
+  routeStyle: ConnectionRouteStyle;
+  nodes: IvrLayoutNode[];
+  connectionAnchors: IvrLayoutAnchor[];
+};
+
+type IvrExportDocument = {
+  modules: IvrModuleRecord[];
+  layout: IvrLayoutSection;
 };
 
 const LINK_FIELD_PATTERN = /(moduleid$|^exits\d+$)/i;
@@ -228,6 +258,8 @@ export class IvrBuilderComponent {
   private readonly nodeWidth = 320;
   private readonly collapsedNodeHeight = 86;
   private readonly moduleCardBorderWidth = 1;
+  private pointerCaptureTarget: Element | null = null;
+  private pointerCaptureId: number | null = null;
   private readonly moduleTypeColors: Record<number, string> = {
     1: '#64748b',
     2: '#ef4444',
@@ -310,8 +342,11 @@ export class IvrBuilderComponent {
   readonly nodes = signal<BuilderNode[]>([]);
   readonly selectedModuleId = signal<number | null>(null);
   readonly dragState = signal<DragState | null>(null);
+  readonly anchorDragState = signal<AnchorDragState | null>(null);
   readonly connectionDraft = signal<ConnectionDraft | null>(null);
   readonly connectionTooltip = signal<ConnectionTooltip | null>(null);
+  readonly connectionAnchors = signal<Record<string, Point>>({});
+  readonly selectedConnectionId = signal<string | null>(null);
   readonly canvasRef = signal<HTMLDivElement | null>(null);
   readonly selectedNode = computed<BuilderNode | null>(() => {
     const id = this.selectedModuleId();
@@ -347,12 +382,21 @@ export class IvrBuilderComponent {
         if (!start || !end) {
           return;
         }
+        const connectionId = `${node.module.id}:${link.field}:${targetId}`;
+        const anchor = routeStyle === 'curved' ? this.connectionAnchors()[connectionId] : undefined;
+        const path =
+          routeStyle === 'curved' && anchor
+            ? this.buildCurvedPathWithAnchor(start, end, anchor)
+            : this.buildConnectionPath(node.module.id, targetId, start, end, nodes, routeStyle);
+
         connections.push({
-          id: `${node.module.id}:${link.field}:${targetId}`,
+          id: connectionId,
           fromId: node.module.id,
           toId: targetId,
           field: link.field,
-          path: this.buildConnectionPath(node.module.id, targetId, start, end, nodes, routeStyle),
+          path,
+          start,
+          end,
           color: this.moduleTypeColor(node.module.serviceModuleTypeId),
           tooltip: [
             `From: ${node.module.name || 'Unnamed module'} (ID ${node.module.id})`,
@@ -429,7 +473,7 @@ export class IvrBuilderComponent {
     const fromNode = this.nodes().find((node) => node.module.id === draft.fromId);
     return fromNode ? this.moduleTypeColor(fromNode.module.serviceModuleTypeId) : '#1d4ed8';
   });
-  readonly serializedModules = computed(() => JSON.stringify(this.exportModules(), null, 2));
+  readonly serializedModules = computed(() => JSON.stringify(this.exportDocument(), null, 2));
   readonly moduleCount = computed(() => this.nodes().length);
   readonly connectionCount = computed(() => this.renderedConnections().length);
 
@@ -450,22 +494,26 @@ export class IvrBuilderComponent {
     this.parseError.set(null);
     try {
       const parsed = JSON.parse(this.jsonInput());
-      if (!Array.isArray(parsed)) {
-        this.parseError.set('JSON root must be an array.');
+      const parsedObject = parsed as { modules?: unknown; layout?: unknown };
+      const moduleSource = Array.isArray(parsed) ? parsed : Array.isArray(parsedObject.modules) ? parsedObject.modules : null;
+      if (!moduleSource) {
+        this.parseError.set('JSON root must be an array or an object with a modules array.');
         return;
       }
-      const modules = parsed.filter(
+      const modules = moduleSource.filter(
         (item): item is IvrModuleRecord =>
           !!item &&
           typeof item === 'object' &&
           typeof (item as { id?: unknown }).id === 'number' &&
           typeof (item as { serviceModuleTypeId?: unknown }).serviceModuleTypeId === 'number'
       );
-      if (modules.length !== parsed.length) {
+      if (modules.length !== moduleSource.length) {
         this.parseError.set('Each item must contain numeric id and serviceModuleTypeId.');
         return;
       }
-      this.nodes.set(this.modulesToNodes(modules));
+      const importedNodes = this.modulesToNodes(modules);
+      this.nodes.set(importedNodes);
+      this.applyImportedLayout(parsedObject.layout, importedNodes);
       this.selectedModuleId.set(null);
     } catch {
       this.parseError.set('Invalid JSON.');
@@ -625,6 +673,10 @@ export class IvrBuilderComponent {
   }
 
   startModuleDrag(moduleId: number, event: PointerEvent): void {
+    this.resetTransientBeforeStart(event.pointerId);
+    this.anchorDragState.set(null);
+    this.connectionDraft.set(null);
+    this.selectedConnectionId.set(null);
     if (event.button !== 0 || this.connectionDraft()) {
       return;
     }
@@ -645,9 +697,14 @@ export class IvrBuilderComponent {
       offsetX: pointer.x - node.x,
       offsetY: pointer.y - node.y
     });
+    this.captureCanvasPointer(event.pointerId);
   }
 
   startConnectionDrag(node: BuilderNode, field: string, event: PointerEvent): void {
+    this.resetTransientBeforeStart(event.pointerId);
+    this.dragState.set(null);
+    this.anchorDragState.set(null);
+    this.selectedConnectionId.set(null);
     if (event.button !== 0 || !field) {
       return;
     }
@@ -665,6 +722,60 @@ export class IvrBuilderComponent {
       currentX: start.x,
       currentY: start.y
     });
+    this.captureCanvasPointer(event.pointerId);
+  }
+
+  startConnectionAnchorDrag(connection: RenderedConnection, event: PointerEvent): void {
+    this.releaseActivePointerCapture(event.pointerId);
+    this.resetTransientBeforeStart(event.pointerId);
+    this.dragState.set(null);
+    this.connectionDraft.set(null);
+    this.anchorDragState.set(null);
+    if (this.connectionRouteStyle() !== 'curved' || event.button !== 0) {
+      return;
+    }
+    event.stopPropagation();
+    this.selectedConnectionId.set(connection.id);
+    const point = this.toCanvasPoint(event);
+    if (!point) {
+      return;
+    }
+    this.connectionAnchors.update((current) => ({
+      ...current,
+      [connection.id]: { x: point.x, y: point.y }
+    }));
+    this.anchorDragState.set({ connectionId: connection.id, pointerId: event.pointerId });
+    this.capturePointerOnEventTarget(event);
+  }
+
+  startAnchorHandleDrag(connection: RenderedConnection, event: PointerEvent): void {
+    this.releaseActivePointerCapture(event.pointerId);
+    this.resetTransientBeforeStart(event.pointerId);
+    this.dragState.set(null);
+    this.connectionDraft.set(null);
+    this.anchorDragState.set(null);
+    if (this.connectionRouteStyle() !== 'curved' || event.button !== 0) {
+      return;
+    }
+    event.stopPropagation();
+    this.selectedConnectionId.set(connection.id);
+    if (!this.connectionAnchors()[connection.id]) {
+      const defaultAnchor = this.defaultConnectionAnchor(connection);
+      this.connectionAnchors.update((current) => ({
+        ...current,
+        [connection.id]: defaultAnchor
+      }));
+    }
+    this.anchorDragState.set({ connectionId: connection.id, pointerId: event.pointerId });
+    this.capturePointerOnEventTarget(event);
+  }
+
+  connectionAnchorX(connection: RenderedConnection): number {
+    return this.connectionAnchorPoint(connection).x;
+  }
+
+  connectionAnchorY(connection: RenderedConnection): number {
+    return this.connectionAnchorPoint(connection).y;
   }
 
   onCanvasPointerMove(event: PointerEvent): void {
@@ -683,6 +794,14 @@ export class IvrBuilderComponent {
       );
       return;
     }
+    const anchorDrag = this.anchorDragState();
+    if (anchorDrag && anchorDrag.pointerId === event.pointerId) {
+      this.connectionAnchors.update((current) => ({
+        ...current,
+        [anchorDrag.connectionId]: { x: point.x, y: point.y }
+      }));
+      return;
+    }
     const draft = this.connectionDraft();
     if (draft && draft.pointerId === event.pointerId) {
       this.connectionDraft.set({ ...draft, currentX: point.x, currentY: point.y });
@@ -690,9 +809,14 @@ export class IvrBuilderComponent {
   }
 
   onCanvasPointerUp(event: PointerEvent): void {
+    this.releaseActivePointerCapture(event.pointerId);
     const drag = this.dragState();
     if (drag && drag.pointerId === event.pointerId) {
       this.dragState.set(null);
+    }
+    const anchorDrag = this.anchorDragState();
+    if (anchorDrag && anchorDrag.pointerId === event.pointerId) {
+      this.anchorDragState.set(null);
     }
     const draft = this.connectionDraft();
     if (!draft || draft.pointerId !== event.pointerId) {
@@ -715,6 +839,14 @@ export class IvrBuilderComponent {
       }
       return { ...module, [connection.field]: 0 };
     });
+    this.connectionAnchors.update((current) => {
+      const next = { ...current };
+      delete next[connection.id];
+      return next;
+    });
+    if (this.selectedConnectionId() === connection.id) {
+      this.selectedConnectionId.set(null);
+    }
   }
 
   showConnectionTooltip(connection: RenderedConnection, event: MouseEvent): void {
@@ -795,8 +927,27 @@ export class IvrBuilderComponent {
     );
   }
 
+  clearConnectionAnchors(): void {
+    this.connectionAnchors.set({});
+    this.selectedConnectionId.set(null);
+    this.anchorDragState.set(null);
+  }
+
   trackByNode(_index: number, node: BuilderNode): number {
     return node.module.id;
+  }
+
+  trackByConnection(_index: number, connection: RenderedConnection): string {
+    return connection.id;
+  }
+
+  @HostListener('window:pointerup', ['$event'])
+  @HostListener('window:pointercancel', ['$event'])
+  onWindowPointerUp(event: PointerEvent): void {
+    if (!this.isActivePointer(event.pointerId)) {
+      return;
+    }
+    this.onCanvasPointerUp(event);
   }
 
   selectModule(moduleId: number): void {
@@ -815,11 +966,13 @@ export class IvrBuilderComponent {
       target.closest('.module-card') ||
       target.closest('.port') ||
       target.closest('.connection-line') ||
-      target.closest('.connection-hitline')
+      target.closest('.connection-hitline') ||
+      target.closest('.connection-anchor')
     ) {
       return;
     }
     this.selectedModuleId.set(null);
+    this.selectedConnectionId.set(null);
   }
 
   private modulesToNodes(modules: IvrModuleRecord[]): BuilderNode[] {
@@ -842,6 +995,90 @@ export class IvrBuilderComponent {
       const orderB = typeof b.order === 'number' ? b.order : Number.MAX_SAFE_INTEGER;
       return orderA === orderB ? a.id - b.id : orderA - orderB;
     });
+  }
+
+  private exportDocument(): IvrExportDocument {
+    const modules = this.exportModules();
+    const nodes = this.nodes()
+      .map((node) => ({ moduleId: node.module.id, x: Math.round(node.x), y: Math.round(node.y) }))
+      .sort((a, b) => a.moduleId - b.moduleId);
+    const connectionAnchors = Object.entries(this.connectionAnchors())
+      .map(([connectionId, point]) => ({ connectionId, x: Math.round(point.x), y: Math.round(point.y) }))
+      .sort((a, b) => a.connectionId.localeCompare(b.connectionId));
+
+    return {
+      modules,
+      layout: {
+        routeStyle: this.connectionRouteStyle(),
+        nodes,
+        connectionAnchors
+      }
+    };
+  }
+
+  private applyImportedLayout(layout: unknown, nodes: BuilderNode[]): void {
+    this.connectionAnchors.set({});
+    this.connectionRouteStyle.set('straight');
+    if (!layout || typeof layout !== 'object') {
+      return;
+    }
+    const layoutData = layout as {
+      routeStyle?: unknown;
+      nodes?: unknown;
+      connectionAnchors?: unknown;
+    };
+
+    if (layoutData.routeStyle === 'straight' || layoutData.routeStyle === 'curved') {
+      this.connectionRouteStyle.set(layoutData.routeStyle);
+    }
+
+    if (Array.isArray(layoutData.nodes)) {
+      const posById = new Map<number, { x: number; y: number }>();
+      layoutData.nodes.forEach((item) => {
+        if (!item || typeof item !== 'object') {
+          return;
+        }
+        const candidate = item as { moduleId?: unknown; x?: unknown; y?: unknown };
+        if (
+          typeof candidate.moduleId === 'number' &&
+          Number.isFinite(candidate.moduleId) &&
+          typeof candidate.x === 'number' &&
+          Number.isFinite(candidate.x) &&
+          typeof candidate.y === 'number' &&
+          Number.isFinite(candidate.y)
+        ) {
+          posById.set(candidate.moduleId, { x: candidate.x, y: candidate.y });
+        }
+      });
+      if (posById.size > 0) {
+        this.nodes.set(
+          nodes.map((node) => {
+            const pos = posById.get(node.module.id);
+            return pos ? { ...node, x: pos.x, y: pos.y } : node;
+          })
+        );
+      }
+    }
+
+    if (Array.isArray(layoutData.connectionAnchors)) {
+      const anchors: Record<string, Point> = {};
+      layoutData.connectionAnchors.forEach((item) => {
+        if (!item || typeof item !== 'object') {
+          return;
+        }
+        const candidate = item as { connectionId?: unknown; x?: unknown; y?: unknown };
+        if (
+          typeof candidate.connectionId === 'string' &&
+          typeof candidate.x === 'number' &&
+          Number.isFinite(candidate.x) &&
+          typeof candidate.y === 'number' &&
+          Number.isFinite(candidate.y)
+        ) {
+          anchors[candidate.connectionId] = { x: candidate.x, y: candidate.y };
+        }
+      });
+      this.connectionAnchors.set(anchors);
+    }
   }
 
   private getLinkFields(module: IvrModuleRecord): string[] {
@@ -1039,6 +1276,124 @@ export class IvrBuilderComponent {
       { x: end.x, y: midY },
       end
     ]);
+  }
+
+  private isActivePointer(pointerId: number): boolean {
+    return (
+      this.dragState()?.pointerId === pointerId ||
+      this.connectionDraft()?.pointerId === pointerId ||
+      this.anchorDragState()?.pointerId === pointerId
+    );
+  }
+
+  private clearTransientPointerStates(pointerId: number): void {
+    this.releaseActivePointerCapture(pointerId);
+    if (this.dragState()) {
+      this.dragState.set(null);
+    }
+    if (this.anchorDragState()) {
+      this.anchorDragState.set(null);
+    }
+    if (this.connectionDraft()) {
+      this.connectionDraft.set(null);
+    }
+  }
+
+  private resetTransientBeforeStart(pointerId: number): void {
+    if ((this.dragState() || this.connectionDraft() || this.anchorDragState()) && !this.isActivePointer(pointerId)) {
+      this.clearTransientPointerStates(pointerId);
+    }
+  }
+
+  private captureCanvasPointer(pointerId: number): void {
+    const canvas = this.canvasRef() ?? (document.querySelector('.canvas') as HTMLDivElement | null);
+    if (!canvas) {
+      return;
+    }
+    if (this.canvasRef() !== canvas) {
+      this.canvasRef.set(canvas);
+    }
+    try {
+      if (!canvas.hasPointerCapture(pointerId)) {
+        canvas.setPointerCapture(pointerId);
+      }
+    } catch {
+      // Ignore pointer-capture failures on unsupported paths.
+    }
+  }
+
+  private releaseCanvasPointer(pointerId: number): void {
+    const canvas = this.canvasRef();
+    if (!canvas) {
+      return;
+    }
+    try {
+      if (canvas.hasPointerCapture(pointerId)) {
+        canvas.releasePointerCapture(pointerId);
+      }
+    } catch {
+      // Ignore pointer-release failures on unsupported paths.
+    }
+  }
+
+  private capturePointerOnEventTarget(event: PointerEvent): void {
+    const target = event.currentTarget as Element | null;
+    if (!target) {
+      this.captureCanvasPointer(event.pointerId);
+      return;
+    }
+    try {
+      const pointerTarget = target as Element & {
+        hasPointerCapture(pointerId: number): boolean;
+        setPointerCapture(pointerId: number): void;
+      };
+      if (!pointerTarget.hasPointerCapture(event.pointerId)) {
+        pointerTarget.setPointerCapture(event.pointerId);
+      }
+      this.pointerCaptureTarget = target;
+      this.pointerCaptureId = event.pointerId;
+      return;
+    } catch {
+      this.captureCanvasPointer(event.pointerId);
+    }
+  }
+
+  private releaseActivePointerCapture(pointerId: number): void {
+    if (
+      this.pointerCaptureTarget &&
+      this.pointerCaptureId === pointerId
+    ) {
+      try {
+        const pointerTarget = this.pointerCaptureTarget as Element & {
+          hasPointerCapture(pointerId: number): boolean;
+          releasePointerCapture(pointerId: number): void;
+        };
+        if (pointerTarget.hasPointerCapture(pointerId)) {
+          pointerTarget.releasePointerCapture(pointerId);
+        }
+      } catch {
+        // Ignore pointer-release failures on unsupported paths.
+      } finally {
+        this.pointerCaptureTarget = null;
+        this.pointerCaptureId = null;
+      }
+    }
+    this.releaseCanvasPointer(pointerId);
+  }
+
+  private buildCurvedPathWithAnchor(start: Point, end: Point, anchor: Point): string {
+    return `M ${start.x} ${start.y} Q ${anchor.x} ${anchor.y} ${end.x} ${end.y}`;
+  }
+
+  private connectionAnchorPoint(connection: RenderedConnection): Point {
+    return this.connectionAnchors()[connection.id] ?? this.defaultConnectionAnchor(connection);
+  }
+
+  private defaultConnectionAnchor(connection: RenderedConnection): Point {
+    return {
+      x: (connection.start.x + connection.end.x) / 2,
+      y: (connection.start.y + connection.end.y) / 2
+    };
   }
 
   private buildPolylinePath(points: Point[]): string {

@@ -168,6 +168,22 @@ p {
   cursor: pointer;
 }
 
+.connection-anchor {
+  fill: #ffffff;
+  stroke: #94a3b8;
+  stroke-width: 1.5;
+  opacity: 0.75;
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.connection-anchor.active {
+  fill: #ccfbf1;
+  stroke: #0f766e;
+  stroke-width: 2;
+  opacity: 1;
+}
+
 .connection-tooltip {
   position: absolute;
   max-width: 420px;

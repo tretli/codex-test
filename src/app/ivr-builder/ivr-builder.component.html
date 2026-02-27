@@ -52,6 +52,9 @@
       <button type="button" class="secondary" (click)="autoLayoutModules()">
         Auto-layout modules
       </button>
+      <button type="button" class="secondary" (click)="clearConnectionAnchors()">
+        Clear line anchors
+      </button>
       <label class="route-mode-control">
         <span>Connection style</span>
         <select
@@ -69,11 +72,10 @@
         #canvasRoot
         (pointerenter)="setCanvasRef(canvasRoot)"
         (pointerdown)="clearSelectionIfCanvasBackground($event)"
-        (pointermove)="onCanvasPointerMove($event)"
-        (pointerup)="onCanvasPointerUp($event)"
-        (pointercancel)="onCanvasPointerUp($event)"
-        (pointerleave)="onCanvasPointerUp($event)"
-      >
+      (pointermove)="onCanvasPointerMove($event)"
+      (pointerup)="onCanvasPointerUp($event)"
+      (pointercancel)="onCanvasPointerUp($event)"
+    >
         <div
           class="canvas-size-proxy"
           [style.width.px]="canvasExtent().width"
@@ -113,22 +115,33 @@
             </marker>
           </defs>
           <path
-            *ngFor="let connection of renderedConnections()"
+            *ngFor="let connection of renderedConnections(); trackBy: trackByConnection"
             [attr.d]="connection.path"
             class="connection-hitline"
             [attr.title]="connection.tooltip"
+            (pointerdown)="startConnectionAnchorDrag(connection, $event)"
             (mouseenter)="showConnectionTooltip(connection, $event)"
             (mousemove)="moveConnectionTooltip($event)"
             (mouseleave)="hideConnectionTooltip()"
             (dblclick)="removeConnection(connection)"
           ></path>
           <path
-            *ngFor="let connection of renderedConnections()"
+            *ngFor="let connection of renderedConnections(); trackBy: trackByConnection"
             [attr.d]="connection.path"
             [style.--connection-color]="connection.color"
             marker-end="url(#arrowhead)"
             class="connection-line"
           ></path>
+          <circle
+            *ngFor="let connection of renderedConnections(); trackBy: trackByConnection"
+            [attr.cx]="connectionAnchorX(connection)"
+            [attr.cy]="connectionAnchorY(connection)"
+            [attr.r]="6"
+            class="connection-anchor"
+            [class.active]="selectedConnectionId() === connection.id"
+            [hidden]="connectionRouteStyle() !== 'curved'"
+            (pointerdown)="startAnchorHandleDrag(connection, $event)"
+          ></circle>
           <path
             *ngIf="connectionDraft()"
             [attr.d]="draftPath()"
@@ -267,7 +280,7 @@
 
   <section class="json-panel">
     <h2>Export JSON</h2>
-    <p>Current graph serialized back to module array.</p>
+    <p>Current graph serialized to separate modules and layout sections.</p>
     <pre>{{ serializedModules() }}</pre>
   </section>
 </section>
