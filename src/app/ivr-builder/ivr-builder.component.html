@@ -29,17 +29,15 @@
   <section class="palette">
     <h2>Add Module</h2>
     <div class="palette-controls">
-      <label for="module-type">Service module type</label>
-      <select
-        id="module-type"
-        [ngModel]="selectedTypeId()"
-        (ngModelChange)="selectedTypeId.set($event)"
+      <button
+        *ngFor="let item of templates"
+        type="button"
+        class="palette-add-btn"
+        [style.--module-color]="moduleTypeColor(item.serviceModuleTypeId)"
+        (click)="addModule(item.serviceModuleTypeId)"
       >
-        <option *ngFor="let item of templates" [ngValue]="item.serviceModuleTypeId">
-          {{ item.label }} ({{ item.serviceModuleTypeId }})
-        </option>
-      </select>
-      <button type="button" (click)="addModule()">Add module</button>
+        Add {{ item.label }} ({{ item.serviceModuleTypeId }})
+      </button>
     </div>
   </section>
 
@@ -102,22 +100,44 @@
           [attr.height]="canvasExtent().height"
           [attr.viewBox]="'0 0 ' + canvasExtent().width + ' ' + canvasExtent().height"
         >
-          <defs>
-            <marker
-              id="arrowhead"
-              markerWidth="10"
-              markerHeight="7"
+        <defs>
+          <marker
+            id="arrowhead"
+            markerWidth="10"
+            markerHeight="7"
               refX="8"
               refY="3.5"
               orient="auto"
-            >
-              <polygon points="0 0, 10 3.5, 0 7"></polygon>
-            </marker>
-          </defs>
+          >
+            <polygon points="0 0, 10 3.5, 0 7"></polygon>
+          </marker>
+          <mask
+            id="connection-mask"
+            maskUnits="userSpaceOnUse"
+            maskContentUnits="userSpaceOnUse"
+          >
+            <rect
+              [attr.x]="0"
+              [attr.y]="0"
+              [attr.width]="canvasExtent().width"
+              [attr.height]="canvasExtent().height"
+              fill="white"
+            ></rect>
+            <rect
+              *ngFor="let node of nodes(); trackBy: trackByNode"
+              [attr.x]="node.x"
+              [attr.y]="node.y"
+              [attr.width]="nodeWidth"
+              [attr.height]="collapsedNodeHeight"
+              fill="black"
+            ></rect>
+          </mask>
+        </defs>
           <path
             *ngFor="let connection of renderedConnections(); trackBy: trackByConnection"
             [attr.d]="connection.path"
             class="connection-hitline"
+            mask="url(#connection-mask)"
             [attr.title]="connection.tooltip"
             (pointerdown)="startConnectionAnchorDrag(connection, $event)"
             (mouseenter)="showConnectionTooltip(connection, $event)"
@@ -130,6 +150,7 @@
             [attr.d]="connection.path"
             [style.--connection-color]="connection.color"
             marker-end="url(#arrowhead)"
+            mask="url(#connection-mask)"
             class="connection-line"
           ></path>
           <circle
@@ -147,6 +168,7 @@
             [attr.d]="draftPath()"
             [style.--connection-color]="draftColor()"
             marker-end="url(#arrowhead)"
+            mask="url(#connection-mask)"
             class="connection-line draft"
           ></path>
         </svg>

@@ -255,8 +255,8 @@ const TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
   styleUrl: './ivr-builder.component.scss'
 })
 export class IvrBuilderComponent {
-  private readonly nodeWidth = 320;
-  private readonly collapsedNodeHeight = 86;
+  readonly nodeWidth = 320;
+  readonly collapsedNodeHeight = 86;
   private readonly moduleCardBorderWidth = 1;
   private pointerCaptureTarget: Element | null = null;
   private pointerCaptureId: number | null = null;
@@ -335,8 +335,7 @@ export class IvrBuilderComponent {
     }
   ];
 
-  readonly selectedTypeId = signal<number>(30);
-  readonly connectionRouteStyle = signal<ConnectionRouteStyle>('straight');
+  readonly connectionRouteStyle = signal<ConnectionRouteStyle>('curved');
   readonly jsonInput = signal<string>(JSON.stringify(DEFAULT_IVR_SAMPLE_MODULES, null, 2));
   readonly parseError = signal<string | null>(null);
   readonly nodes = signal<BuilderNode[]>([]);
@@ -520,8 +519,8 @@ export class IvrBuilderComponent {
     }
   }
 
-  addModule(): void {
-    const template = this.templates.find((item) => item.serviceModuleTypeId === this.selectedTypeId());
+  addModule(serviceModuleTypeId: number): void {
+    const template = this.templates.find((item) => item.serviceModuleTypeId === serviceModuleTypeId);
     if (!template) {
       return;
     }
@@ -1018,7 +1017,7 @@ export class IvrBuilderComponent {
 
   private applyImportedLayout(layout: unknown, nodes: BuilderNode[]): void {
     this.connectionAnchors.set({});
-    this.connectionRouteStyle.set('straight');
+    this.connectionRouteStyle.set('curved');
     if (!layout || typeof layout !== 'object') {
       return;
     }
