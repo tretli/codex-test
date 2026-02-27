@@ -70,7 +70,7 @@ p {
 
 .canvas-workspace {
   display: grid;
-  grid-template-columns: minmax(780px, 1fr) 360px;
+  grid-template-columns: minmax(620px, 1fr) 460px;
   gap: 0.9rem;
   margin-top: 0.75rem;
 }
@@ -85,12 +85,16 @@ p {
 }
 
 .module-details-panel {
+  position: sticky;
+  top: 0.75rem;
+  align-self: start;
   border: 1px solid #d0d7de;
   border-radius: 0.75rem;
   background: #f8fafc;
   padding: 0.8rem;
   max-height: 72vh;
   overflow: auto;
+  overflow-x: hidden;
 }
 
 .module-details-panel h3 {
@@ -194,6 +198,11 @@ p {
 
 .module-card.selected {
   z-index: 10;
+  outline: 3px solid #0f766e;
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px rgba(15, 118, 110, 0.25),
+    0 12px 24px rgba(15, 23, 42, 0.14);
 }
 
 .module-card.collapsed {
@@ -234,6 +243,10 @@ p {
 .port.output {
   background: #2563eb;
   bottom: -7px;
+}
+
+.port.output.collapsed-output {
+  pointer-events: none;
 }
 
 .field {
@@ -319,6 +332,7 @@ pre {
   }
 
   .module-details-panel {
+    position: static;
     max-height: none;
   }
 }

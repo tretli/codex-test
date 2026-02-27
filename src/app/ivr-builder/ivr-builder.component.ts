@@ -227,6 +227,7 @@ const TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
 export class IvrBuilderComponent {
   private readonly nodeWidth = 320;
   private readonly collapsedNodeHeight = 86;
+  private readonly moduleCardBorderWidth = 1;
   private readonly moduleTypeColors: Record<number, string> = {
     1: '#64748b',
     2: '#ef4444',
@@ -322,6 +323,7 @@ export class IvrBuilderComponent {
 
   readonly renderedConnections = computed<RenderedConnection[]>(() => {
     const routeStyle = this.connectionRouteStyle();
+    const selectedId = this.selectedModuleId();
     const nodes = this.nodes();
     const moduleById = new Map(nodes.map((node) => [node.module.id, node]));
     const edges = this.collectGraphEdges(nodes, moduleById);
@@ -337,8 +339,11 @@ export class IvrBuilderComponent {
         if (!target) {
           return;
         }
-        const start = this.getPortPoint(node.module.id, 'out');
-        const end = this.getPortPoint(target.module.id, 'in');
+        const start =
+          node.module.id === selectedId
+            ? this.getOutputPortPoint(node.module.id, link.field)
+            : this.getCollapsedOutputPortPoint(node.module.id);
+        const end = this.getInputPortPoint(target.module.id);
         if (!start || !end) {
           return;
         }
@@ -582,6 +587,43 @@ export class IvrBuilderComponent {
     return this.asPositiveId(node.module[field]) ?? 0;
   }
 
+  outputPortLeft(node: BuilderNode, field: string): number {
+    const point = this.getOutputPortPoint(node.module.id, field);
+    if (!point) {
+      return this.nodeWidth / 2 - 7;
+    }
+    return this.toPortLeft(node.x, point.x);
+  }
+
+  collapsedOutputPortLeft(node: BuilderNode): number {
+    const point = this.getCollapsedOutputPortPoint(node.module.id);
+    if (!point) {
+      return this.nodeWidth / 2 - 7;
+    }
+    return this.toPortLeft(node.x, point.x);
+  }
+
+  inputPortLeft(node: BuilderNode): number {
+    const point = this.getInputPortPoint(node.module.id);
+    if (!point) {
+      return this.nodeWidth / 2 - 7;
+    }
+    return this.toPortLeft(node.x, point.x);
+  }
+
+  outputPortTooltip(node: BuilderNode, field: string): string {
+    const targetId = this.linkFieldValue(node, field);
+    const target = this.nodes().find((item) => item.module.id === targetId);
+    const fieldLabel = this.toLabel(field);
+    if (targetId <= 0) {
+      return `${fieldLabel}: No target`;
+    }
+    if (!target) {
+      return `${fieldLabel}: ID ${targetId}`;
+    }
+    return `${fieldLabel}: ${target.module.id} - ${target.module.name || 'Unnamed module'}`;
+  }
+
   startModuleDrag(moduleId: number, event: PointerEvent): void {
     if (event.button !== 0 || this.connectionDraft()) {
       return;
@@ -605,18 +647,18 @@ export class IvrBuilderComponent {
     });
   }
 
-  startConnectionDrag(node: BuilderNode, event: PointerEvent): void {
-    if (event.button !== 0 || !node.linkField) {
+  startConnectionDrag(node: BuilderNode, field: string, event: PointerEvent): void {
+    if (event.button !== 0 || !field) {
       return;
     }
     event.stopPropagation();
-    const start = this.getPortPoint(node.module.id, 'out');
+    const start = this.getOutputPortPoint(node.module.id, field);
     if (!start) {
       return;
     }
     this.connectionDraft.set({
       fromId: node.module.id,
-      field: node.linkField,
+      field,
       pointerId: event.pointerId,
       startX: start.x,
       startY: start.y,
@@ -658,7 +700,8 @@ export class IvrBuilderComponent {
     }
     const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
     const inputPort = element?.closest('[data-port-input]') as HTMLElement | null;
-    const toId = Number(inputPort?.dataset['portInput'] ?? '');
+    const moduleCard = element?.closest('.module-card[data-module-id]') as HTMLElement | null;
+    const toId = Number(inputPort?.dataset['portInput'] ?? moduleCard?.dataset['moduleId'] ?? '');
     if (Number.isFinite(toId) && toId > 0 && toId !== draft.fromId) {
       this.updateNodeModule(draft.fromId, (module) => ({ ...module, [draft.field]: toId }));
     }
@@ -758,6 +801,9 @@ export class IvrBuilderComponent {
 
   selectModule(moduleId: number): void {
     this.selectedModuleId.set(moduleId);
+    const panel = document.querySelector('.module-details-panel') as HTMLElement | null;
+    panel?.scrollTo({ top: 0, behavior: 'smooth' });
+    panel?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   clearSelectionIfCanvasBackground(event: PointerEvent): void {
@@ -922,15 +968,45 @@ export class IvrBuilderComponent {
     };
   }
 
-  private getPortPoint(moduleId: number, kind: 'in' | 'out'): { x: number; y: number } | null {
+  private getInputPortPoint(moduleId: number): { x: number; y: number } | null {
     const node = this.nodes().find((item) => item.module.id === moduleId);
     if (!node) {
       return null;
     }
     return {
       x: node.x + this.nodeWidth / 2,
-      y: kind === 'out' ? node.y + this.visibleNodeHeight(node) : node.y
+      y: node.y
     };
+  }
+
+  private getOutputPortPoint(moduleId: number, field: string): { x: number; y: number } | null {
+    const node = this.nodes().find((item) => item.module.id === moduleId);
+    if (!node) {
+      return null;
+    }
+    const fields = this.getLinkFields(node.module);
+    const index = Math.max(0, fields.indexOf(field));
+    const count = Math.max(1, fields.length);
+    const spacing = this.nodeWidth / (count + 1);
+    return {
+      x: node.x + spacing * (index + 1),
+      y: node.y + this.visibleNodeHeight(node)
+    };
+  }
+
+  private getCollapsedOutputPortPoint(moduleId: number): { x: number; y: number } | null {
+    const node = this.nodes().find((item) => item.module.id === moduleId);
+    if (!node) {
+      return null;
+    }
+    return {
+      x: node.x + this.nodeWidth / 2,
+      y: node.y + this.visibleNodeHeight(node)
+    };
+  }
+
+  private toPortLeft(nodeX: number, worldX: number): number {
+    return worldX - nodeX - this.moduleCardBorderWidth - 7;
   }
 
   private buildConnectionPath(

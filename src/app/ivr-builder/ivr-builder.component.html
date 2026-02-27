@@ -170,14 +170,25 @@
             type="button"
             class="port input"
             [attr.data-port-input]="node.module.id"
+            [style.left.px]="inputPortLeft(node)"
             title="Drop an arrow here"
           ></button>
           <button
-            *ngIf="selectedModuleId() === node.module.id"
+            *ngIf="selectedModuleId() !== node.module.id && nodeLinkFields(node).length > 0"
+            type="button"
+            class="port output collapsed-output"
+            [style.left.px]="collapsedOutputPortLeft(node)"
+            tabindex="-1"
+            aria-hidden="true"
+          ></button>
+          <button
+            *ngFor="let field of nodeLinkFields(node)"
+            [hidden]="selectedModuleId() !== node.module.id"
             type="button"
             class="port output"
-            (pointerdown)="setCanvasRef(canvasRoot); startConnectionDrag(node, $event)"
-            title="Drag to connect selected field"
+            [style.left.px]="outputPortLeft(node, field)"
+            (pointerdown)="setCanvasRef(canvasRoot); startConnectionDrag(node, field, $event)"
+            [title]="outputPortTooltip(node, field)"
           ></button>
         </article>
       </div>
@@ -197,22 +208,6 @@
               [value]="selected.module.name || ''"
               (input)="updateName(selected.module.id, $any($event.target).value)"
             />
-          </label>
-
-          <label class="field">
-            <span>Link field used by output port</span>
-            <select
-              [value]="selected.linkField"
-              [disabled]="nodeLinkFields(selected).length === 0"
-              (change)="updateLinkField(selected.module.id, $any($event.target).value)"
-            >
-              <option *ngIf="nodeLinkFields(selected).length === 0" value="">
-                No link fields available
-              </option>
-              <option *ngFor="let field of nodeLinkFields(selected)" [value]="field">
-                {{ field }}
-              </option>
-            </select>
           </label>
 
           <div class="field-grid">
