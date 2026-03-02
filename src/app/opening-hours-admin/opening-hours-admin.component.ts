@@ -9,13 +9,13 @@ import {
   Validators
 } from '@angular/forms';
 import {
-  DateRangeHoliday,
   ExitOutcomeId,
-  OpeningHoursSchedule,
+  OpeningHoursScheduleV2,
   RecurringHoliday,
   RecurringHolidayRule,
+  RuleV2,
   ExitOutcome,
-  SingleDateHoliday,
+  TimeSlotV2,
   WeeklyOpeningHoursRecord,
   WEEKDAYS,
   Weekday
@@ -228,7 +228,7 @@ export class OpeningHoursAdminComponent {
   );
 
   constructor() {
-    this.hydrate(this.service.schedule());
+    this.hydrate(this.service.scheduleV2());
   }
 
   get dayForms(): FormArray<DayForm> {
@@ -493,7 +493,7 @@ export class OpeningHoursAdminComponent {
       return;
     }
 
-    this.service.updateSchedule(this.buildScheduleFromForm());
+    this.service.updateScheduleV2(this.buildScheduleFromForm());
   }
 
   trackByDay(_index: number, dayForm: DayForm): string {
@@ -504,15 +504,28 @@ export class OpeningHoursAdminComponent {
     );
   }
 
-  private hydrate(schedule: OpeningHoursSchedule): void {
+  private hydrate(schedule: OpeningHoursScheduleV2): void {
     this.dayForms.clear();
     this.holidayForms.clear();
-    schedule.days.forEach((day) => this.dayForms.push(this.createDayForm(day)));
-    [...schedule.recurringHolidays, ...schedule.dateRanges, ...schedule.singleDates]
-      .sort((a, b) => this.compareHolidaysByDate(a, b))
-      .forEach((holiday) =>
-      this.holidayForms.push(this.createHolidayForm(holiday))
-      );
+    const sortedRules = [...schedule.rules].sort((a, b) => a.priority - b.priority);
+    sortedRules.forEach((rule, index) => {
+      if (rule.scope === 'weekly') {
+        this.dayForms.push(
+          this.createDayForm({
+            name: rule.name || `Weekly ${index + 1}`,
+            days: rule.appliesOn.weekdays ?? [],
+            slots: this.mapSlotsFromV2(rule.slots),
+            closedExitType: rule.defaultClosed.action
+          })
+        );
+        return;
+      }
+
+      const holiday = this.mapRuleToHoliday(rule);
+      if (holiday) {
+        this.holidayForms.push(this.createHolidayForm(holiday));
+      }
+    });
     this.form.patchValue({
       timezone: schedule.timezone
     });
@@ -677,28 +690,223 @@ export class OpeningHoursAdminComponent {
     };
   }
 
-  private buildScheduleFromForm(): OpeningHoursSchedule {
+  private buildScheduleFromForm(): OpeningHoursScheduleV2 {
     const raw = this.form.getRawValue();
     const normalizedHolidays = raw.recurringHolidays.map((holiday) =>
       this.normalizeHoliday(holiday)
     );
-    const recurringHolidays = normalizedHolidays.filter(
-      (holiday) => holiday.rule !== 'date-range' && holiday.rule !== 'single-date'
-    );
-    const dateRanges = normalizedHolidays.filter(
-      (holiday): holiday is DateRangeHoliday => holiday.rule === 'date-range'
-    );
-    const singleDates = normalizedHolidays.filter(
-      (holiday): holiday is SingleDateHoliday => holiday.rule === 'single-date'
-    );
+    const rules: RuleV2[] = [];
+    let priority = 1;
+
+    normalizedHolidays
+      .filter((holiday) => holiday.rule === 'single-date')
+      .forEach((holiday, index) => {
+        rules.push({
+          id: `single-date-${index + 1}`,
+          name: holiday.name,
+          scope: 'single-date',
+          priority: priority++,
+          appliesOn: {
+            date: holiday.singleDate ?? ''
+          },
+          slots: this.mapSlotsToV2(holiday.slots),
+          defaultClosed: {
+            action: holiday.closedExitType
+          }
+        });
+      });
+
+    normalizedHolidays
+      .filter(
+        (holiday) => holiday.rule !== 'single-date' && holiday.rule !== 'date-range'
+      )
+      .forEach((holiday, index) => {
+        rules.push({
+          id: `recurring-${index + 1}`,
+          name: holiday.name,
+          scope: 'recurring',
+          priority: priority++,
+          appliesOn: {
+            recurring: this.mapRecurringToV2(holiday)
+          },
+          slots: this.mapSlotsToV2(holiday.slots),
+          defaultClosed: {
+            action: holiday.closedExitType
+          }
+        });
+      });
+
+    normalizedHolidays
+      .filter((holiday) => holiday.rule === 'date-range')
+      .forEach((holiday, index) => {
+        rules.push({
+          id: `date-range-${index + 1}`,
+          name: holiday.name,
+          scope: 'date-range',
+          priority: priority++,
+          appliesOn: {
+            dateFrom: holiday.rangeStart ?? '',
+            dateTo: holiday.rangeEnd ?? '',
+            weekdays: holiday.weekdays ?? []
+          },
+          slots: this.mapSlotsToV2(holiday.slots),
+          defaultClosed: {
+            action: holiday.closedExitType
+          }
+        });
+      });
+
+    raw.days.forEach((day, index) => {
+      rules.push({
+        id: `weekly-${index + 1}`,
+        name: day.name || `Weekly ${index + 1}`,
+        scope: 'weekly',
+        priority: priority++,
+        appliesOn: {
+          weekdays: day.days
+        },
+        slots: day.slots.map((slot) => ({
+          start: slot.opensAt,
+          end: slot.closesAt,
+          action: slot.openExitType
+        })),
+        defaultClosed: {
+          action: day.closedExitType
+        }
+      });
+    });
 
     return {
       timezone: raw.timezone,
-      days: raw.days,
-      recurringHolidays,
-      dateRanges,
-      singleDates
+      exitOutcomes: this.service.scheduleV2().exitOutcomes,
+      rules
     };
+  }
+
+  private mapRuleToHoliday(rule: RuleV2): RecurringHoliday | null {
+    const slots = this.mapSlotsFromV2(rule.slots);
+    const closed = slots.length === 0;
+    const closedExitType = rule.defaultClosed.action;
+
+    if (rule.scope === 'single-date') {
+      return {
+        name: rule.name,
+        rule: 'single-date',
+        singleDate: rule.appliesOn.date ?? '',
+        lengthDays: 1,
+        closed,
+        slots,
+        closedExitType
+      };
+    }
+
+    if (rule.scope === 'date-range') {
+      const rangeStart = rule.appliesOn.dateFrom ?? '';
+      const rangeEnd = rule.appliesOn.dateTo ?? '';
+      return {
+        name: rule.name,
+        rule: 'date-range',
+        rangeStart,
+        rangeEnd,
+        weekdays: rule.appliesOn.weekdays ?? [],
+        lengthDays: this.calculateDateRangeLength(rangeStart, rangeEnd),
+        closed,
+        slots,
+        closedExitType
+      };
+    }
+
+    if (rule.scope !== 'recurring') {
+      return null;
+    }
+
+    const recurring = rule.appliesOn.recurring;
+    if (!recurring) {
+      return null;
+    }
+
+    if (recurring.kind === 'fixed-date') {
+      return {
+        name: rule.name,
+        rule: 'fixed-date',
+        month: recurring.month ?? 1,
+        day: recurring.day ?? 1,
+        lengthDays: recurring.lengthDays ?? 1,
+        closed,
+        slots,
+        closedExitType
+      };
+    }
+
+    if (recurring.kind === 'easter-offset') {
+      return {
+        name: rule.name,
+        rule: 'easter',
+        offsetDays: recurring.offsetDays ?? 0,
+        lengthDays: recurring.lengthDays ?? 1,
+        closed,
+        slots,
+        closedExitType
+      };
+    }
+
+    if (recurring.kind === 'rrule') {
+      return {
+        name: rule.name,
+        rule: 'rrule',
+        rrule: recurring.rrule ?? '',
+        lengthDays: recurring.lengthDays ?? 1,
+        closed,
+        slots,
+        closedExitType
+      };
+    }
+
+    return null;
+  }
+
+  private mapRecurringToV2(
+    holiday: RecurringHoliday
+  ): RuleV2['appliesOn']['recurring'] | undefined {
+    if (holiday.rule === 'fixed-date') {
+      return {
+        kind: 'fixed-date',
+        month: holiday.month,
+        day: holiday.day,
+        lengthDays: holiday.lengthDays
+      };
+    }
+    if (holiday.rule === 'easter') {
+      return {
+        kind: 'easter-offset',
+        offsetDays: holiday.offsetDays,
+        lengthDays: holiday.lengthDays
+      };
+    }
+    if (holiday.rule === 'rrule') {
+      return {
+        kind: 'rrule',
+        rrule: holiday.rrule,
+        lengthDays: holiday.lengthDays
+      };
+    }
+    return undefined;
+  }
+
+  private mapSlotsToV2(slots: RecurringHoliday['slots']): TimeSlotV2[] {
+    return slots.map((slot) => ({
+      start: slot.opensAt,
+      end: slot.closesAt,
+      action: slot.openExitType
+    }));
+  }
+
+  private mapSlotsFromV2(slots: TimeSlotV2[]): RecurringHoliday['slots'] {
+    return slots.map((slot) => ({
+      opensAt: slot.start,
+      closesAt: slot.end,
+      openExitType: slot.action
+    }));
   }
 
   private buildTimeOptions(stepMinutes: number, forCloseTime: boolean): string[] {
