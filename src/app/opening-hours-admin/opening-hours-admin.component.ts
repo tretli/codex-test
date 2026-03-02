@@ -23,6 +23,7 @@ import {
 import { OpeningHoursService } from './opening-hours.service';
 import {
   getEasterDate,
+  getNorwegianBotsOgBededagDate,
   getSwedishMidsummerDayDate,
   getSwedishMidsummerEveDate
 } from './opening-hours-date.utils';
@@ -130,6 +131,7 @@ export class OpeningHoursAdminComponent {
     this.createFixedTemplate('boxing-week', 'Boxing Week', 12, 25, 7),
     this.createFixedTemplate("new-years", "New Year's", 1, 1, 1),
     this.createEasterTemplate('palm-sunday', 'Palm Sunday', -7, 1),
+    this.createEasterTemplate('norwegian-fastelavn', 'Norwegian Fastelavn', -49, 1),
     this.createEasterTemplate(
       'pre-easter-wednesday',
       'Pre-easter Wednesday',
@@ -187,6 +189,18 @@ export class OpeningHoursAdminComponent {
       1
     ),
     this.createFixedTemplate('all-saints-day', 'All Saints Day', 11, 1, 1),
+    {
+      id: 'bots-og-bededag',
+      label: 'Bots- og bededag',
+      holiday: {
+        name: 'Bots- og bededag',
+        rule: 'norwegian-bots-og-bededag' as const,
+        lengthDays: 1,
+        closed: true,
+        slots: [],
+        closedExitType: ExitOutcome.Deny
+      }
+    },
     this.createFixedTemplate('epiphany', 'Epiphany', 1, 6, 1),
     this.createSwedishMidsummerTemplate(
       'midsummers-day',
@@ -721,6 +735,8 @@ export class OpeningHoursAdminComponent {
       date = getSwedishMidsummerDayDate(year);
     } else if (holiday.rule === 'swedish-midsummer-eve') {
       date = getSwedishMidsummerEveDate(year);
+    } else if (holiday.rule === 'norwegian-bots-og-bededag') {
+      date = getNorwegianBotsOgBededagDate(year);
     } else if (holiday.rule === 'date-range' && holiday.rangeStart) {
       const parsed = this.parseDateInput(holiday.rangeStart);
       if (parsed) {

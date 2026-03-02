@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ExitOutcomeId } from './opening-hours.model';
+import { ExitOutcomeId } from '../opening-hours-admin/opening-hours.model';
 
 export type ExitOutcomeDefinitionForm = FormGroup<{
   id: FormControl<ExitOutcomeId>;

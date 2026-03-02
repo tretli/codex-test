@@ -38,3 +38,13 @@ export function getSwedishMidsummerEveDate(year: number): Date {
   return fallback;
 }
 
+export function getNorwegianBotsOgBededagDate(year: number): Date {
+  for (let day = 31; day >= 25; day -= 1) {
+    const candidate = new Date(year, 9, day);
+    if (candidate.getDay() === 0) {
+      return candidate;
+    }
+  }
+  return new Date(year, 9, 31);
+}
+

@@ -125,6 +125,7 @@ export interface WeeklyOpeningHoursRecord {
 export type RecurringHolidayRule =
   | 'fixed-date'
   | 'easter'
+  | 'norwegian-bots-og-bededag'
   | 'swedish-midsummer-day'
   | 'swedish-midsummer-eve'
   | 'date-range'
@@ -355,6 +356,13 @@ function mapRecurringToV2(
       lengthDays: holiday.lengthDays
     };
   }
+  if (holiday.rule === 'norwegian-bots-og-bededag') {
+    return {
+      kind: 'rrule',
+      rrule: 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+      lengthDays: holiday.lengthDays
+    };
+  }
   return undefined;
 }
 
@@ -491,6 +499,18 @@ export function fromOpeningHoursScheduleV2(
         recurringHolidays.push({
           name: rule.name,
           rule: 'swedish-midsummer-eve',
+          lengthDays: recurring.lengthDays ?? 1,
+          closed: slots.length === 0,
+          slots,
+          closedExitType
+        });
+        return;
+      }
+
+      if (normalizedRRule === 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU') {
+        recurringHolidays.push({
+          name: rule.name,
+          rule: 'norwegian-bots-og-bededag',
           lengthDays: recurring.lengthDays ?? 1,
           closed: slots.length === 0,
           slots,

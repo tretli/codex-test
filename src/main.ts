@@ -2,7 +2,7 @@ import { bootstrapApplication } from '@angular/platform-browser';
 import { provideRouter, RouterOutlet } from '@angular/router';
 import { Component } from '@angular/core';
 import { OpeningHoursAdminComponent } from './app/opening-hours-admin/opening-hours-admin.component';
-import { ExitOutcomeAdminComponent } from './app/opening-hours-admin/exit-outcome-admin.component';
+import { ExitOutcomeAdminComponent } from './app/exit-outcome-admin/exit-outcome-admin.component';
 import { OpeningHoursWeekComponent } from './app/opening-hours-week/opening-hours-week.component';
 
 @Component({

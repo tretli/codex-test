@@ -13,6 +13,7 @@ import {
 import { OpeningHoursService } from '../opening-hours-admin/opening-hours.service';
 import {
   getEasterDate,
+  getNorwegianBotsOgBededagDate,
   getSwedishMidsummerDayDate,
   getSwedishMidsummerEveDate
 } from '../opening-hours-admin/opening-hours-date.utils';
@@ -346,6 +347,10 @@ export class OpeningHoursWeekComponent {
       'FREQ=YEARLY;BYMONTH=6;BYDAY=FR;BYMONTHDAY=19,20,21,22,23,24,25'
     ) {
       return getSwedishMidsummerEveDate(year);
+    }
+
+    if (normalized === 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU') {
+      return getNorwegianBotsOgBededagDate(year);
     }
 
     return null;

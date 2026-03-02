@@ -10,8 +10,8 @@ import {
   ExitOutcomeDefinition,
   ExitOutcomeId,
   normalizeExitOutcomes
-} from './opening-hours.model';
-import { OpeningHoursService } from './opening-hours.service';
+} from '../opening-hours-admin/opening-hours.model';
+import { OpeningHoursService } from '../opening-hours-admin/opening-hours.service';
 
 @Component({
   selector: 'app-exit-outcome-admin',
