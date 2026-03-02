@@ -125,9 +125,7 @@ export interface WeeklyOpeningHoursRecord {
 export type RecurringHolidayRule =
   | 'fixed-date'
   | 'easter'
-  | 'norwegian-bots-og-bededag'
-  | 'swedish-midsummer-day'
-  | 'swedish-midsummer-eve'
+  | 'rrule'
   | 'date-range'
   | 'single-date';
 
@@ -137,6 +135,7 @@ export interface RecurringHoliday {
   month?: number; // 1-12 for fixed-date rules
   day?: number; // 1-31 for fixed-date rules
   offsetDays?: number; // day offset from Easter Sunday for easter rules
+  rrule?: string; // RFC5545 RRULE for recurring rules
   rangeStart?: string; // ISO date for date-range rules
   rangeEnd?: string; // ISO date for date-range rules
   singleDate?: string; // ISO date for single-date rules
@@ -187,12 +186,7 @@ export interface RuleAppliesOnV2 {
   dateFrom?: string; // ISO date for date-range
   dateTo?: string; // ISO date for date-range
   recurring?: {
-    kind:
-      | 'fixed-date'
-      | 'easter-offset'
-      | 'swedish-midsummer-day'
-      | 'swedish-midsummer-eve'
-      | 'rrule';
+    kind: 'fixed-date' | 'easter-offset' | 'rrule';
     month?: number;
     day?: number;
     offsetDays?: number;
@@ -342,24 +336,10 @@ function mapRecurringToV2(
       lengthDays: holiday.lengthDays
     };
   }
-  if (holiday.rule === 'swedish-midsummer-day') {
+  if (holiday.rule === 'rrule') {
     return {
       kind: 'rrule',
-      rrule: 'FREQ=YEARLY;BYMONTH=6;BYDAY=SA;BYMONTHDAY=20,21,22,23,24,25,26',
-      lengthDays: holiday.lengthDays
-    };
-  }
-  if (holiday.rule === 'swedish-midsummer-eve') {
-    return {
-      kind: 'rrule',
-      rrule: 'FREQ=YEARLY;BYMONTH=6;BYDAY=FR;BYMONTHDAY=19,20,21,22,23,24,25',
-      lengthDays: holiday.lengthDays
-    };
-  }
-  if (holiday.rule === 'norwegian-bots-og-bededag') {
-    return {
-      kind: 'rrule',
-      rrule: 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+      rrule: holiday.rrule,
       lengthDays: holiday.lengthDays
     };
   }
@@ -450,73 +430,16 @@ export function fromOpeningHoursScheduleV2(
       return;
     }
 
-    if (recurring.kind === 'swedish-midsummer-day') {
-      recurringHolidays.push({
-        name: rule.name,
-        rule: 'swedish-midsummer-day',
-        lengthDays: recurring.lengthDays ?? 1,
-        closed: slots.length === 0,
-        slots,
-        closedExitType
-      });
-      return;
-    }
-
-    if (recurring.kind === 'swedish-midsummer-eve') {
-      recurringHolidays.push({
-        name: rule.name,
-        rule: 'swedish-midsummer-eve',
-        lengthDays: recurring.lengthDays ?? 1,
-        closed: slots.length === 0,
-        slots,
-        closedExitType
-      });
-      return;
-    }
-
     if (recurring.kind === 'rrule') {
-      const normalizedRRule = (recurring.rrule ?? '').trim().toUpperCase();
-
-      if (
-        normalizedRRule ===
-        'FREQ=YEARLY;BYMONTH=6;BYDAY=SA;BYMONTHDAY=20,21,22,23,24,25,26'
-      ) {
-        recurringHolidays.push({
-          name: rule.name,
-          rule: 'swedish-midsummer-day',
-          lengthDays: recurring.lengthDays ?? 1,
-          closed: slots.length === 0,
-          slots,
-          closedExitType
-        });
-        return;
-      }
-
-      if (
-        normalizedRRule ===
-        'FREQ=YEARLY;BYMONTH=6;BYDAY=FR;BYMONTHDAY=19,20,21,22,23,24,25'
-      ) {
-        recurringHolidays.push({
-          name: rule.name,
-          rule: 'swedish-midsummer-eve',
-          lengthDays: recurring.lengthDays ?? 1,
-          closed: slots.length === 0,
-          slots,
-          closedExitType
-        });
-        return;
-      }
-
-      if (normalizedRRule === 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU') {
-        recurringHolidays.push({
-          name: rule.name,
-          rule: 'norwegian-bots-og-bededag',
-          lengthDays: recurring.lengthDays ?? 1,
-          closed: slots.length === 0,
-          slots,
-          closedExitType
-        });
-      }
+      recurringHolidays.push({
+        name: rule.name,
+        rule: 'rrule',
+        rrule: recurring.rrule,
+        lengthDays: recurring.lengthDays ?? 1,
+        closed: slots.length === 0,
+        slots,
+        closedExitType
+      });
     }
   });
 

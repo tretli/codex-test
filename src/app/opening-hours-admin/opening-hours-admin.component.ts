@@ -22,10 +22,11 @@ import {
 } from './opening-hours.model';
 import { OpeningHoursService } from './opening-hours.service';
 import {
+  NORWEGIAN_BOTS_OG_BEDEDAG_RRULE,
+  SWEDISH_MIDSUMMER_DAY_RRULE,
+  SWEDISH_MIDSUMMER_EVE_RRULE,
+  getDateForSupportedRRule,
   getEasterDate,
-  getNorwegianBotsOgBededagDate,
-  getSwedishMidsummerDayDate,
-  getSwedishMidsummerEveDate
 } from './opening-hours-date.utils';
 import {
   dateRangeOverlapValidator,
@@ -54,6 +55,7 @@ type HolidayForm = FormGroup<{
   month: import('@angular/forms').FormControl<number | null>;
   day: import('@angular/forms').FormControl<number | null>;
   offsetDays: import('@angular/forms').FormControl<number | null>;
+  rrule: import('@angular/forms').FormControl<string | null>;
   rangeStart: import('@angular/forms').FormControl<string | null>;
   rangeEnd: import('@angular/forms').FormControl<string | null>;
   singleDate: import('@angular/forms').FormControl<string | null>;
@@ -70,6 +72,7 @@ type HolidayFormValue = {
   month: number | null;
   day: number | null;
   offsetDays: number | null;
+  rrule: string | null;
   rangeStart: string | null;
   rangeEnd: string | null;
   singleDate: string | null;
@@ -189,29 +192,23 @@ export class OpeningHoursAdminComponent {
       1
     ),
     this.createFixedTemplate('all-saints-day', 'All Saints Day', 11, 1, 1),
-    {
-      id: 'bots-og-bededag',
-      label: 'Bots- og bededag',
-      holiday: {
-        name: 'Bots- og bededag',
-        rule: 'norwegian-bots-og-bededag' as const,
-        lengthDays: 1,
-        closed: true,
-        slots: [],
-        closedExitType: ExitOutcome.Deny
-      }
-    },
-    this.createFixedTemplate('epiphany', 'Epiphany', 1, 6, 1),
-    this.createSwedishMidsummerTemplate(
-      'midsummers-day',
-      "Midsummer's Day",
-      'swedish-midsummer-day',
+    this.createRRuleTemplate(
+      'bots-og-bededag',
+      'Bots- og bededag',
+      NORWEGIAN_BOTS_OG_BEDEDAG_RRULE,
       1
     ),
-    this.createSwedishMidsummerTemplate(
+    this.createFixedTemplate('epiphany', 'Epiphany', 1, 6, 1),
+    this.createRRuleTemplate(
+      'midsummers-day',
+      "Midsummer's Day",
+      SWEDISH_MIDSUMMER_DAY_RRULE,
+      1
+    ),
+    this.createRRuleTemplate(
       'midsummers-evening',
       "Midsummer's Evening",
-      'swedish-midsummer-eve',
+      SWEDISH_MIDSUMMER_EVE_RRULE,
       1
     )
   ].sort((a, b) => this.compareHolidaysByDate(a.holiday, b.holiday));
@@ -453,6 +450,7 @@ export class OpeningHoursAdminComponent {
         month: holidayForm.controls.month.value ?? undefined,
         day: holidayForm.controls.day.value ?? undefined,
         offsetDays: holidayForm.controls.offsetDays.value ?? undefined,
+        rrule: holidayForm.controls.rrule.value ?? undefined,
         rangeStart: holidayForm.controls.rangeStart.value ?? undefined,
         singleDate: holidayForm.controls.singleDate.value ?? undefined
       },
@@ -578,6 +576,7 @@ export class OpeningHoursAdminComponent {
         Validators.min(-365),
         Validators.max(365)
       ]),
+      rrule: this.fb.control(holiday.rrule ?? null),
       rangeStart: this.fb.control(rangeStartValue),
       rangeEnd: this.fb.control(rangeEndValue),
       singleDate: this.fb.control(singleDateValue),
@@ -618,6 +617,18 @@ export class OpeningHoursAdminComponent {
         name: holiday.name,
         rule: holiday.rule,
         offsetDays: holiday.offsetDays ?? 0,
+        lengthDays: holiday.lengthDays,
+        closed: holiday.closed,
+        slots: holiday.closed ? [] : holiday.slots,
+        closedExitType: holiday.closedExitType
+      };
+    }
+
+    if (holiday.rule === 'rrule') {
+      return {
+        name: holiday.name,
+        rule: holiday.rule,
+        rrule: holiday.rrule ?? '',
         lengthDays: holiday.lengthDays,
         closed: holiday.closed,
         slots: holiday.closed ? [] : holiday.slots,
@@ -716,7 +727,7 @@ export class OpeningHoursAdminComponent {
   private getHolidayExampleDateForYear(
     holiday: Pick<
       RecurringHoliday,
-      'rule' | 'month' | 'day' | 'offsetDays' | 'rangeStart' | 'singleDate'
+      'rule' | 'month' | 'day' | 'offsetDays' | 'rrule' | 'rangeStart' | 'singleDate'
     >,
     year: number
   ): Date | null {
@@ -731,12 +742,8 @@ export class OpeningHoursAdminComponent {
       date = getEasterDate(year);
       const offsetDays = holiday.offsetDays ?? 0;
       date.setDate(date.getDate() + offsetDays);
-    } else if (holiday.rule === 'swedish-midsummer-day') {
-      date = getSwedishMidsummerDayDate(year);
-    } else if (holiday.rule === 'swedish-midsummer-eve') {
-      date = getSwedishMidsummerEveDate(year);
-    } else if (holiday.rule === 'norwegian-bots-og-bededag') {
-      date = getNorwegianBotsOgBededagDate(year);
+    } else if (holiday.rule === 'rrule') {
+      date = getDateForSupportedRRule(holiday.rrule, year);
     } else if (holiday.rule === 'date-range' && holiday.rangeStart) {
       const parsed = this.parseDateInput(holiday.rangeStart);
       if (parsed) {
@@ -913,10 +920,10 @@ export class OpeningHoursAdminComponent {
     };
   }
 
-  private createSwedishMidsummerTemplate(
+  private createRRuleTemplate(
     id: string,
     label: string,
-    rule: 'swedish-midsummer-day' | 'swedish-midsummer-eve',
+    rrule: string,
     lengthDays: number
   ): HolidayTemplate {
     return {
@@ -924,7 +931,8 @@ export class OpeningHoursAdminComponent {
       label,
       holiday: {
         name: label,
-        rule,
+        rule: 'rrule',
+        rrule,
         lengthDays,
         closed: true,
         slots: [],

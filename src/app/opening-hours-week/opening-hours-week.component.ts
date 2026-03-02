@@ -12,10 +12,8 @@ import {
 } from '../opening-hours-admin/opening-hours.model';
 import { OpeningHoursService } from '../opening-hours-admin/opening-hours.service';
 import {
+  getDateForSupportedRRule,
   getEasterDate,
-  getNorwegianBotsOgBededagDate,
-  getSwedishMidsummerDayDate,
-  getSwedishMidsummerEveDate
 } from '../opening-hours-admin/opening-hours-date.utils';
 
 type DayView = {
@@ -317,40 +315,8 @@ export class OpeningHoursWeekComponent {
       return this.addDays(easter, recurring.offsetDays ?? 0);
     }
 
-    if (recurring.kind === 'swedish-midsummer-day') {
-      return this.getRRuleStartDate(recurring.rrule, year);
-    }
-
-    if (recurring.kind === 'swedish-midsummer-eve') {
-      return this.getRRuleStartDate(recurring.rrule, year);
-    }
-
     if (recurring.kind === 'rrule') {
-      return this.getRRuleStartDate(recurring.rrule, year);
-    }
-
-    return null;
-  }
-
-  private getRRuleStartDate(rrule: string | undefined, year: number): Date | null {
-    const normalized = (rrule ?? '').trim().toUpperCase();
-
-    if (
-      normalized ===
-      'FREQ=YEARLY;BYMONTH=6;BYDAY=SA;BYMONTHDAY=20,21,22,23,24,25,26'
-    ) {
-      return getSwedishMidsummerDayDate(year);
-    }
-
-    if (
-      normalized ===
-      'FREQ=YEARLY;BYMONTH=6;BYDAY=FR;BYMONTHDAY=19,20,21,22,23,24,25'
-    ) {
-      return getSwedishMidsummerEveDate(year);
-    }
-
-    if (normalized === 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU') {
-      return getNorwegianBotsOgBededagDate(year);
+      return getDateForSupportedRRule(recurring.rrule, year);
     }
 
     return null;

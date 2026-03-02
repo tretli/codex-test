@@ -48,3 +48,28 @@ export function getNorwegianBotsOgBededagDate(year: number): Date {
   return new Date(year, 9, 31);
 }
 
+export const SWEDISH_MIDSUMMER_DAY_RRULE =
+  'FREQ=YEARLY;BYMONTH=6;BYDAY=SA;BYMONTHDAY=20,21,22,23,24,25,26';
+export const SWEDISH_MIDSUMMER_EVE_RRULE =
+  'FREQ=YEARLY;BYMONTH=6;BYDAY=FR;BYMONTHDAY=19,20,21,22,23,24,25';
+export const NORWEGIAN_BOTS_OG_BEDEDAG_RRULE =
+  'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU';
+
+export function getDateForSupportedRRule(
+  rrule: string | undefined,
+  year: number
+): Date | null {
+  const normalized = (rrule ?? '').trim().toUpperCase();
+
+  if (normalized === SWEDISH_MIDSUMMER_DAY_RRULE) {
+    return getSwedishMidsummerDayDate(year);
+  }
+  if (normalized === SWEDISH_MIDSUMMER_EVE_RRULE) {
+    return getSwedishMidsummerEveDate(year);
+  }
+  if (normalized === NORWEGIAN_BOTS_OG_BEDEDAG_RRULE) {
+    return getNorwegianBotsOgBededagDate(year);
+  }
+  return null;
+}
+
