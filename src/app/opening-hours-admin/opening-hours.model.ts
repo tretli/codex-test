@@ -190,10 +190,12 @@ export interface RuleAppliesOnV2 {
       | 'fixed-date'
       | 'easter-offset'
       | 'swedish-midsummer-day'
-      | 'swedish-midsummer-eve';
+      | 'swedish-midsummer-eve'
+      | 'rrule';
     month?: number;
     day?: number;
     offsetDays?: number;
+    rrule?: string;
     lengthDays?: number;
   };
 }
@@ -340,10 +342,18 @@ function mapRecurringToV2(
     };
   }
   if (holiday.rule === 'swedish-midsummer-day') {
-    return { kind: 'swedish-midsummer-day', lengthDays: holiday.lengthDays };
+    return {
+      kind: 'rrule',
+      rrule: 'FREQ=YEARLY;BYMONTH=6;BYDAY=SA;BYMONTHDAY=20,21,22,23,24,25,26',
+      lengthDays: holiday.lengthDays
+    };
   }
   if (holiday.rule === 'swedish-midsummer-eve') {
-    return { kind: 'swedish-midsummer-eve', lengthDays: holiday.lengthDays };
+    return {
+      kind: 'rrule',
+      rrule: 'FREQ=YEARLY;BYMONTH=6;BYDAY=FR;BYMONTHDAY=19,20,21,22,23,24,25',
+      lengthDays: holiday.lengthDays
+    };
   }
   return undefined;
 }
@@ -453,6 +463,40 @@ export function fromOpeningHoursScheduleV2(
         slots,
         closedExitType
       });
+      return;
+    }
+
+    if (recurring.kind === 'rrule') {
+      const normalizedRRule = (recurring.rrule ?? '').trim().toUpperCase();
+
+      if (
+        normalizedRRule ===
+        'FREQ=YEARLY;BYMONTH=6;BYDAY=SA;BYMONTHDAY=20,21,22,23,24,25,26'
+      ) {
+        recurringHolidays.push({
+          name: rule.name,
+          rule: 'swedish-midsummer-day',
+          lengthDays: recurring.lengthDays ?? 1,
+          closed: slots.length === 0,
+          slots,
+          closedExitType
+        });
+        return;
+      }
+
+      if (
+        normalizedRRule ===
+        'FREQ=YEARLY;BYMONTH=6;BYDAY=FR;BYMONTHDAY=19,20,21,22,23,24,25'
+      ) {
+        recurringHolidays.push({
+          name: rule.name,
+          rule: 'swedish-midsummer-eve',
+          lengthDays: recurring.lengthDays ?? 1,
+          closed: slots.length === 0,
+          slots,
+          closedExitType
+        });
+      }
     }
   });
 
