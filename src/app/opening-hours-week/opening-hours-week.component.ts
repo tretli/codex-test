@@ -318,11 +318,11 @@ export class OpeningHoursWeekComponent {
     }
 
     if (recurring.kind === 'swedish-midsummer-day') {
-      return getSwedishMidsummerDayDate(year);
+      return this.getRRuleStartDate(recurring.rrule, year);
     }
 
     if (recurring.kind === 'swedish-midsummer-eve') {
-      return getSwedishMidsummerEveDate(year);
+      return this.getRRuleStartDate(recurring.rrule, year);
     }
 
     if (recurring.kind === 'rrule') {

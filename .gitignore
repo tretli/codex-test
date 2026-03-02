@@ -87,3 +87,6 @@ logs
 .env
 .env.local
 .env.*.local
+/dist/opening-hours-admin-tool/browser/404.html
+/dist/opening-hours-admin-tool/browser/index.html
+/dist/opening-hours-admin-tool/browser/main-KSBV3UW2.js
