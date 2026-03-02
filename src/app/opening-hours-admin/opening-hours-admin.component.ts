@@ -4,7 +4,6 @@ import { RouterLink } from '@angular/router';
 import {
   FormArray,
   FormBuilder,
-  FormGroup,
   ReactiveFormsModule,
   Validators
 } from '@angular/forms';
@@ -12,22 +11,15 @@ import {
   ExitOutcomeId,
   OpeningHoursScheduleV2,
   RecurringHoliday,
-  RecurringHolidayRule,
   RuleV2,
   ExitOutcome,
-  TimeSlotV2,
   WeeklyOpeningHoursRecord,
   WEEKDAYS,
   Weekday
 } from './opening-hours.model';
 import { OpeningHoursService } from './opening-hours.service';
-import {
-  NORWEGIAN_BOTS_OG_BEDEDAG_RRULE,
-  SWEDISH_MIDSUMMER_DAY_RRULE,
-  SWEDISH_MIDSUMMER_EVE_RRULE,
-  getDateForSupportedRRule,
-  getEasterDate,
-} from './opening-hours-date.utils';
+import { getEasterDate } from './opening-hours-date.utils';
+import { getDateForSupportedRRule } from './opening-hours-rrule.utils';
 import {
   dateRangeOverlapValidator,
   holidayFormValidator,
@@ -35,74 +27,22 @@ import {
   weeklyRecordValidator,
   weekdaysOverlapValidator
 } from './opening-hours.validators';
-
-type SlotForm = FormGroup<{
-  opensAt: import('@angular/forms').FormControl<string>;
-  closesAt: import('@angular/forms').FormControl<string>;
-  openExitType: import('@angular/forms').FormControl<ExitOutcomeId>;
-}>;
-
-type DayForm = FormGroup<{
-  name: import('@angular/forms').FormControl<string>;
-  days: import('@angular/forms').FormControl<Weekday[]>;
-  slots: FormArray<SlotForm>;
-  closedExitType: import('@angular/forms').FormControl<ExitOutcomeId>;
-}>;
-
-type HolidayForm = FormGroup<{
-  name: import('@angular/forms').FormControl<string>;
-  rule: import('@angular/forms').FormControl<RecurringHolidayRule>;
-  month: import('@angular/forms').FormControl<number | null>;
-  day: import('@angular/forms').FormControl<number | null>;
-  offsetDays: import('@angular/forms').FormControl<number | null>;
-  rrule: import('@angular/forms').FormControl<string | null>;
-  rangeStart: import('@angular/forms').FormControl<string | null>;
-  rangeEnd: import('@angular/forms').FormControl<string | null>;
-  singleDate: import('@angular/forms').FormControl<string | null>;
-  weekdays: import('@angular/forms').FormControl<Weekday[]>;
-  lengthDays: import('@angular/forms').FormControl<number>;
-  closed: import('@angular/forms').FormControl<boolean>;
-  slots: FormArray<SlotForm>;
-  closedExitType: import('@angular/forms').FormControl<ExitOutcomeId>;
-}>;
-
-type HolidayFormValue = {
-  name: string;
-  rule: RecurringHolidayRule;
-  month: number | null;
-  day: number | null;
-  offsetDays: number | null;
-  rrule: string | null;
-  rangeStart: string | null;
-  rangeEnd: string | null;
-  singleDate: string | null;
-  weekdays: Weekday[];
-  lengthDays: number;
-  closed: boolean;
-  slots: {
-    opensAt: string;
-    closesAt: string;
-    openExitType: ExitOutcomeId;
-  }[];
-  closedExitType: ExitOutcomeId;
-};
-
-type HolidayTemplate = {
-  id: string;
-  label: string;
-  holiday: RecurringHoliday;
-};
-
-type TimezoneOption = {
-  value: string;
-  label: string;
-};
-
-type ExitTypeOption = {
-  value: ExitOutcomeId;
-  label: string;
-  color: string;
-};
+import {
+  DayForm,
+  ExitTypeOption,
+  HolidayForm,
+  HolidayFormValue,
+  HolidayTemplate,
+  SlotForm,
+  TimezoneOption
+} from './opening-hours-admin.types';
+import { createDefaultHolidayTemplates } from './opening-hours-admin.holiday-templates';
+import {
+  mapRecurringToV2,
+  mapRuleToHoliday,
+  mapSlotsFromV2,
+  mapSlotsToV2
+} from './opening-hours-admin.mappers';
 
 @Component({
   selector: 'app-opening-hours-admin',
@@ -127,91 +67,10 @@ export class OpeningHoursAdminComponent {
   readonly timezoneOptions = this.buildTimezoneOptions();
   readonly openTimeOptions = this.buildTimeOptions(15, false);
   readonly closeTimeOptions = this.buildTimeOptions(15, true);
-  readonly holidayTemplates: ReadonlyArray<HolidayTemplate> = [
-    this.createEasterTemplate('easter-week', 'Easter Week', -8, 10),
-    this.createEasterTemplate('easter', 'Easter', -3, 5),
-    this.createFixedTemplate('christmas', 'Christmas', 12, 24, 9),
-    this.createFixedTemplate('boxing-week', 'Boxing Week', 12, 25, 7),
-    this.createFixedTemplate("new-years", "New Year's", 1, 1, 1),
-    this.createEasterTemplate('palm-sunday', 'Palm Sunday', -7, 1),
-    this.createEasterTemplate('norwegian-fastelavn', 'Norwegian Fastelavn', -49, 1),
-    this.createEasterTemplate(
-      'pre-easter-wednesday',
-      'Pre-easter Wednesday',
-      -4,
-      1
-    ),
-    this.createEasterTemplate('maundy-thursday', 'Maundy Thursday', -3, 1),
-    this.createEasterTemplate('good-friday', 'Good Friday', -2, 1),
-    this.createEasterTemplate('easter-eve', 'Easter Eve', -1, 1),
-    this.createEasterTemplate('easter-sunday', 'Easter Sunday', 0, 1),
-    this.createEasterTemplate('easter-monday', 'Easter Monday', 1, 1),
-    this.createFixedTemplate('labour-day', 'Labour day', 5, 1, 1),
-    this.createFixedTemplate(
-      'norwegian-constitution-day',
-      'Norwegian Constitution day',
-      5,
-      17,
-      1
-    ),
-    this.createEasterTemplate('ascension-day', 'Ascension day', 39, 1),
-    this.createEasterTemplate(
-      'pentecost-saturday',
-      'Pentecost Saturday',
-      48,
-      1
-    ),
-    this.createEasterTemplate('pentecost', 'Pentecost', 49, 1),
-    this.createEasterTemplate('whit-monday', 'Whit Monday', 50, 1),
-    this.createFixedTemplate('december-23rd', 'December 23rd', 12, 23, 1),
-    this.createFixedTemplate('christmas-eve', 'Christmas Eve', 12, 24, 1),
-    this.createFixedTemplate('christmas-day', 'Christmas Day', 12, 25, 1),
-    this.createFixedTemplate("st-stephens-day", "St. Stephen's Day", 12, 26, 1),
-    this.createFixedTemplate("new-years-eve", "New Year's Eve", 12, 31, 1),
-    this.createFixedTemplate('test', 'Test', 2, 22, 1),
-    this.createFixedTemplate(
-      'national-day-sweden',
-      'National day of Sweden',
-      6,
-      6,
-      1
-    ),
-    this.createFixedTemplate(
-      'national-day-finland',
-      'National day of Finland',
-      12,
-      6,
-      1
-    ),
-    this.createEasterTemplate('great-prayer-day', 'Great Prayer Day', 26, 1),
-    this.createFixedTemplate(
-      'national-day-denmark',
-      'National day of Denmark',
-      6,
-      5,
-      1
-    ),
-    this.createFixedTemplate('all-saints-day', 'All Saints Day', 11, 1, 1),
-    this.createRRuleTemplate(
-      'bots-og-bededag',
-      'Bots- og bededag',
-      NORWEGIAN_BOTS_OG_BEDEDAG_RRULE,
-      1
-    ),
-    this.createFixedTemplate('epiphany', 'Epiphany', 1, 6, 1),
-    this.createRRuleTemplate(
-      'midsummers-day',
-      "Midsummer's Day",
-      SWEDISH_MIDSUMMER_DAY_RRULE,
-      1
-    ),
-    this.createRRuleTemplate(
-      'midsummers-evening',
-      "Midsummer's Evening",
-      SWEDISH_MIDSUMMER_EVE_RRULE,
-      1
-    )
-  ].sort((a, b) => this.compareHolidaysByDate(a.holiday, b.holiday));
+  readonly holidayTemplates: ReadonlyArray<HolidayTemplate> =
+    [...createDefaultHolidayTemplates()].sort((a, b) =>
+      this.compareHolidaysByDate(a.holiday, b.holiday)
+    );
   readonly defaultHolidayTemplateId = this.holidayTemplates[0].id;
 
   readonly form = this.fb.nonNullable.group({
@@ -514,14 +373,17 @@ export class OpeningHoursAdminComponent {
           this.createDayForm({
             name: rule.name || `Weekly ${index + 1}`,
             days: rule.appliesOn.weekdays ?? [],
-            slots: this.mapSlotsFromV2(rule.slots),
+            slots: mapSlotsFromV2(rule.slots),
             closedExitType: rule.defaultClosed.action
           })
         );
         return;
       }
 
-      const holiday = this.mapRuleToHoliday(rule);
+      const holiday = mapRuleToHoliday(
+        rule,
+        (rangeStart, rangeEnd) => this.calculateDateRangeLength(rangeStart, rangeEnd)
+      );
       if (holiday) {
         this.holidayForms.push(this.createHolidayForm(holiday));
       }
@@ -709,7 +571,7 @@ export class OpeningHoursAdminComponent {
           appliesOn: {
             date: holiday.singleDate ?? ''
           },
-          slots: this.mapSlotsToV2(holiday.slots),
+          slots: mapSlotsToV2(holiday.slots),
           defaultClosed: {
             action: holiday.closedExitType
           }
@@ -727,9 +589,9 @@ export class OpeningHoursAdminComponent {
           scope: 'recurring',
           priority: priority++,
           appliesOn: {
-            recurring: this.mapRecurringToV2(holiday)
+            recurring: mapRecurringToV2(holiday)
           },
-          slots: this.mapSlotsToV2(holiday.slots),
+          slots: mapSlotsToV2(holiday.slots),
           defaultClosed: {
             action: holiday.closedExitType
           }
@@ -749,7 +611,7 @@ export class OpeningHoursAdminComponent {
             dateTo: holiday.rangeEnd ?? '',
             weekdays: holiday.weekdays ?? []
           },
-          slots: this.mapSlotsToV2(holiday.slots),
+          slots: mapSlotsToV2(holiday.slots),
           defaultClosed: {
             action: holiday.closedExitType
           }
@@ -781,132 +643,6 @@ export class OpeningHoursAdminComponent {
       exitOutcomes: this.service.scheduleV2().exitOutcomes,
       rules
     };
-  }
-
-  private mapRuleToHoliday(rule: RuleV2): RecurringHoliday | null {
-    const slots = this.mapSlotsFromV2(rule.slots);
-    const closed = slots.length === 0;
-    const closedExitType = rule.defaultClosed.action;
-
-    if (rule.scope === 'single-date') {
-      return {
-        name: rule.name,
-        rule: 'single-date',
-        singleDate: rule.appliesOn.date ?? '',
-        lengthDays: 1,
-        closed,
-        slots,
-        closedExitType
-      };
-    }
-
-    if (rule.scope === 'date-range') {
-      const rangeStart = rule.appliesOn.dateFrom ?? '';
-      const rangeEnd = rule.appliesOn.dateTo ?? '';
-      return {
-        name: rule.name,
-        rule: 'date-range',
-        rangeStart,
-        rangeEnd,
-        weekdays: rule.appliesOn.weekdays ?? [],
-        lengthDays: this.calculateDateRangeLength(rangeStart, rangeEnd),
-        closed,
-        slots,
-        closedExitType
-      };
-    }
-
-    if (rule.scope !== 'recurring') {
-      return null;
-    }
-
-    const recurring = rule.appliesOn.recurring;
-    if (!recurring) {
-      return null;
-    }
-
-    if (recurring.kind === 'fixed-date') {
-      return {
-        name: rule.name,
-        rule: 'fixed-date',
-        month: recurring.month ?? 1,
-        day: recurring.day ?? 1,
-        lengthDays: recurring.lengthDays ?? 1,
-        closed,
-        slots,
-        closedExitType
-      };
-    }
-
-    if (recurring.kind === 'easter-offset') {
-      return {
-        name: rule.name,
-        rule: 'easter',
-        offsetDays: recurring.offsetDays ?? 0,
-        lengthDays: recurring.lengthDays ?? 1,
-        closed,
-        slots,
-        closedExitType
-      };
-    }
-
-    if (recurring.kind === 'rrule') {
-      return {
-        name: rule.name,
-        rule: 'rrule',
-        rrule: recurring.rrule ?? '',
-        lengthDays: recurring.lengthDays ?? 1,
-        closed,
-        slots,
-        closedExitType
-      };
-    }
-
-    return null;
-  }
-
-  private mapRecurringToV2(
-    holiday: RecurringHoliday
-  ): RuleV2['appliesOn']['recurring'] | undefined {
-    if (holiday.rule === 'fixed-date') {
-      return {
-        kind: 'fixed-date',
-        month: holiday.month,
-        day: holiday.day,
-        lengthDays: holiday.lengthDays
-      };
-    }
-    if (holiday.rule === 'easter') {
-      return {
-        kind: 'easter-offset',
-        offsetDays: holiday.offsetDays,
-        lengthDays: holiday.lengthDays
-      };
-    }
-    if (holiday.rule === 'rrule') {
-      return {
-        kind: 'rrule',
-        rrule: holiday.rrule,
-        lengthDays: holiday.lengthDays
-      };
-    }
-    return undefined;
-  }
-
-  private mapSlotsToV2(slots: RecurringHoliday['slots']): TimeSlotV2[] {
-    return slots.map((slot) => ({
-      start: slot.opensAt,
-      end: slot.closesAt,
-      action: slot.openExitType
-    }));
-  }
-
-  private mapSlotsFromV2(slots: TimeSlotV2[]): RecurringHoliday['slots'] {
-    return slots.map((slot) => ({
-      opensAt: slot.start,
-      closesAt: slot.end,
-      openExitType: slot.action
-    }));
   }
 
   private buildTimeOptions(stepMinutes: number, forCloseTime: boolean): string[] {
@@ -1082,71 +818,6 @@ export class OpeningHoursAdminComponent {
     this.holidayForms.clear();
     sortedControls.forEach(control => this.holidayForms.push(control));
     this.holidayForms.updateValueAndValidity();
-  }
-
-  private createFixedTemplate(
-    id: string,
-    label: string,
-    month: number,
-    day: number,
-    lengthDays: number
-  ): HolidayTemplate {
-    return {
-      id,
-      label,
-      holiday: {
-        name: label,
-        rule: 'fixed-date',
-        month,
-        day,
-        lengthDays,
-        closed: true,
-        slots: [],
-        closedExitType: ExitOutcome.Deny
-      }
-    };
-  }
-
-  private createEasterTemplate(
-    id: string,
-    label: string,
-    offsetDays: number,
-    lengthDays: number
-  ): HolidayTemplate {
-    return {
-      id,
-      label,
-      holiday: {
-        name: label,
-        rule: 'easter',
-        offsetDays,
-        lengthDays,
-        closed: true,
-        slots: [],
-        closedExitType: ExitOutcome.Deny
-      }
-    };
-  }
-
-  private createRRuleTemplate(
-    id: string,
-    label: string,
-    rrule: string,
-    lengthDays: number
-  ): HolidayTemplate {
-    return {
-      id,
-      label,
-      holiday: {
-        name: label,
-        rule: 'rrule',
-        rrule,
-        lengthDays,
-        closed: true,
-        slots: [],
-        closedExitType: ExitOutcome.Deny
-      }
-    };
   }
 
   private buildTimezoneOptions(): TimezoneOption[] {

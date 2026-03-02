@@ -12,9 +12,9 @@ import {
 } from '../opening-hours-admin/opening-hours.model';
 import { OpeningHoursService } from '../opening-hours-admin/opening-hours.service';
 import {
-  getDateForSupportedRRule,
-  getEasterDate,
+  getEasterDate
 } from '../opening-hours-admin/opening-hours-date.utils';
+import { getDateForSupportedRRule } from '../opening-hours-admin/opening-hours-rrule.utils';
 
 type DayView = {
   date: Date;
