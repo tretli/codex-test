@@ -269,6 +269,20 @@ p {
   bottom: -7px;
 }
 
+.port.output.hangup-exit {
+  background: #b42318;
+  display: grid;
+  place-items: center;
+}
+
+.hangup-mark {
+  color: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .port.output.collapsed-output {
   pointer-events: none;
 }

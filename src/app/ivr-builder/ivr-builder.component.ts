@@ -135,6 +135,7 @@ type IvrExportDocument = {
 };
 
 const LINK_FIELD_PATTERN = /(moduleid$|^exits\d+$)/i;
+const HANGUP_EXIT_VALUE = -1;
 const BASE_FIELD_SCHEMAS: ReadonlyArray<FieldSchema> = [
   { key: 'order', label: 'Order', kind: 'number' },
   { key: 'serviceGroupId', label: 'Service group ID', kind: 'number' },
@@ -631,7 +632,23 @@ export class IvrBuilderComponent {
   }
 
   linkFieldValue(node: BuilderNode, field: string): number {
-    return this.asPositiveId(node.module[field]) ?? 0;
+    const raw = node.module[field];
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      if (raw === HANGUP_EXIT_VALUE) {
+        return HANGUP_EXIT_VALUE;
+      }
+      return raw > 0 ? raw : 0;
+    }
+    if (typeof raw === 'string') {
+      const parsed = Number(raw.trim());
+      if (Number.isFinite(parsed)) {
+        if (parsed === HANGUP_EXIT_VALUE) {
+          return HANGUP_EXIT_VALUE;
+        }
+        return parsed > 0 ? parsed : 0;
+      }
+    }
+    return 0;
   }
 
   outputPortLeft(node: BuilderNode, field: string): number {
@@ -662,6 +679,9 @@ export class IvrBuilderComponent {
     const targetId = this.linkFieldValue(node, field);
     const target = this.nodes().find((item) => item.module.id === targetId);
     const fieldLabel = this.toLabel(field);
+    if (targetId === HANGUP_EXIT_VALUE) {
+      return `${fieldLabel}: Hangup`;
+    }
     if (targetId <= 0) {
       return `${fieldLabel}: No target`;
     }
@@ -1700,23 +1720,49 @@ export class IvrBuilderComponent {
 
     for (let i = 0; i < 6; i += 1) {
       for (let layer = 1; layer < layers.length; layer += 1) {
-        this.sortLayerByNeighbors(layers[layer], layers[layer - 1], incoming);
+        this.sortLayerByNeighbors(
+          layers[layer],
+          layers[layer - 1],
+          incoming,
+          layers[layer + 1] ?? [],
+          outgoing
+        );
       }
       for (let layer = layers.length - 2; layer >= 0; layer -= 1) {
-        this.sortLayerByNeighbors(layers[layer], layers[layer + 1], outgoing);
+        this.sortLayerByNeighbors(
+          layers[layer],
+          layers[layer + 1],
+          outgoing,
+          layers[layer - 1] ?? [],
+          incoming
+        );
       }
     }
 
     return layers;
   }
 
-  private sortLayerByNeighbors(layer: number[], neighborLayer: number[], neighbors: Map<number, number[]>): void {
+  isHangupExit(node: BuilderNode, field: string): boolean {
+    return this.linkFieldValue(node, field) === HANGUP_EXIT_VALUE;
+  }
+
+  private sortLayerByNeighbors(
+    layer: number[],
+    neighborLayer: number[],
+    neighbors: Map<number, number[]>,
+    secondaryLayer: number[],
+    secondaryNeighbors: Map<number, number[]>
+  ): void {
     const neighborRank = new Map<number, number>();
     neighborLayer.forEach((id, index) => neighborRank.set(id, index));
+    const secondaryNeighborRank = new Map<number, number>();
+    secondaryLayer.forEach((id, index) => secondaryNeighborRank.set(id, index));
+    const initialIndex = new Map<number, number>();
+    layer.forEach((id, index) => initialIndex.set(id, index));
 
-    const score = (id: number): number => {
-      const ranked = (neighbors.get(id) ?? [])
-        .map((neighborId) => neighborRank.get(neighborId))
+    const score = (id: number, map: Map<number, number[]>, rankMap: Map<number, number>): number => {
+      const ranked = (map.get(id) ?? [])
+        .map((neighborId) => rankMap.get(neighborId))
         .filter((value): value is number => value !== undefined)
         .sort((a, b) => a - b);
       if (ranked.length === 0) {
@@ -1727,13 +1773,30 @@ export class IvrBuilderComponent {
     };
 
     layer.sort((a, b) => {
-      const scoreA = score(a);
-      const scoreB = score(b);
+      const scoreA = score(a, neighbors, neighborRank);
+      const scoreB = score(b, neighbors, neighborRank);
       const finiteA = Number.isFinite(scoreA);
       const finiteB = Number.isFinite(scoreB);
       if (finiteA && finiteB) {
         const delta = scoreA - scoreB;
-        return delta === 0 ? a - b : delta;
+        if (delta !== 0) {
+          return delta;
+        }
+        const secondaryScoreA = score(a, secondaryNeighbors, secondaryNeighborRank);
+        const secondaryScoreB = score(b, secondaryNeighbors, secondaryNeighborRank);
+        const secondaryFiniteA = Number.isFinite(secondaryScoreA);
+        const secondaryFiniteB = Number.isFinite(secondaryScoreB);
+        if (secondaryFiniteA && secondaryFiniteB) {
+          const secondaryDelta = secondaryScoreA - secondaryScoreB;
+          if (secondaryDelta !== 0) {
+            return secondaryDelta;
+          }
+        } else if (secondaryFiniteA) {
+          return -1;
+        } else if (secondaryFiniteB) {
+          return 1;
+        }
+        return (initialIndex.get(a) ?? 0) - (initialIndex.get(b) ?? 0);
       }
       if (finiteA) {
         return -1;
@@ -1741,7 +1804,7 @@ export class IvrBuilderComponent {
       if (finiteB) {
         return 1;
       }
-      return a - b;
+      return (initialIndex.get(a) ?? 0) - (initialIndex.get(b) ?? 0);
     });
   }
 

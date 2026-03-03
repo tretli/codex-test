@@ -221,10 +221,13 @@
             [hidden]="selectedModuleId() !== node.module.id"
             type="button"
             class="port output"
+            [class.hangup-exit]="isHangupExit(node, field)"
             [style.left.px]="outputPortLeft(node, field)"
             (pointerdown)="setCanvasRef(canvasRoot); startConnectionDrag(node, field, $event)"
             [title]="outputPortTooltip(node, field)"
-          ></button>
+          >
+            <span *ngIf="isHangupExit(node, field)" class="hangup-mark">X</span>
+          </button>
         </article>
       </div>
 
@@ -281,6 +284,7 @@
                   (ngModelChange)="updateFieldValue(selected.module.id, field.key, 'link', $event)"
                 >
                   <option [ngValue]="0">No target</option>
+                  <option [ngValue]="-1">Hangup</option>
                   <option *ngFor="let target of moduleTargets(selected)" [ngValue]="target.id">
                     {{ target.label }}
                   </option>
