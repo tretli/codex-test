@@ -1,0 +1,16 @@
+<section class="json-panel">
+  <h2>Backend JSON Model</h2>
+  <p>Paste your module array, then import to build the graph.</p>
+  <textarea
+    rows="12"
+    [ngModel]="jsonInput"
+    (ngModelChange)="jsonInputChange.emit($event)"
+  ></textarea>
+  <div class="panel-actions">
+    <button type="button" (click)="importJson.emit()">Import JSON</button>
+    <button type="button" class="secondary" (click)="loadSample.emit()">
+      Load sample
+    </button>
+  </div>
+  <p class="validation-error" *ngIf="parseError">{{ parseError }}</p>
+</section>

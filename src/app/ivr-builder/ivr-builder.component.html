@@ -9,22 +9,13 @@
     <a routerLink="/main-menu" class="back-link">Back to Main Menu</a>
   </header>
 
-  <section class="json-panel">
-    <h2>Backend JSON Model</h2>
-    <p>Paste your module array, then import to build the graph.</p>
-    <textarea
-      rows="12"
-      [ngModel]="jsonInput()"
-      (ngModelChange)="jsonInput.set($event)"
-    ></textarea>
-    <div class="panel-actions">
-      <button type="button" (click)="importFromJson()">Import JSON</button>
-      <button type="button" class="secondary" (click)="resetToSample()">
-        Load sample
-      </button>
-    </div>
-    <p class="validation-error" *ngIf="parseError()">{{ parseError() }}</p>
-  </section>
+  <!-- <app-ivr-json-model-panel
+    [jsonInput]="jsonInput()"
+    [parseError]="parseError()"
+    (jsonInputChange)="jsonInput.set($event)"
+    (importJson)="importFromJson()"
+    (loadSample)="resetToSample()"
+  ></app-ivr-json-model-panel> -->
 
   <section class="palette">
     <h2>Add Module</h2>

@@ -3,6 +3,7 @@ import { Component, HostListener, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IvrCanvasComponent } from './ivr-canvas.component';
+import { IvrJsonModelPanelComponent } from './ivr-json-model-panel.component';
 import {
   BuilderNode as CanvasBuilderNode,
   CanvasExtent,
@@ -212,7 +213,7 @@ const TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
 @Component({
   selector: 'app-ivr-builder',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IvrCanvasComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IvrCanvasComponent, IvrJsonModelPanelComponent],
   templateUrl: './ivr-builder.component.html',
   styleUrl: './ivr-builder.component.scss'
 })

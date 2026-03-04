@@ -1,0 +1,52 @@
+.json-panel {
+  background: #fff;
+  border: 1px solid #d6deea;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+}
+
+h2,
+p {
+  margin: 0;
+}
+
+.panel-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+textarea,
+button {
+  font: inherit;
+}
+
+textarea {
+  width: 100%;
+  min-height: 220px;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.625rem;
+}
+
+button {
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  color: #fff;
+  background: #1f6feb;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #4b5563;
+}
+
+.validation-error {
+  margin-top: 0.5rem;
+  color: #b42318;
+}
