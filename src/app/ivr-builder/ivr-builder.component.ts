@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { IvrCanvasComponent } from './ivr-canvas.component';
 import { DEFAULT_IVR_SAMPLE_MODULES } from './ivr-sample-data';
 
 type IvrModuleRecord = {
@@ -251,7 +252,7 @@ const TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
 @Component({
   selector: 'app-ivr-builder',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, IvrCanvasComponent],
   templateUrl: './ivr-builder.component.html',
   styleUrl: './ivr-builder.component.scss'
 })
@@ -476,6 +477,16 @@ export class IvrBuilderComponent {
   readonly serializedModules = computed(() => JSON.stringify(this.exportDocument(), null, 2));
   readonly moduleCount = computed(() => this.nodes().length);
   readonly connectionCount = computed(() => this.renderedConnections().length);
+  readonly moduleTypeColorFn = (serviceModuleTypeId: number): string => this.moduleTypeColor(serviceModuleTypeId);
+  readonly moduleTypeLabelFn = (serviceModuleTypeId: number): string => this.moduleTypeLabel(serviceModuleTypeId);
+  readonly nodeLinkFieldsFn = (node: BuilderNode): string[] => this.nodeLinkFields(node);
+  readonly outputPortLeftFn = (node: BuilderNode, field: string): number => this.outputPortLeft(node, field);
+  readonly inputPortLeftFn = (node: BuilderNode): number => this.inputPortLeft(node);
+  readonly collapsedOutputPortLeftFn = (node: BuilderNode): number => this.collapsedOutputPortLeft(node);
+  readonly isHangupExitFn = (node: BuilderNode, field: string): boolean => this.isHangupExit(node, field);
+  readonly outputPortTooltipFn = (node: BuilderNode, field: string): string => this.outputPortTooltip(node, field);
+  readonly connectionAnchorXFn = (connection: RenderedConnection): number => this.connectionAnchorX(connection);
+  readonly connectionAnchorYFn = (connection: RenderedConnection): number => this.connectionAnchorY(connection);
 
   constructor() {
     this.importFromJson();

@@ -65,171 +65,44 @@
       </label>
     </div>
     <div class="canvas-workspace">
-      <div
-        class="canvas"
-        #canvasRoot
-        (pointerenter)="setCanvasRef(canvasRoot)"
-        (pointerdown)="clearSelectionIfCanvasBackground($event)"
-      (pointermove)="onCanvasPointerMove($event)"
-      (pointerup)="onCanvasPointerUp($event)"
-      (pointercancel)="onCanvasPointerUp($event)"
-    >
-        <div
-          class="canvas-size-proxy"
-          [style.width.px]="canvasExtent().width"
-          [style.height.px]="canvasExtent().height"
-        ></div>
-        <div
-          class="canvas-grid"
-          [style.width.px]="canvasExtent().width"
-          [style.height.px]="canvasExtent().height"
-        ></div>
-        <div
-          class="unlinked-zone"
-          *ngIf="unlinkedZone() as zone"
-          [style.left.px]="zone.x"
-          [style.top.px]="zone.y"
-          [style.width.px]="zone.width"
-          [style.height.px]="zone.height"
-        >
-          <span class="unlinked-zone__label">Unlinked modules ({{ zone.count }})</span>
-        </div>
-        <svg
-          class="connections"
-          [attr.width]="canvasExtent().width"
-          [attr.height]="canvasExtent().height"
-          [attr.viewBox]="'0 0 ' + canvasExtent().width + ' ' + canvasExtent().height"
-        >
-        <defs>
-          <marker
-            id="arrowhead"
-            markerWidth="10"
-            markerHeight="7"
-              refX="8"
-              refY="3.5"
-              orient="auto"
-          >
-            <polygon points="0 0, 10 3.5, 0 7"></polygon>
-          </marker>
-          <mask
-            id="connection-mask"
-            maskUnits="userSpaceOnUse"
-            maskContentUnits="userSpaceOnUse"
-          >
-            <rect
-              [attr.x]="0"
-              [attr.y]="0"
-              [attr.width]="canvasExtent().width"
-              [attr.height]="canvasExtent().height"
-              fill="white"
-            ></rect>
-            <rect
-              *ngFor="let node of nodes(); trackBy: trackByNode"
-              [attr.x]="node.x"
-              [attr.y]="node.y"
-              [attr.width]="nodeWidth"
-              [attr.height]="collapsedNodeHeight"
-              fill="black"
-            ></rect>
-          </mask>
-        </defs>
-          <path
-            *ngFor="let connection of renderedConnections(); trackBy: trackByConnection"
-            [attr.d]="connection.path"
-            class="connection-hitline"
-            mask="url(#connection-mask)"
-            [attr.title]="connection.tooltip"
-            (pointerdown)="startConnectionAnchorDrag(connection, $event)"
-            (mouseenter)="showConnectionTooltip(connection, $event)"
-            (mousemove)="moveConnectionTooltip($event)"
-            (mouseleave)="hideConnectionTooltip()"
-            (dblclick)="removeConnection(connection)"
-          ></path>
-          <path
-            *ngFor="let connection of renderedConnections(); trackBy: trackByConnection"
-            [attr.d]="connection.path"
-            [style.--connection-color]="connection.color"
-            marker-end="url(#arrowhead)"
-            mask="url(#connection-mask)"
-            class="connection-line"
-          ></path>
-          <circle
-            *ngFor="let connection of renderedConnections(); trackBy: trackByConnection"
-            [attr.cx]="connectionAnchorX(connection)"
-            [attr.cy]="connectionAnchorY(connection)"
-            [attr.r]="6"
-            class="connection-anchor"
-            [class.active]="selectedConnectionId() === connection.id"
-            [hidden]="connectionRouteStyle() !== 'curved'"
-            (pointerdown)="startAnchorHandleDrag(connection, $event)"
-          ></circle>
-          <path
-            *ngIf="connectionDraft()"
-            [attr.d]="draftPath()"
-            [style.--connection-color]="draftColor()"
-            marker-end="url(#arrowhead)"
-            mask="url(#connection-mask)"
-            class="connection-line draft"
-          ></path>
-        </svg>
-        <div
-          class="connection-tooltip"
-          *ngIf="connectionTooltip() as tooltip"
-          [style.left.px]="tooltip.x"
-          [style.top.px]="tooltip.y"
-        >
-          {{ tooltip.text }}
-        </div>
-
-        <article
-          class="module-card collapsed"
-          *ngFor="let node of nodes(); trackBy: trackByNode"
-          [class.selected]="selectedModuleId() === node.module.id"
-          [attr.data-module-id]="node.module.id"
-          [style.--module-color]="moduleTypeColor(node.module.serviceModuleTypeId)"
-          [style.left.px]="node.x"
-          [style.top.px]="node.y"
-          (pointerdown)="setCanvasRef(canvasRoot); selectModule(node.module.id); startModuleDrag(node.module.id, $event)"
-        >
-          <div class="card-head">
-            <strong>{{ node.module.name || 'Unnamed module' }}</strong>
-          </div>
-
-          <p class="meta">
-            ID {{ node.module.id }} | {{ moduleTypeLabel(node.module.serviceModuleTypeId) }}
-            ({{ node.module.serviceModuleTypeId }})
-          </p>
-
-          <button
-            *ngIf="selectedModuleId() === node.module.id"
-            type="button"
-            class="port input"
-            [attr.data-port-input]="node.module.id"
-            [style.left.px]="inputPortLeft(node)"
-            title="Drop an arrow here"
-          ></button>
-          <button
-            *ngIf="selectedModuleId() !== node.module.id && nodeLinkFields(node).length > 0"
-            type="button"
-            class="port output collapsed-output"
-            [style.left.px]="collapsedOutputPortLeft(node)"
-            tabindex="-1"
-            aria-hidden="true"
-          ></button>
-          <button
-            *ngFor="let field of nodeLinkFields(node)"
-            [hidden]="selectedModuleId() !== node.module.id"
-            type="button"
-            class="port output"
-            [class.hangup-exit]="isHangupExit(node, field)"
-            [style.left.px]="outputPortLeft(node, field)"
-            (pointerdown)="setCanvasRef(canvasRoot); startConnectionDrag(node, field, $event)"
-            [title]="outputPortTooltip(node, field)"
-          >
-            <span *ngIf="isHangupExit(node, field)" class="hangup-mark">X</span>
-          </button>
-        </article>
-      </div>
+      <app-ivr-canvas
+        [canvasExtent]="canvasExtent()"
+        [unlinkedZone]="unlinkedZone()"
+        [renderedConnections]="renderedConnections()"
+        [connectionDraft]="connectionDraft()"
+        [draftPath]="draftPath()"
+        [draftColor]="draftColor()"
+        [connectionTooltip]="connectionTooltip()"
+        [nodes]="nodes()"
+        [selectedModuleId]="selectedModuleId()"
+        [selectedConnectionId]="selectedConnectionId()"
+        [routeStyle]="connectionRouteStyle()"
+        [nodeWidth]="nodeWidth"
+        [collapsedNodeHeight]="collapsedNodeHeight"
+        [moduleTypeColor]="moduleTypeColorFn"
+        [moduleTypeLabel]="moduleTypeLabelFn"
+        [nodeLinkFields]="nodeLinkFieldsFn"
+        [outputPortLeft]="outputPortLeftFn"
+        [inputPortLeft]="inputPortLeftFn"
+        [collapsedOutputPortLeft]="collapsedOutputPortLeftFn"
+        [isHangupExit]="isHangupExitFn"
+        [outputPortTooltip]="outputPortTooltipFn"
+        [connectionAnchorX]="connectionAnchorXFn"
+        [connectionAnchorY]="connectionAnchorYFn"
+        (canvasReady)="setCanvasRef($event)"
+        (backgroundPointerDown)="clearSelectionIfCanvasBackground($event)"
+        (canvasPointerMove)="onCanvasPointerMove($event)"
+        (canvasPointerUp)="onCanvasPointerUp($event)"
+        (canvasPointerCancel)="onCanvasPointerUp($event)"
+        (modulePointerDown)="selectModule($event.moduleId); startModuleDrag($event.moduleId, $event.event)"
+        (outputPortPointerDown)="startConnectionDrag($event.node, $event.field, $event.event)"
+        (connectionHitPointerDown)="startConnectionAnchorDrag($event.connection, $event.event)"
+        (connectionAnchorPointerDown)="startAnchorHandleDrag($event.connection, $event.event)"
+        (connectionEnter)="showConnectionTooltip($event.connection, $event.event)"
+        (connectionMove)="moveConnectionTooltip($event)"
+        (connectionLeave)="hideConnectionTooltip()"
+        (connectionRemove)="removeConnection($event)"
+      ></app-ivr-canvas>
 
       <aside class="module-details-panel">
         <h3>Module Details</h3>
