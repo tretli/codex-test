@@ -1,0 +1,123 @@
+<h3>Module Details</h3>
+<ng-container *ngIf="selectedNode as selected; else noModuleSelected">
+  <p class="meta">
+    ID {{ selected.module.id }} | {{ moduleTypeLabel(selected.module.serviceModuleTypeId) }}
+    ({{ selected.module.serviceModuleTypeId }})
+  </p>
+
+  <label class="field">
+    <span>Name</span>
+    <input
+      type="text"
+      [value]="selected.module.name || ''"
+      (input)="nameChange.emit({ moduleId: selected.module.id, value: $any($event.target).value })"
+    />
+  </label>
+
+  <ng-container [ngSwitch]="selected.module.serviceModuleTypeId">
+    <app-ivr-module-details-hangup
+      *ngSwitchCase="CallModuleType.Hangup"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-hangup>
+    <app-ivr-module-details-info
+      *ngSwitchCase="CallModuleType.Info"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-info>
+    <app-ivr-module-details-time
+      *ngSwitchCase="CallModuleType.Time"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-time>
+    <app-ivr-module-details-queue
+      *ngSwitchCase="CallModuleType.Queue"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-queue>
+    <app-ivr-module-details-number-list-match
+      *ngSwitchCase="CallModuleType.NumberListMatch"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-number-list-match>
+    <app-ivr-module-details-macro
+      *ngSwitchCase="CallModuleType.Macro"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-macro>
+    <app-ivr-module-details-switch
+      *ngSwitchCase="CallModuleType.Switch"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-switch>
+    <app-ivr-module-details-wait
+      *ngSwitchCase="CallModuleType.Wait"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-wait>
+    <app-ivr-module-details-set-var
+      *ngSwitchCase="CallModuleType.SetVar"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-set-var>
+    <app-ivr-module-details-group
+      *ngSwitchCase="CallModuleType.Group"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-group>
+    <app-ivr-module-details-read-dtmf
+      *ngSwitchCase="CallModuleType.ReadDtmf"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-read-dtmf>
+    <app-ivr-module-details-multi-switch
+      *ngSwitchCase="CallModuleType.MultiSwitch"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-multi-switch>
+    <app-ivr-module-details-advanced-menu
+      *ngSwitchCase="CallModuleType.AdvancedMenu"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-advanced-menu>
+    <app-ivr-module-details-session-fields
+      *ngSwitchCase="CallModuleType.SessionFields"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-session-fields>
+    <app-ivr-module-details-contact-lookup
+      *ngSwitchCase="CallModuleType.ContactLookup"
+      [node]="selected"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-contact-lookup>
+    <app-ivr-module-details-generic
+      *ngSwitchDefault
+      [node]="selected"
+      [fields]="fallbackFields()"
+      [moduleTargets]="moduleTargets()"
+      (fieldChange)="onFieldChange($event.field, $event.kind, $event.value)"
+    ></app-ivr-module-details-generic>
+  </ng-container>
+
+  <button type="button" class="danger" (click)="removeModule.emit(selected.module.id)">
+    Remove module
+  </button>
+</ng-container>
+<ng-template #noModuleSelected>
+  <p class="hint">Select a module in the canvas to edit its details.</p>
+</ng-template>

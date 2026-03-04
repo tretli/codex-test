@@ -98,74 +98,14 @@
       ></app-ivr-canvas>
 
       <aside class="module-details-panel">
-        <h3>Module Details</h3>
-        <ng-container *ngIf="selectedNode() as selected; else noModuleSelected">
-          <p class="meta">
-            ID {{ selected.module.id }} | {{ moduleTypeLabel(selected.module.serviceModuleTypeId) }}
-            ({{ selected.module.serviceModuleTypeId }})
-          </p>
-
-          <label class="field">
-            <span>Name</span>
-            <input
-              type="text"
-              [value]="selected.module.name || ''"
-              (input)="updateName(selected.module.id, $any($event.target).value)"
-            />
-          </label>
-
-          <div class="field-grid">
-            <ng-container *ngFor="let field of editableFields(selected)">
-              <label class="field" *ngIf="field.kind === 'string'">
-                <span>{{ field.label }}</span>
-                <input
-                  type="text"
-                  [value]="fieldStringValue(selected, field.key)"
-                  (input)="updateFieldValue(selected.module.id, field.key, 'string', $any($event.target).value)"
-                />
-              </label>
-
-              <label class="field" *ngIf="field.kind === 'number'">
-                <span>{{ field.label }}</span>
-                <input
-                  type="number"
-                  [value]="fieldNumberValue(selected, field.key)"
-                  (input)="updateFieldValue(selected.module.id, field.key, 'number', $any($event.target).value)"
-                />
-              </label>
-
-              <label class="field checkbox" *ngIf="field.kind === 'boolean'">
-                <input
-                  type="checkbox"
-                  [checked]="fieldBooleanValue(selected, field.key)"
-                  (change)="updateFieldValue(selected.module.id, field.key, 'boolean', $any($event.target).checked)"
-                />
-                <span>{{ field.label }}</span>
-              </label>
-
-              <label class="field" *ngIf="field.kind === 'link'">
-                <span>{{ field.label }}</span>
-                <select
-                  [ngModel]="linkFieldValue(selected, field.key)"
-                  (ngModelChange)="updateFieldValue(selected.module.id, field.key, 'link', $event)"
-                >
-                  <option [ngValue]="0">No target</option>
-                  <option [ngValue]="-1">Hangup</option>
-                  <option *ngFor="let target of moduleTargets(selected)" [ngValue]="target.id">
-                    {{ target.label }}
-                  </option>
-                </select>
-              </label>
-            </ng-container>
-          </div>
-
-          <button type="button" class="danger" (click)="removeModule(selected.module.id)">
-            Remove module
-          </button>
-        </ng-container>
-        <ng-template #noModuleSelected>
-          <p class="hint">Select a module in the canvas to edit its details.</p>
-        </ng-template>
+        <app-ivr-module-details-host
+          [selectedNode]="selectedNode()"
+          [nodes]="nodes()"
+          [moduleTypeLabel]="moduleTypeLabelFn"
+          (nameChange)="updateName($event.moduleId, $event.value)"
+          (fieldChange)="updateFieldValue($event.moduleId, $event.field, $event.kind, $event.value)"
+          (removeModule)="removeModule($event)"
+        ></app-ivr-module-details-host>
       </aside>
     </div>
   </section>

@@ -1,0 +1,44 @@
+<div class="field-grid">
+  <ng-container *ngFor="let field of fields">
+    <label class="field" *ngIf="field.kind === 'string'">
+      <span>{{ field.label }}</span>
+      <input
+        type="text"
+        [value]="fieldStringValue(field.key)"
+        (input)="fieldChange.emit({ field: field.key, kind: 'string', value: $any($event.target).value })"
+      />
+    </label>
+
+    <label class="field" *ngIf="field.kind === 'number'">
+      <span>{{ field.label }}</span>
+      <input
+        type="number"
+        [value]="fieldNumberValue(field.key)"
+        (input)="fieldChange.emit({ field: field.key, kind: 'number', value: $any($event.target).value })"
+      />
+    </label>
+
+    <label class="field checkbox" *ngIf="field.kind === 'boolean'">
+      <input
+        type="checkbox"
+        [checked]="fieldBooleanValue(field.key)"
+        (change)="fieldChange.emit({ field: field.key, kind: 'boolean', value: $any($event.target).checked })"
+      />
+      <span>{{ field.label }}</span>
+    </label>
+
+    <label class="field" *ngIf="field.kind === 'link'">
+      <span>{{ field.label }}</span>
+      <select
+        [ngModel]="linkFieldValue(field.key)"
+        (ngModelChange)="fieldChange.emit({ field: field.key, kind: 'link', value: $event })"
+      >
+        <option [ngValue]="0">No target</option>
+        <option [ngValue]="-1">Hangup</option>
+        <option *ngFor="let target of moduleTargets" [ngValue]="target.id">
+          {{ target.label }}
+        </option>
+      </select>
+    </label>
+  </ng-container>
+</div>
