@@ -9,6 +9,8 @@
   border-radius: 0.75rem;
   border: 1px solid #d0d7de;
   background: #fbfdff;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .canvas-size-proxy {
@@ -120,6 +122,8 @@
   touch-action: none;
   cursor: grab;
   z-index: 2;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .module-card.selected {

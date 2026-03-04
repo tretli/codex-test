@@ -713,6 +713,8 @@ export class IvrBuilderComponent {
     if ((event.target as HTMLElement | null)?.closest('.port')) {
       return;
     }
+    event.preventDefault();
+    event.stopPropagation();
     const pointer = this.toCanvasPoint(event);
     if (!pointer) {
       return;
