@@ -145,22 +145,26 @@
         *ngIf="selectedModuleId !== node.module.id && nodeLinkFields(node).length > 0"
         type="button"
         class="port output collapsed-output"
+        [class.hangup-exit]="showCollapsedHangup(node)"
         [style.left.px]="collapsedOutputPortLeft(node)"
         tabindex="-1"
         aria-hidden="true"
-      ></button>
-      <button
-        *ngFor="let field of nodeLinkFields(node)"
-        [hidden]="selectedModuleId !== node.module.id"
-        type="button"
-        class="port output"
-        [class.hangup-exit]="isHangupExit(node, field)"
-        [style.left.px]="outputPortLeft(node, field)"
-        (pointerdown)="onOutputPortPointerDown(node, field, $event)"
-        [title]="outputPortTooltip(node, field)"
       >
-        <span *ngIf="isHangupExit(node, field)" class="hangup-mark">X</span>
+        <span *ngIf="showCollapsedHangup(node)" class="hangup-mark">X</span>
       </button>
+      <ng-container *ngFor="let field of nodeLinkFields(node)">
+        <button
+          *ngIf="selectedModuleId === node.module.id"
+          type="button"
+          class="port output"
+          [class.hangup-exit]="isHangupExit(node, field)"
+          [style.left.px]="outputPortLeft(node, field)"
+          (pointerdown)="onOutputPortPointerDown(node, field, $event)"
+          [title]="outputPortTooltip(node, field)"
+        >
+          <span *ngIf="isHangupExit(node, field)" class="hangup-mark">X</span>
+        </button>
+      </ng-container>
     </article>
   </div>
   <div

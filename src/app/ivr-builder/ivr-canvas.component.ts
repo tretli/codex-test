@@ -175,6 +175,14 @@ export class IvrCanvasComponent implements AfterViewInit {
     this.outputPortPointerDown.emit({ node, field, event });
   }
 
+  showCollapsedHangup(node: BuilderNode): boolean {
+    const fields = this.nodeLinkFields(node);
+    if (fields.length === 0) {
+      return false;
+    }
+    return fields.every((field) => this.isHangupExit(node, field));
+  }
+
   private startPan(event: PointerEvent): void {
     const canvas = this.canvasRoot.nativeElement;
     this.panState = {
