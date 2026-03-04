@@ -2,8 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { IvrCanvasComponent } from './ivr-canvas.component';
-import { IvrJsonModelPanelComponent } from './ivr-json-model-panel.component';
+import { IvrCanvasComponent } from './canvas/ivr-canvas.component';
+import { IvrJsonModelPanelComponent } from './import-modules/ivr-json-model-panel.component';
 import {
   BuilderNode as CanvasBuilderNode,
   CanvasExtent,
@@ -14,7 +14,7 @@ import {
   Point,
   RenderedConnection,
   UnlinkedZone
-} from './ivr-canvas.types';
+} from './canvas/ivr-canvas.types';
 import { DEFAULT_IVR_SAMPLE_MODULES } from './ivr-sample-data';
 
 type IvrModuleRecord = {
