@@ -1,7 +1,7 @@
 export const DEFAULT_IVR_SAMPLE_MODULES = [
     {
         "nextModuleId": 13,
-        "id": -1,
+        "id": 0,
         "guid": "d1c8e5b7-9a0c-4f1b-9c3a-8e7c0d2e6f1b",
         "customerId": 2,
         "serviceModuleTypeId": 34,

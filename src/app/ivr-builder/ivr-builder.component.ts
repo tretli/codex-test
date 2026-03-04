@@ -3,6 +3,17 @@ import { Component, HostListener, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IvrCanvasComponent } from './ivr-canvas.component';
+import {
+  BuilderNode as CanvasBuilderNode,
+  CanvasExtent,
+  CanvasPointerUpEvent,
+  ConnectionDraft,
+  ConnectionRouteStyle,
+  ConnectionTooltip,
+  Point,
+  RenderedConnection,
+  UnlinkedZone
+} from './ivr-canvas.types';
 import { DEFAULT_IVR_SAMPLE_MODULES } from './ivr-sample-data';
 
 type IvrModuleRecord = {
@@ -21,13 +32,6 @@ type ModuleTemplate = {
   preferredLinkField: string;
 };
 
-type BuilderNode = {
-  module: IvrModuleRecord;
-  x: number;
-  y: number;
-  linkField: string;
-};
-
 type DragState = {
   moduleId: number;
   pointerId: number;
@@ -35,31 +39,13 @@ type DragState = {
   offsetY: number;
 };
 
-type ConnectionDraft = {
-  fromId: number;
-  field: string;
-  pointerId: number;
-  startX: number;
-  startY: number;
-  currentX: number;
-  currentY: number;
+type BuilderNode = Omit<CanvasBuilderNode, 'module'> & {
+  module: IvrModuleRecord;
 };
 
 type AnchorDragState = {
   connectionId: string;
   pointerId: number;
-};
-
-type RenderedConnection = {
-  id: string;
-  fromId: number;
-  toId: number;
-  field: string;
-  path: string;
-  start: Point;
-  end: Point;
-  color: string;
-  tooltip: string;
 };
 
 type GraphEdge = {
@@ -72,38 +58,12 @@ type ModuleLink = {
   toId: number;
 };
 
-type UnlinkedZone = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  count: number;
-};
-
-type CanvasExtent = {
-  width: number;
-  height: number;
-};
-
-type ConnectionTooltip = {
-  text: string;
-  x: number;
-  y: number;
-};
-
-type Point = {
-  x: number;
-  y: number;
-};
-
 type Rect = {
   left: number;
   top: number;
   right: number;
   bottom: number;
 };
-
-type ConnectionRouteStyle = 'straight' | 'curved';
 
 type FieldKind = 'string' | 'number' | 'boolean' | 'link';
 type FieldSchema = {
@@ -338,6 +298,7 @@ export class IvrBuilderComponent {
   ];
 
   readonly connectionRouteStyle = signal<ConnectionRouteStyle>('curved');
+  readonly canvasZoom = signal<number>(1);
   readonly jsonInput = signal<string>(JSON.stringify(DEFAULT_IVR_SAMPLE_MODULES, null, 2));
   readonly parseError = signal<string | null>(null);
   readonly nodes = signal<BuilderNode[]>([]);
@@ -494,6 +455,11 @@ export class IvrBuilderComponent {
 
   setCanvasRef(element: HTMLDivElement): void {
     this.canvasRef.set(element);
+  }
+
+  setCanvasZoom(value: number): void {
+    const clamped = Math.min(2.2, Math.max(0.45, value));
+    this.canvasZoom.set(clamped);
   }
 
   resetToSample(): void {
@@ -710,9 +676,6 @@ export class IvrBuilderComponent {
     if (event.button !== 0 || this.connectionDraft()) {
       return;
     }
-    if ((event.target as HTMLElement | null)?.closest('.port')) {
-      return;
-    }
     event.preventDefault();
     event.stopPropagation();
     const pointer = this.toCanvasPoint(event);
@@ -840,25 +803,23 @@ export class IvrBuilderComponent {
     }
   }
 
-  onCanvasPointerUp(event: PointerEvent): void {
-    this.releaseActivePointerCapture(event.pointerId);
+  onCanvasPointerUp(payload: CanvasPointerUpEvent | PointerEvent): void {
+    const pointerEvent = payload instanceof PointerEvent ? payload : payload.event;
+    this.releaseActivePointerCapture(pointerEvent.pointerId);
     const drag = this.dragState();
-    if (drag && drag.pointerId === event.pointerId) {
+    if (drag && drag.pointerId === pointerEvent.pointerId) {
       this.dragState.set(null);
     }
     const anchorDrag = this.anchorDragState();
-    if (anchorDrag && anchorDrag.pointerId === event.pointerId) {
+    if (anchorDrag && anchorDrag.pointerId === pointerEvent.pointerId) {
       this.anchorDragState.set(null);
     }
     const draft = this.connectionDraft();
-    if (!draft || draft.pointerId !== event.pointerId) {
+    if (!draft || draft.pointerId !== pointerEvent.pointerId) {
       return;
     }
-    const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
-    const inputPort = element?.closest('[data-port-input]') as HTMLElement | null;
-    const moduleCard = element?.closest('.module-card[data-module-id]') as HTMLElement | null;
-    const toId = Number(inputPort?.dataset['portInput'] ?? moduleCard?.dataset['moduleId'] ?? '');
-    if (Number.isFinite(toId) && toId > 0 && toId !== draft.fromId) {
+    const toId = payload instanceof PointerEvent ? null : payload.dropModuleId;
+    if (toId !== null && Number.isFinite(toId) && toId > 0 && toId !== draft.fromId) {
       this.updateNodeModule(draft.fromId, (module) => ({ ...module, [draft.field]: toId }));
     }
     this.connectionDraft.set(null);
@@ -989,18 +950,16 @@ export class IvrBuilderComponent {
     panel?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
-  clearSelectionIfCanvasBackground(event: PointerEvent): void {
-    const target = event.target as HTMLElement | null;
-    if (!target) {
+  onModulePointerDown(moduleId: number, event: PointerEvent): void {
+    if (event.button !== 0) {
       return;
     }
-    if (
-      target.closest('.module-card') ||
-      target.closest('.port') ||
-      target.closest('.connection-line') ||
-      target.closest('.connection-hitline') ||
-      target.closest('.connection-anchor')
-    ) {
+    this.selectModule(moduleId);
+    this.startModuleDrag(moduleId, event);
+  }
+
+  clearSelectionIfCanvasBackground(event: PointerEvent): void {
+    if (event.button !== 0) {
       return;
     }
     this.selectedModuleId.set(null);
@@ -1219,9 +1178,10 @@ export class IvrBuilderComponent {
       return null;
     }
     const rect = canvas.getBoundingClientRect();
+    const zoom = this.canvasZoom();
     return {
-      x: event.clientX - rect.left + canvas.scrollLeft,
-      y: event.clientY - rect.top + canvas.scrollTop
+      x: (event.clientX - rect.left + canvas.scrollLeft) / zoom,
+      y: (event.clientY - rect.top + canvas.scrollTop) / zoom
     };
   }
 
@@ -1338,12 +1298,9 @@ export class IvrBuilderComponent {
   }
 
   private captureCanvasPointer(pointerId: number): void {
-    const canvas = this.canvasRef() ?? (document.querySelector('.canvas') as HTMLDivElement | null);
+    const canvas = this.canvasRef();
     if (!canvas) {
       return;
-    }
-    if (this.canvasRef() !== canvas) {
-      this.canvasRef.set(canvas);
     }
     try {
       if (!canvas.hasPointerCapture(pointerId)) {
@@ -1919,22 +1876,7 @@ export class IvrBuilderComponent {
   }
 
   private measureNodeHeights(): Map<number, number> {
-    const heights = new Map<number, number>();
-    const canvas = this.canvasRef() ?? (document.querySelector('.canvas') as HTMLDivElement | null);
-    if (!canvas) {
-      return heights;
-    }
-    canvas.querySelectorAll<HTMLElement>('.module-card[data-module-id]').forEach((element) => {
-      const id = Number(element.dataset['moduleId'] ?? '');
-      if (!Number.isFinite(id) || id <= 0) {
-        return;
-      }
-      const height = element.getBoundingClientRect().height;
-      if (height > 0) {
-        heights.set(id, Math.ceil(height));
-      }
-    });
-    return heights;
+    return new Map<number, number>();
   }
 
   private nodeHeight(node: BuilderNode, measuredHeights?: Map<number, number>): number {

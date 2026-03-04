@@ -4,6 +4,7 @@
 
 .canvas {
   position: relative;
+  height: 72vh;
   min-height: 72vh;
   overflow: auto;
   border-radius: 0.75rem;
@@ -16,6 +17,13 @@
 .canvas-size-proxy {
   position: relative;
   pointer-events: none;
+}
+
+.canvas-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
 }
 
 .canvas-grid {
