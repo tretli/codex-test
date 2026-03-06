@@ -92,7 +92,6 @@ export enum CallModuleType2 {
 }
 
 export interface IvBuilderModule {
-    toIvrModuleRecord(): IvrModuleRecord;
     toServiceModuleCanvasElement(
         index: number,
         defaultLinkFieldResolver?: (module: IvrModuleRecord) => string
@@ -121,7 +120,7 @@ export type ServiceModuleLike = {
 
 export type IvrModuleRecord =
     ServiceModuleLike &
-    Partial<Pick<IvBuilderModule, 'toIvrModuleRecord' | 'toServiceModuleCanvasElement'>>;
+    Partial<Pick<IvBuilderModule, 'toServiceModuleCanvasElement'>>;
 
 export interface ServiceModuleCanvasElement<TModule extends ServiceModuleLike = ServiceModuleLike> {
     module: TModule;
@@ -260,17 +259,11 @@ export function toServiceModuleCanvasElement<TModule extends ServiceModuleLike>(
     };
 }
 
-type IvrBuilderModuleMethods = Pick<IvBuilderModule, 'toIvrModuleRecord' | 'toServiceModuleCanvasElement'>;
+type IvrBuilderModuleMethods = Pick<IvBuilderModule, 'toServiceModuleCanvasElement'>;
 
-function withIvrBuilderModuleMethods<TModule extends ServiceModuleLike>(module: TModule): TModule & IvrBuilderModuleMethods {
-    const withMethods = module as TModule & IvrBuilderModuleMethods;
-    withMethods.toIvrModuleRecord = () => {
-        const { toIvrModuleRecord, toServiceModuleCanvasElement, ...plain } = (withMethods as unknown as Record<string, unknown>);
-        return plain as IvrModuleRecord;
-    };
-    withMethods.toServiceModuleCanvasElement = (index, defaultLinkFieldResolver) =>
-        toServiceModuleCanvasElement(withMethods, index, defaultLinkFieldResolver);
-    return withMethods;
+export function toIvrModuleRecordFromServiceModule(serviceModule: ServiceModule | ServiceModuleLike): IvrModuleRecord {
+    const { toServiceModuleCanvasElement, ...plain } = (serviceModule as unknown as Record<string, unknown>);
+    return plain as IvrModuleRecord;
 }
 
 export function toServiceModule(input: unknown): ServiceModule | null {
@@ -302,12 +295,8 @@ export function toServiceModule(input: unknown): ServiceModule | null {
                 ? (candidate['serviceGroupId'] as number)
                 : 0,
         callLogVisible: typeof candidate['callLogVisible'] === 'boolean' ? (candidate['callLogVisible'] as boolean) : false,
-        toIvrModuleRecord: () => {
-            const { toIvrModuleRecord, toServiceModuleCanvasElement, ...plain } = (serviceModule as unknown as Record<string, unknown>);
-            return plain as IvrModuleRecord;
-        },
         toServiceModuleCanvasElement: (index, defaultLinkFieldResolver) =>
-            toServiceModuleCanvasElement(serviceModule.toIvrModuleRecord(), index, defaultLinkFieldResolver)
+            toServiceModuleCanvasElement(toIvrModuleRecordFromServiceModule(serviceModule), index, defaultLinkFieldResolver)
     };
 
     return serviceModule;
@@ -315,7 +304,7 @@ export function toServiceModule(input: unknown): ServiceModule | null {
 
 export function toIvrModuleRecord(input: unknown): IvrModuleRecord | null {
     const serviceModule = toServiceModule(input);
-    return serviceModule ? serviceModule.toIvrModuleRecord() : null;
+    return serviceModule ? toIvrModuleRecordFromServiceModule(serviceModule) : null;
 }
 
 
