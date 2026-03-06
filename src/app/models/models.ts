@@ -259,8 +259,6 @@ export function toServiceModuleCanvasElement<TModule extends ServiceModuleLike>(
     };
 }
 
-type IvrBuilderModuleMethods = Pick<IvBuilderModule, 'toServiceModuleCanvasElement'>;
-
 export function toIvrModuleRecordFromServiceModule(serviceModule: ServiceModule | ServiceModuleLike): IvrModuleRecord {
     const { toServiceModuleCanvasElement, ...plain } = (serviceModule as unknown as Record<string, unknown>);
     return plain as IvrModuleRecord;
