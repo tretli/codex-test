@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import {
   BuilderNode,
+  CanvasAction,
   CanvasExtent,
   CanvasPointerUpEvent,
   ConnectionDraft,
@@ -47,20 +48,7 @@ export class IvrCanvasComponent implements AfterViewInit {
   @Input({ required: true }) connectionAnchorX!: (connection: RenderedConnection) => number;
   @Input({ required: true }) connectionAnchorY!: (connection: RenderedConnection) => number;
 
-  @Output() canvasReady = new EventEmitter<HTMLDivElement>();
-  @Output() zoomChange = new EventEmitter<number>();
-  @Output() backgroundPointerDown = new EventEmitter<PointerEvent>();
-  @Output() canvasPointerMove = new EventEmitter<PointerEvent>();
-  @Output() canvasPointerUp = new EventEmitter<CanvasPointerUpEvent>();
-  @Output() canvasPointerCancel = new EventEmitter<PointerEvent>();
-  @Output() modulePointerDown = new EventEmitter<{ moduleId: number; event: PointerEvent }>();
-  @Output() outputPortPointerDown = new EventEmitter<{ node: BuilderNode; field: string; event: PointerEvent }>();
-  @Output() connectionHitPointerDown = new EventEmitter<{ connection: RenderedConnection; event: PointerEvent }>();
-  @Output() connectionAnchorPointerDown = new EventEmitter<{ connection: RenderedConnection; event: PointerEvent }>();
-  @Output() connectionEnter = new EventEmitter<{ connection: RenderedConnection; event: MouseEvent }>();
-  @Output() connectionMove = new EventEmitter<MouseEvent>();
-  @Output() connectionLeave = new EventEmitter<void>();
-  @Output() connectionRemove = new EventEmitter<RenderedConnection>();
+  @Output() canvasAction = new EventEmitter<CanvasAction>();
 
   private panState: {
     pointerId: number;
@@ -71,11 +59,11 @@ export class IvrCanvasComponent implements AfterViewInit {
   } | null = null;
 
   ngAfterViewInit(): void {
-    this.canvasReady.emit(this.canvasRoot.nativeElement);
+    this.canvasAction.emit({ type: 'canvasReady', element: this.canvasRoot.nativeElement });
   }
 
   onCanvasPointerEnter(): void {
-    this.canvasReady.emit(this.canvasRoot.nativeElement);
+    this.canvasAction.emit({ type: 'canvasReady', element: this.canvasRoot.nativeElement });
   }
 
   trackByNode(_index: number, node: BuilderNode): number {
@@ -94,7 +82,7 @@ export class IvrCanvasComponent implements AfterViewInit {
     if (this.isInteractiveTarget(event.target as HTMLElement | null)) {
       return;
     }
-    this.backgroundPointerDown.emit(event);
+    this.canvasAction.emit({ type: 'backgroundPointerDown', event });
   }
 
   onCanvasPointerMove(event: PointerEvent): void {
@@ -108,7 +96,7 @@ export class IvrCanvasComponent implements AfterViewInit {
       event.preventDefault();
       return;
     }
-    this.canvasPointerMove.emit(event);
+    this.canvasAction.emit({ type: 'canvasPointerMove', event });
   }
 
   onCanvasPointerUp(event: PointerEvent): void {
@@ -117,10 +105,11 @@ export class IvrCanvasComponent implements AfterViewInit {
       event.preventDefault();
       return;
     }
-    this.canvasPointerUp.emit({
+    const payload: CanvasPointerUpEvent = {
       event,
       dropModuleId: this.resolveDropModuleId(event)
-    });
+    };
+    this.canvasAction.emit({ type: 'canvasPointerUp', payload });
   }
 
   onCanvasPointerCancel(event: PointerEvent): void {
@@ -129,7 +118,7 @@ export class IvrCanvasComponent implements AfterViewInit {
       event.preventDefault();
       return;
     }
-    this.canvasPointerCancel.emit(event);
+    this.canvasAction.emit({ type: 'canvasPointerCancel', event });
   }
 
   onWheel(event: WheelEvent): void {
@@ -149,7 +138,7 @@ export class IvrCanvasComponent implements AfterViewInit {
     const worldX = scaledX / this.zoom;
     const worldY = scaledY / this.zoom;
 
-    this.zoomChange.emit(nextZoom);
+    this.canvasAction.emit({ type: 'zoomChange', zoom: nextZoom });
 
     const targetScrollLeft = worldX * nextZoom - viewportX;
     const targetScrollTop = worldY * nextZoom - viewportY;
@@ -167,12 +156,36 @@ export class IvrCanvasComponent implements AfterViewInit {
     if ((event.target as HTMLElement | null)?.closest('.port')) {
       return;
     }
-    this.modulePointerDown.emit({ moduleId, event });
+    this.canvasAction.emit({ type: 'modulePointerDown', moduleId, event });
   }
 
   onOutputPortPointerDown(node: BuilderNode, field: string, event: PointerEvent): void {
     event.stopPropagation();
-    this.outputPortPointerDown.emit({ node, field, event });
+    this.canvasAction.emit({ type: 'outputPortPointerDown', node, field, event });
+  }
+
+  onConnectionHitPointerDown(connection: RenderedConnection, event: PointerEvent): void {
+    this.canvasAction.emit({ type: 'connectionHitPointerDown', connection, event });
+  }
+
+  onConnectionAnchorPointerDown(connection: RenderedConnection, event: PointerEvent): void {
+    this.canvasAction.emit({ type: 'connectionAnchorPointerDown', connection, event });
+  }
+
+  onConnectionEnter(connection: RenderedConnection, event: MouseEvent): void {
+    this.canvasAction.emit({ type: 'connectionEnter', connection, event });
+  }
+
+  onConnectionMove(event: MouseEvent): void {
+    this.canvasAction.emit({ type: 'connectionMove', event });
+  }
+
+  onConnectionLeave(): void {
+    this.canvasAction.emit({ type: 'connectionLeave' });
+  }
+
+  onConnectionRemove(connection: RenderedConnection): void {
+    this.canvasAction.emit({ type: 'connectionRemove', connection });
   }
 
   showCollapsedHangup(node: BuilderNode): boolean {

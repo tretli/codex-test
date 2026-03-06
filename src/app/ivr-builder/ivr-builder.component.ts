@@ -14,7 +14,8 @@ import { IvrCanvasComponent } from './canvas/ivr-canvas.component';
 import { IvrJsonModelPanelComponent } from './import-modules/ivr-json-model-panel.component';
 import { IvrModuleDetailsHostComponent } from './module-details/ivr-module-details-host.component';
 import {
-  BuilderNode as CanvasBuilderNode,
+  BuilderNode,
+  CanvasAction,
   CanvasExtent,
   CanvasPointerUpEvent,
   ConnectionDraft,
@@ -39,10 +40,6 @@ type DragState = {
   pointerId: number;
   offsetX: number;
   offsetY: number;
-};
-
-type BuilderNode = Omit<CanvasBuilderNode, 'module'> & {
-  module: IvrModuleRecord;
 };
 
 type AnchorDragState = {
@@ -461,6 +458,53 @@ export class IvrBuilderComponent {
   setCanvasZoom(value: number): void {
     const clamped = Math.min(2.2, Math.max(0.45, value));
     this.canvasZoom.set(clamped);
+  }
+
+  onCanvasAction(action: CanvasAction): void {
+    switch (action.type) {
+      case 'canvasReady':
+        this.setCanvasRef(action.element);
+        return;
+      case 'zoomChange':
+        this.setCanvasZoom(action.zoom);
+        return;
+      case 'backgroundPointerDown':
+        this.clearSelectionIfCanvasBackground(action.event);
+        return;
+      case 'canvasPointerMove':
+        this.onCanvasPointerMove(action.event);
+        return;
+      case 'canvasPointerUp':
+        this.onCanvasPointerUp(action.payload);
+        return;
+      case 'canvasPointerCancel':
+        this.onCanvasPointerUp(action.event);
+        return;
+      case 'modulePointerDown':
+        this.onModulePointerDown(action.moduleId, action.event);
+        return;
+      case 'outputPortPointerDown':
+        this.startConnectionDrag(action.node, action.field, action.event);
+        return;
+      case 'connectionHitPointerDown':
+        this.startConnectionAnchorDrag(action.connection, action.event);
+        return;
+      case 'connectionAnchorPointerDown':
+        this.startAnchorHandleDrag(action.connection, action.event);
+        return;
+      case 'connectionEnter':
+        this.showConnectionTooltip(action.connection, action.event);
+        return;
+      case 'connectionMove':
+        this.moveConnectionTooltip(action.event);
+        return;
+      case 'connectionLeave':
+        this.hideConnectionTooltip();
+        return;
+      case 'connectionRemove':
+        this.removeConnection(action.connection);
+        return;
+    }
   }
 
   resetToSample(): void {

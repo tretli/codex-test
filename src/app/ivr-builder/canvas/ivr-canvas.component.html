@@ -80,11 +80,11 @@
         class="connection-hitline"
         [attr.title]="connection.tooltip"
         mask="url(#connection-mask)"
-        (pointerdown)="connectionHitPointerDown.emit({ connection, event: $event })"
-        (mouseenter)="connectionEnter.emit({ connection, event: $event })"
-        (mousemove)="connectionMove.emit($event)"
-        (mouseleave)="connectionLeave.emit()"
-        (dblclick)="connectionRemove.emit(connection)"
+        (pointerdown)="onConnectionHitPointerDown(connection, $event)"
+        (mouseenter)="onConnectionEnter(connection, $event)"
+        (mousemove)="onConnectionMove($event)"
+        (mouseleave)="onConnectionLeave()"
+        (dblclick)="onConnectionRemove(connection)"
       ></path>
       <path
         *ngFor="let connection of renderedConnections; trackBy: trackByConnection"
@@ -102,7 +102,7 @@
         class="connection-anchor"
         [class.active]="selectedConnectionId === connection.id"
         [hidden]="routeStyle !== 'curved'"
-        (pointerdown)="connectionAnchorPointerDown.emit({ connection, event: $event })"
+        (pointerdown)="onConnectionAnchorPointerDown(connection, $event)"
       ></circle>
       <path
         *ngIf="connectionDraft"

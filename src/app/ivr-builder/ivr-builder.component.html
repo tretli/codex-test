@@ -81,20 +81,7 @@
         [outputPortTooltip]="outputPortTooltipFn"
         [connectionAnchorX]="connectionAnchorXFn"
         [connectionAnchorY]="connectionAnchorYFn"
-        (canvasReady)="setCanvasRef($event)"
-        (zoomChange)="setCanvasZoom($event)"
-        (backgroundPointerDown)="clearSelectionIfCanvasBackground($event)"
-        (canvasPointerMove)="onCanvasPointerMove($event)"
-        (canvasPointerUp)="onCanvasPointerUp($event)"
-        (canvasPointerCancel)="onCanvasPointerUp($event)"
-        (modulePointerDown)="onModulePointerDown($event.moduleId, $event.event)"
-        (outputPortPointerDown)="startConnectionDrag($event.node, $event.field, $event.event)"
-        (connectionHitPointerDown)="startConnectionAnchorDrag($event.connection, $event.event)"
-        (connectionAnchorPointerDown)="startAnchorHandleDrag($event.connection, $event.event)"
-        (connectionEnter)="showConnectionTooltip($event.connection, $event.event)"
-        (connectionMove)="moveConnectionTooltip($event)"
-        (connectionLeave)="hideConnectionTooltip()"
-        (connectionRemove)="removeConnection($event)"
+        (canvasAction)="onCanvasAction($event)"
       ></app-ivr-canvas>
 
       <aside class="module-details-panel">
