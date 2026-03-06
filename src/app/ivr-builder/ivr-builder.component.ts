@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { IvrModuleRecord, toIvrModuleRecord, toServiceModuleCanvasElement } from '../models/models';
 import { IvrCanvasComponent } from './canvas/ivr-canvas.component';
 import { IvrJsonModelPanelComponent } from './import-modules/ivr-json-model-panel.component';
 import { IvrModuleDetailsHostComponent } from './module-details/ivr-module-details-host.component';
@@ -17,14 +18,6 @@ import {
   UnlinkedZone
 } from './canvas/ivr-canvas.types';
 import { DEFAULT_IVR_SAMPLE_MODULES } from './ivr-sample-data';
-
-type IvrModuleRecord = {
-  id: number;
-  serviceModuleTypeId: number;
-  name?: string;
-  order?: number;
-  [key: string]: unknown;
-};
 
 type ModuleTemplate = {
   serviceModuleTypeId: number;
@@ -479,16 +472,14 @@ export class IvrBuilderComponent {
         this.parseError.set('JSON root must be an array or an object with a modules array.');
         return;
       }
-      const modules = moduleSource.filter(
-        (item): item is IvrModuleRecord =>
-          !!item &&
-          typeof item === 'object' &&
-          typeof (item as { id?: unknown }).id === 'number' &&
-          typeof (item as { serviceModuleTypeId?: unknown }).serviceModuleTypeId === 'number'
-      );
-      if (modules.length !== moduleSource.length) {
-        this.parseError.set('Each item must contain numeric id and serviceModuleTypeId.');
-        return;
+      const modules: IvrModuleRecord[] = [];
+      for (const item of moduleSource) {
+        const mapped = toIvrModuleRecord(item);
+        if (!mapped) {
+          this.parseError.set('Each item must contain numeric id and serviceModuleTypeId.');
+          return;
+        }
+        modules.push(mapped);
       }
       const importedNodes = this.modulesToNodes(modules);
       this.nodes.set(importedNodes);
@@ -510,13 +501,14 @@ export class IvrBuilderComponent {
     const id = maxId + 1;
     const count = this.nodes().length;
     const spawn = this.getVisibleSpawnPoint(count);
-    const module: IvrModuleRecord = {
+    const moduleCandidate: IvrModuleRecord = {
       id,
       name: `${template.defaultName} ${id}`,
       serviceModuleTypeId: template.serviceModuleTypeId,
       order: maxOrder + 1,
       ...template.defaults
     };
+    const module = toIvrModuleRecord(moduleCandidate) ?? moduleCandidate;
     this.nodes.update((current) => [
       ...current,
       { module, x: spawn.x, y: spawn.y, linkField: this.defaultLinkField(module) }
@@ -974,12 +966,11 @@ export class IvrBuilderComponent {
       const orderB = typeof b.order === 'number' ? b.order : Number.MAX_SAFE_INTEGER;
       return orderA === orderB ? a.id - b.id : orderA - orderB;
     });
-    return sorted.map((module, index) => ({
-      module: { ...module },
-      x: 80 + (index % 3) * 360,
-      y: 120 + Math.floor(index / 3) * 250,
-      linkField: this.defaultLinkField(module)
-    }));
+    return sorted.map((module, index) =>
+      module.toServiceModuleCanvasElement
+        ? module.toServiceModuleCanvasElement(index, (item) => this.defaultLinkField(item))
+        : toServiceModuleCanvasElement(module, index, (item) => this.defaultLinkField(item))
+    );
   }
 
   private exportModules(): IvrModuleRecord[] {
