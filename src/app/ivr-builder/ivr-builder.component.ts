@@ -2,7 +2,14 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { IvrModuleRecord, toIvrModuleRecord, toServiceModuleCanvasElement } from '../models/models';
+import {
+  getDefaultServiceModuleExitField,
+  getServiceModuleExitFields,
+  getServiceModuleExitLinks,
+  IvrModuleRecord,
+  toIvrModuleRecord,
+  toServiceModuleCanvasElement
+} from '../models/models';
 import { IvrCanvasComponent } from './canvas/ivr-canvas.component';
 import { IvrJsonModelPanelComponent } from './import-modules/ivr-json-model-panel.component';
 import { IvrModuleDetailsHostComponent } from './module-details/ivr-module-details-host.component';
@@ -90,7 +97,6 @@ type IvrExportDocument = {
   layout: IvrLayoutSection;
 };
 
-const LINK_FIELD_PATTERN = /(moduleid$|^exits\d+$)/i;
 const HANGUP_EXIT_VALUE = -1;
 const BASE_FIELD_SCHEMAS: ReadonlyArray<FieldSchema> = [
   { key: 'order', label: 'Order', kind: 'number' },
@@ -573,11 +579,12 @@ export class IvrBuilderComponent {
   editableFields(node: BuilderNode): FieldSchema[] {
     const schemas = [...BASE_FIELD_SCHEMAS, ...(TYPE_SCHEMAS[node.module.serviceModuleTypeId] ?? [])];
     const known = new Set(schemas.map((item) => item.key));
+    const exitFieldSet = new Set(getServiceModuleExitFields(node.module));
     Object.keys(node.module).forEach((key) => {
       if (known.has(key) || ['id', 'serviceModuleTypeId', 'name', 'guid', 'customerId'].includes(key)) {
         return;
       }
-      if (LINK_FIELD_PATTERN.test(key)) {
+      if (exitFieldSet.has(key)) {
         schemas.push({ key, label: this.toLabel(key), kind: 'link' });
       } else if (typeof node.module[key] === 'boolean') {
         schemas.push({ key, label: this.toLabel(key), kind: 'boolean' });
@@ -1066,66 +1073,15 @@ export class IvrBuilderComponent {
   }
 
   private getLinkFields(module: IvrModuleRecord): string[] {
-    const existing = Object.keys(module).filter((key) => LINK_FIELD_PATTERN.test(key));
-    const typed = (TYPE_SCHEMAS[module.serviceModuleTypeId] ?? []).filter((item) => item.kind === 'link').map((item) => item.key);
-    return [...new Set([...typed, ...existing])];
+    return getServiceModuleExitFields(module);
   }
 
   private getModuleLinks(module: IvrModuleRecord): ModuleLink[] {
-    const links: ModuleLink[] = [];
-    const seen = new Set<string>();
-
-    const addLink = (field: string, rawValue: unknown): void => {
-      const toId = this.asPositiveId(rawValue);
-      if (toId === null) {
-        return;
-      }
-      const key = `${field}:${toId}`;
-      if (seen.has(key)) {
-        return;
-      }
-      seen.add(key);
-      links.push({ field, toId });
-    };
-
-    Object.keys(module).forEach((field) => {
-      if (LINK_FIELD_PATTERN.test(field)) {
-        addLink(field, module[field]);
-      }
-    });
-
-    const visit = (value: unknown, path: string, depth: number): void => {
-      if (depth > 4 || value === null || value === undefined) {
-        return;
-      }
-      if (Array.isArray(value)) {
-        value.forEach((item, index) => visit(item, `${path}[${index}]`, depth + 1));
-        return;
-      }
-      if (typeof value !== 'object') {
-        return;
-      }
-      Object.entries(value as Record<string, unknown>).forEach(([key, nested]) => {
-        const nextPath = path ? `${path}.${key}` : key;
-        if (LINK_FIELD_PATTERN.test(key)) {
-          addLink(nextPath, nested);
-        }
-        visit(nested, nextPath, depth + 1);
-      });
-    };
-
-    Object.entries(module).forEach(([key, value]) => {
-      if (!LINK_FIELD_PATTERN.test(key)) {
-        visit(value, key, 1);
-      }
-    });
-
-    return links;
+    return getServiceModuleExitLinks(module);
   }
 
   private defaultLinkField(module: IvrModuleRecord): string {
-    const links = this.getLinkFields(module);
-    return links[0] ?? '';
+    return getDefaultServiceModuleExitField(module);
   }
 
   private clearLinksTo(node: BuilderNode, targetId: number): BuilderNode {

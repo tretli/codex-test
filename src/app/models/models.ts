@@ -91,11 +91,11 @@ export enum CallModuleType2 {
     IVRMacro = 'IVRMacro',
 }
 
-export interface IvBuilderModule{
+export interface IvBuilderModule {
     toIvrModuleRecord(): IvrModuleRecord;
     toServiceModuleCanvasElement(
         index: number,
-        defaultLinkFieldResolver: (module: IvrModuleRecord) => string
+        defaultLinkFieldResolver?: (module: IvrModuleRecord) => string
     ): ServiceModuleCanvasElement<IvrModuleRecord>;
 }
 
@@ -130,119 +130,150 @@ export interface ServiceModuleCanvasElement<TModule extends ServiceModuleLike = 
     linkField: string;
 }
 
+const EXIT_FIELD_PATTERN = /(moduleid$|^exits\d+$)/i;
+
+const MODULE_EXIT_FIELDS_CONFIG: Record<number, ReadonlyArray<string>> = {
+    [CallModuleType.Info]: ['nextModuleId'],
+    [CallModuleType.Time]: ['closedModuleId', 'exits1', 'exits2', 'exits3', 'exits4', 'exits5', 'exits6', 'exits7', 'exits8'],
+    [CallModuleType.Queue]: [
+        'timeoutModuleId',
+        'joinEmptyModuleId',
+        'leaveEmptyModuleId',
+        'joinUnavailModuleId',
+        'leaveUnavailModuleId',
+        'fullModuleId',
+        'continueModuleId',
+        'surveyModuleId'
+    ],
+    [CallModuleType.NumberListMatch]: ['matchModuleId', 'noMatchModuleId'],
+    [CallModuleType.Macro]: ['nextModuleId'],
+    [CallModuleType.Switch]: ['onModuleId', 'offModuleId'],
+    [CallModuleType.Wait]: ['nextModuleId'],
+    [CallModuleType.SetVar]: ['nextModuleId'],
+    [CallModuleType.ReadDtmf]: ['nextModuleId', 'timeoutModuleId'],
+    [CallModuleType.MultiSwitch]: ['noMatchModuleId'],
+    [CallModuleType.AdvancedMenu]: [
+        'key0ModuleId',
+        'key1ModuleId',
+        'key2ModuleId',
+        'key3ModuleId',
+        'key4ModuleId',
+        'key5ModuleId',
+        'key6ModuleId',
+        'key7ModuleId',
+        'key8ModuleId',
+        'key9ModuleId',
+        'keyStarModuleId',
+        'keyHashModuleId',
+        'loopExhaustedModuleId'
+    ],
+    [CallModuleType.SessionFields]: ['nextModuleId'],
+    [CallModuleType.ContactLookup]: ['nextModuleId']
+};
+
+export function getConfiguredExitFields(serviceModuleTypeId: number): string[] {
+    return [...(MODULE_EXIT_FIELDS_CONFIG[serviceModuleTypeId] ?? [])];
+}
+
+export function getServiceModuleExitFields(module: ServiceModuleLike): string[] {
+    const configured = getConfiguredExitFields(module.serviceModuleTypeId);
+    const existing = Object.keys(module).filter((key) => EXIT_FIELD_PATTERN.test(key));
+    return [...new Set([...configured, ...existing])];
+}
+
+export function getServiceModuleExitLinks(module: ServiceModuleLike): Array<{ field: string; toId: number }> {
+    const links: Array<{ field: string; toId: number }> = [];
+    const seen = new Set<string>();
+    const addLink = (field: string, rawValue: unknown): void => {
+        const toId = asPositiveServiceModuleId(rawValue);
+        if (toId === null) {
+            return;
+        }
+        const key = `${field}:${toId}`;
+        if (seen.has(key)) {
+            return;
+        }
+        seen.add(key);
+        links.push({ field, toId });
+    };
+
+    getServiceModuleExitFields(module).forEach((field) => addLink(field, module[field]));
+
+    const visit = (value: unknown, path: string, depth: number): void => {
+        if (depth > 4 || value === null || value === undefined) {
+            return;
+        }
+        if (Array.isArray(value)) {
+            value.forEach((item, index) => visit(item, `${path}[${index}]`, depth + 1));
+            return;
+        }
+        if (typeof value !== 'object') {
+            return;
+        }
+        Object.entries(value as Record<string, unknown>).forEach(([key, nested]) => {
+            const nextPath = path ? `${path}.${key}` : key;
+            if (EXIT_FIELD_PATTERN.test(key)) {
+                addLink(nextPath, nested);
+            }
+            visit(nested, nextPath, depth + 1);
+        });
+    };
+
+    Object.entries(module).forEach(([key, value]) => {
+        if (!EXIT_FIELD_PATTERN.test(key)) {
+            visit(value, key, 1);
+        }
+    });
+
+    return links;
+}
+
+export function getDefaultServiceModuleExitField(module: ServiceModuleLike): string {
+    return getServiceModuleExitFields(module)[0] ?? '';
+}
+
+function asPositiveServiceModuleId(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        return value;
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return null;
+        }
+        const parsed = Number(trimmed);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+    return null;
+}
+
 export function toServiceModuleCanvasElement<TModule extends ServiceModuleLike>(
     module: TModule,
     index: number,
-    defaultLinkFieldResolver: (module: TModule) => string
+    defaultLinkFieldResolver?: (module: TModule) => string
 ): ServiceModuleCanvasElement<TModule> {
     return {
         module: { ...module },
         x: 80 + (index % 3) * 360,
         y: 120 + Math.floor(index / 3) * 250,
-        linkField: defaultLinkFieldResolver(module)
+        linkField: defaultLinkFieldResolver ? defaultLinkFieldResolver(module) : getDefaultServiceModuleExitField(module)
     };
 }
 
 type IvrBuilderModuleMethods = Pick<IvBuilderModule, 'toIvrModuleRecord' | 'toServiceModuleCanvasElement'>;
 
-function withIvrBuilderModuleMethods<TModule extends IvrModuleRecord>(module: TModule): TModule & IvrBuilderModuleMethods {
+function withIvrBuilderModuleMethods<TModule extends ServiceModuleLike>(module: TModule): TModule & IvrBuilderModuleMethods {
     const withMethods = module as TModule & IvrBuilderModuleMethods;
-    withMethods.toIvrModuleRecord = () => ({ ...withMethods });
+    withMethods.toIvrModuleRecord = () => {
+        const { toIvrModuleRecord, toServiceModuleCanvasElement, ...plain } = (withMethods as unknown as Record<string, unknown>);
+        return plain as IvrModuleRecord;
+    };
     withMethods.toServiceModuleCanvasElement = (index, defaultLinkFieldResolver) =>
         toServiceModuleCanvasElement(withMethods, index, defaultLinkFieldResolver);
     return withMethods;
 }
 
-function implementHangupModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementInfoModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementDialModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementTransferModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementTimeModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementMenuModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementQueueModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementConferenceModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementVoicemailModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementContextModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementNumberListMatchModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementNoOpModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementMacroModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementSwitchModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementVarSwitchModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementRandomModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementWaitModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementLoopModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementSetVarModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementGroupExitModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementGroupModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementLoadModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementReadDtmfModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementMultiSwitchModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementAnswerModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementRingingModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementSurveyStartModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementSurveyQuestionModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementSurveyEndModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementAdvancedMenuModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementGroupGotoModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementCommentModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementRoutingApiModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementSessionFieldsModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementBankIdModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementAbsenceInfoModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementIvrMacroModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementScriptModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementContactLookupModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementReturningCallerModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-function implementReturnOutboundModule<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods { return withIvrBuilderModuleMethods(module); }
-
-export function implementServiceModuleTransforms<T extends IvrModuleRecord>(module: T): T & IvrBuilderModuleMethods {
-    switch (module.serviceModuleTypeId) {
-        case CallModuleType.Hangup: return implementHangupModule(module);
-        case CallModuleType.Info: return implementInfoModule(module);
-        case CallModuleType.Dial: return implementDialModule(module);
-        case CallModuleType.Transfer: return implementTransferModule(module);
-        case CallModuleType.Time: return implementTimeModule(module);
-        case CallModuleType.Menu: return implementMenuModule(module);
-        case CallModuleType.Queue: return implementQueueModule(module);
-        case CallModuleType.Conference: return implementConferenceModule(module);
-        case CallModuleType.Voicemail: return implementVoicemailModule(module);
-        case CallModuleType.Context: return implementContextModule(module);
-        case CallModuleType.NumberListMatch: return implementNumberListMatchModule(module);
-        case CallModuleType.NoOp: return implementNoOpModule(module);
-        case CallModuleType.Macro: return implementMacroModule(module);
-        case CallModuleType.Switch: return implementSwitchModule(module);
-        case CallModuleType.VarSwitch: return implementVarSwitchModule(module);
-        case CallModuleType.Random: return implementRandomModule(module);
-        case CallModuleType.Wait: return implementWaitModule(module);
-        case CallModuleType.Loop: return implementLoopModule(module);
-        case CallModuleType.SetVar: return implementSetVarModule(module);
-        case CallModuleType.GroupExit: return implementGroupExitModule(module);
-        case CallModuleType.Group: return implementGroupModule(module);
-        case CallModuleType.Load: return implementLoadModule(module);
-        case CallModuleType.ReadDtmf: return implementReadDtmfModule(module);
-        case CallModuleType.MultiSwitch: return implementMultiSwitchModule(module);
-        case CallModuleType.Answer: return implementAnswerModule(module);
-        case CallModuleType.Ringing: return implementRingingModule(module);
-        case CallModuleType.SurveyStart: return implementSurveyStartModule(module);
-        case CallModuleType.SurveyQuestion: return implementSurveyQuestionModule(module);
-        case CallModuleType.SurveyEnd: return implementSurveyEndModule(module);
-        case CallModuleType.AdvancedMenu: return implementAdvancedMenuModule(module);
-        case CallModuleType.GroupGoto: return implementGroupGotoModule(module);
-        case CallModuleType.Comment: return implementCommentModule(module);
-        case CallModuleType.RoutingApi: return implementRoutingApiModule(module);
-        case CallModuleType.SessionFields: return implementSessionFieldsModule(module);
-        case CallModuleType.BankId: return implementBankIdModule(module);
-        case CallModuleType.AbsenceInfo: return implementAbsenceInfoModule(module);
-        case CallModuleType.IvrMacro: return implementIvrMacroModule(module);
-        case CallModuleType.Script: return implementScriptModule(module);
-        case CallModuleType.ContactLookup: return implementContactLookupModule(module);
-        case CallModuleType.ReturningCaller: return implementReturningCallerModule(module);
-        case CallModuleType.ReturnOutbound: return implementReturnOutboundModule(module);
-        default: return withIvrBuilderModuleMethods(module);
-    }
-}
-
-export function toIvrModuleRecord(input: unknown): IvrModuleRecord | null {
+export function toServiceModule(input: unknown): ServiceModule | null {
     if (!input || typeof input !== 'object') {
         return null;
     }
@@ -258,25 +289,33 @@ export function toIvrModuleRecord(input: unknown): IvrModuleRecord | null {
         return null;
     }
 
-    const mapped: IvrModuleRecord = {
-        ...(candidate as IvrModuleRecord),
+    const serviceModule: ServiceModule = {
+        ...(candidate as Record<string, unknown>),
         id,
-        serviceModuleTypeId
+        serviceModuleTypeId: serviceModuleTypeId as CallModuleType,
+        customerId: typeof candidate['customerId'] === 'number' && Number.isFinite(candidate['customerId']) ? (candidate['customerId'] as number) : 0,
+        locationId: typeof candidate['locationId'] === 'number' && Number.isFinite(candidate['locationId']) ? (candidate['locationId'] as number) : 0,
+        name: typeof candidate['name'] === 'string' ? (candidate['name'] as string) : String(candidate['name'] ?? ''),
+        order: typeof candidate['order'] === 'number' && Number.isFinite(candidate['order']) ? (candidate['order'] as number) : 0,
+        serviceGroupId:
+            typeof candidate['serviceGroupId'] === 'number' && Number.isFinite(candidate['serviceGroupId'])
+                ? (candidate['serviceGroupId'] as number)
+                : 0,
+        callLogVisible: typeof candidate['callLogVisible'] === 'boolean' ? (candidate['callLogVisible'] as boolean) : false,
+        toIvrModuleRecord: () => {
+            const { toIvrModuleRecord, toServiceModuleCanvasElement, ...plain } = (serviceModule as unknown as Record<string, unknown>);
+            return plain as IvrModuleRecord;
+        },
+        toServiceModuleCanvasElement: (index, defaultLinkFieldResolver) =>
+            toServiceModuleCanvasElement(serviceModule.toIvrModuleRecord(), index, defaultLinkFieldResolver)
     };
 
-    if (candidate['name'] !== undefined && candidate['name'] !== null && typeof candidate['name'] !== 'string') {
-        mapped.name = String(candidate['name']);
-    }
-    if (candidate['order'] !== undefined && typeof candidate['order'] !== 'number') {
-        const parsedOrder = Number(candidate['order']);
-        if (Number.isFinite(parsedOrder)) {
-            mapped.order = parsedOrder;
-        } else {
-            delete mapped.order;
-        }
-    }
+    return serviceModule;
+}
 
-    return implementServiceModuleTransforms(mapped);
+export function toIvrModuleRecord(input: unknown): IvrModuleRecord | null {
+    const serviceModule = toServiceModule(input);
+    return serviceModule ? serviceModule.toIvrModuleRecord() : null;
 }
 
 
