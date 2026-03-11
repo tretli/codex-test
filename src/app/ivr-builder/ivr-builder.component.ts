@@ -7,8 +7,8 @@ import {
   getServiceModuleExitFields,
   getServiceModuleExitLinks,
   IvrModuleRecord,
-  toIvrModuleRecord,
-  toServiceModuleCanvasElement
+  ServiceModuleLike,
+  toIvrModuleRecord
 } from '../models/models';
 import { IvrCanvasComponent } from './canvas/ivr-canvas.component';
 import { IvrModuleDetailsHostComponent } from './module-details/ivr-module-details-host.component';
@@ -434,14 +434,17 @@ export class IvrBuilderComponent {
     const id = maxId + 1;
     const count = this.nodes().length;
     const spawn = this.getVisibleSpawnPoint(count);
-    const moduleCandidate: IvrModuleRecord = {
+    const moduleCandidate: ServiceModuleLike = {
       id,
       name: `${template.defaultName} ${id}`,
       serviceModuleTypeId: template.serviceModuleTypeId,
       order: maxOrder + 1,
       ...template.defaults
     };
-    const module = toIvrModuleRecord(moduleCandidate) ?? moduleCandidate;
+    const module = toIvrModuleRecord(moduleCandidate);
+    if (!module) {
+      return;
+    }
     this.nodes.update((current) => [
       ...current,
       { module, x: spawn.x, y: spawn.y, linkField: this.defaultLinkField(module) }
@@ -847,9 +850,7 @@ export class IvrBuilderComponent {
       return orderA === orderB ? a.id - b.id : orderA - orderB;
     });
     return sorted.map((module, index) =>
-      module.toServiceModuleCanvasElement
-        ? module.toServiceModuleCanvasElement(index, (item) => this.defaultLinkField(item))
-        : toServiceModuleCanvasElement(module, index, (item) => this.defaultLinkField(item))
+      module.toServiceModuleCanvasElement(index, (item) => this.defaultLinkField(item))
     );
   }
 

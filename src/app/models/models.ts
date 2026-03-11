@@ -120,7 +120,7 @@ export type ServiceModuleLike = {
 
 export type IvrModuleRecord =
     ServiceModuleLike &
-    Partial<Pick<IvBuilderModule, 'toServiceModuleCanvasElement'>>;
+    Pick<IvBuilderModule, 'toServiceModuleCanvasElement'>;
 
 export interface ServiceModuleCanvasElement<TModule extends ServiceModuleLike = ServiceModuleLike> {
     module: TModule;
@@ -131,53 +131,10 @@ export interface ServiceModuleCanvasElement<TModule extends ServiceModuleLike = 
 
 const EXIT_FIELD_PATTERN = /(moduleid$|^exits\d+$)/i;
 
-const MODULE_EXIT_FIELDS_CONFIG: Record<number, ReadonlyArray<string>> = {
-    [CallModuleType.Info]: ['nextModuleId'],
-    [CallModuleType.Time]: ['closedModuleId', 'exits1', 'exits2', 'exits3', 'exits4', 'exits5', 'exits6', 'exits7', 'exits8'],
-    [CallModuleType.Queue]: [
-        'timeoutModuleId',
-        'joinEmptyModuleId',
-        'leaveEmptyModuleId',
-        'joinUnavailModuleId',
-        'leaveUnavailModuleId',
-        'fullModuleId',
-        'continueModuleId',
-        'surveyModuleId'
-    ],
-    [CallModuleType.NumberListMatch]: ['matchModuleId', 'noMatchModuleId'],
-    [CallModuleType.Macro]: ['nextModuleId'],
-    [CallModuleType.Switch]: ['onModuleId', 'offModuleId'],
-    [CallModuleType.Wait]: ['nextModuleId'],
-    [CallModuleType.SetVar]: ['nextModuleId'],
-    [CallModuleType.ReadDtmf]: ['nextModuleId', 'timeoutModuleId'],
-    [CallModuleType.MultiSwitch]: ['noMatchModuleId'],
-    [CallModuleType.AdvancedMenu]: [
-        'key0ModuleId',
-        'key1ModuleId',
-        'key2ModuleId',
-        'key3ModuleId',
-        'key4ModuleId',
-        'key5ModuleId',
-        'key6ModuleId',
-        'key7ModuleId',
-        'key8ModuleId',
-        'key9ModuleId',
-        'keyStarModuleId',
-        'keyHashModuleId',
-        'loopExhaustedModuleId'
-    ],
-    [CallModuleType.SessionFields]: ['nextModuleId'],
-    [CallModuleType.ContactLookup]: ['nextModuleId']
-};
-
-export function getConfiguredExitFields(serviceModuleTypeId: number): string[] {
-    return [...(MODULE_EXIT_FIELDS_CONFIG[serviceModuleTypeId] ?? [])];
-}
-
 export function getServiceModuleExitFields(module: ServiceModuleLike): string[] {
-    const configured = getConfiguredExitFields(module.serviceModuleTypeId);
+    const custom = getCustomExitFields(module);
     const existing = Object.keys(module).filter((key) => EXIT_FIELD_PATTERN.test(key));
-    return [...new Set([...configured, ...existing])];
+    return [...new Set([...custom, ...existing])];
 }
 
 export function getServiceModuleExitLinks(module: ServiceModuleLike): Array<{ field: string; toId: number }> {
@@ -246,6 +203,10 @@ function asPositiveServiceModuleId(value: unknown): number | null {
     return null;
 }
 
+function toFiniteNumber(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
 export function toServiceModuleCanvasElement<TModule extends ServiceModuleLike>(
     module: TModule,
     index: number,
@@ -259,9 +220,83 @@ export function toServiceModuleCanvasElement<TModule extends ServiceModuleLike>(
     };
 }
 
+interface ExitFieldProvider {
+    getExitFields(): string[];
+}
+
+function getCustomExitFields(module: ServiceModuleLike): string[] {
+    const maybeProvider = module as ServiceModuleLike & Partial<ExitFieldProvider>;
+    return typeof maybeProvider.getExitFields === 'function' ? maybeProvider.getExitFields() : [];
+}
+
+function withCanvasElementMethod(module: ServiceModuleLike): IvrModuleRecord {
+    const plain = toPlainModule(module);
+    const record = plain as IvrModuleRecord;
+    record.toServiceModuleCanvasElement = (index, defaultLinkFieldResolver) =>
+        toServiceModuleCanvasElement(record, index, defaultLinkFieldResolver);
+    return {
+        ...plain,
+        toServiceModuleCanvasElement: record.toServiceModuleCanvasElement
+    };
+}
+
+function toPlainModule(module: ServiceModuleLike | Partial<Pick<IvBuilderModule, 'toServiceModuleCanvasElement'>>): ServiceModuleLike {
+    const { toServiceModuleCanvasElement: _ignored, ...plain } = module as Record<string, unknown>;
+    return plain as ServiceModuleLike;
+}
+
+abstract class ServiceModuleBase implements ServiceModule, ExitFieldProvider {
+    id = 0;
+    customerId = 0;
+    locationId = 0;
+    serviceModuleTypeId = CallModuleType.Unknown;
+    name = '';
+    order = 0;
+    serviceGroupId = 0;
+    callLogVisible = false;
+    propertyBase?: string;
+
+    protected constructor(input: Record<string, unknown>, type: CallModuleType) {
+        this.serviceModuleTypeId = type;
+        this.id = toFiniteNumber(input['id']);
+        this.customerId = toFiniteNumber(input['customerId']);
+        this.locationId = toFiniteNumber(input['locationId']);
+        this.name = typeof input['name'] === 'string' ? input['name'] : String(input['name'] ?? '');
+        this.order = toFiniteNumber(input['order']);
+        this.serviceGroupId = toFiniteNumber(input['serviceGroupId']);
+        this.callLogVisible = Boolean(input['callLogVisible']);
+        this.propertyBase = typeof input['propertyBase'] === 'string' ? input['propertyBase'] : undefined;
+    }
+
+    getExitFields(): string[] {
+        return [];
+    }
+
+    toServiceModuleCanvasElement(
+        index: number,
+        defaultLinkFieldResolver?: (module: IvrModuleRecord) => string
+    ): ServiceModuleCanvasElement<IvrModuleRecord> {
+        const moduleRecord = toIvrModuleRecordFromServiceModule(this);
+        return toServiceModuleCanvasElement(
+            moduleRecord,
+            index,
+            defaultLinkFieldResolver ?? (() => this.getExitFields()[0] ?? '')
+        );
+    }
+}
+
 export function toIvrModuleRecordFromServiceModule(serviceModule: ServiceModule | ServiceModuleLike): IvrModuleRecord {
-    const { toServiceModuleCanvasElement, ...plain } = (serviceModule as unknown as Record<string, unknown>);
-    return plain as IvrModuleRecord;
+    const plain = toPlainModule(serviceModule);
+    const ivBuilderModule = serviceModule as Partial<IvBuilderModule>;
+    if (typeof ivBuilderModule.toServiceModuleCanvasElement === 'function') {
+        const customMethod = ivBuilderModule.toServiceModuleCanvasElement.bind(serviceModule);
+        return {
+            ...plain,
+            toServiceModuleCanvasElement: (index, defaultLinkFieldResolver) =>
+                customMethod(index, defaultLinkFieldResolver)
+        };
+    }
+    return withCanvasElementMethod(plain);
 }
 
 export function toServiceModule(input: unknown): ServiceModule | null {
@@ -280,7 +315,7 @@ export function toServiceModule(input: unknown): ServiceModule | null {
         return null;
     }
 
-    const serviceModule: ServiceModule = {
+    const normalizedBase = {
         ...(candidate as Record<string, unknown>),
         id,
         serviceModuleTypeId: serviceModuleTypeId as CallModuleType,
@@ -292,9 +327,42 @@ export function toServiceModule(input: unknown): ServiceModule | null {
             typeof candidate['serviceGroupId'] === 'number' && Number.isFinite(candidate['serviceGroupId'])
                 ? (candidate['serviceGroupId'] as number)
                 : 0,
-        callLogVisible: typeof candidate['callLogVisible'] === 'boolean' ? (candidate['callLogVisible'] as boolean) : false,
+        callLogVisible: typeof candidate['callLogVisible'] === 'boolean' ? (candidate['callLogVisible'] as boolean) : false
+    };
+
+    switch (serviceModuleTypeId as CallModuleType) {
+        case CallModuleType.Queue:
+            return new ServiceModuleQueue(normalizedBase);
+        case CallModuleType.Info:
+            return new ServiceModuleInfo(normalizedBase);
+        case CallModuleType.Time:
+            return new ServiceModuleTime(normalizedBase);
+        case CallModuleType.NumberListMatch:
+            return new ServiceModuleNumberListMatch(normalizedBase);
+        case CallModuleType.Macro:
+            return new ServiceModuleMacro(normalizedBase);
+        case CallModuleType.Switch:
+            return new ServiceModuleSwitch(normalizedBase);
+        case CallModuleType.Wait:
+            return new ServiceModuleWait(normalizedBase);
+        case CallModuleType.SetVar:
+            return new ServiceModuleSetVar(normalizedBase);
+        case CallModuleType.ReadDtmf:
+            return new ServiceModuleReadDtmf(normalizedBase);
+        case CallModuleType.MultiSwitch:
+            return new ServiceModuleMultiSwitch(normalizedBase);
+        case CallModuleType.AdvancedMenu:
+            return new ServiceModuleAdvancedMenu(normalizedBase);
+        case CallModuleType.SessionFields:
+            return new ServiceModuleSessionFields(normalizedBase);
+        case CallModuleType.ContactLookup:
+            return new ServiceModuleContactLookup(normalizedBase);
+    }
+
+    const serviceModule: ServiceModule = {
+        ...normalizedBase,
         toServiceModuleCanvasElement: (index, defaultLinkFieldResolver) =>
-            toServiceModuleCanvasElement(toIvrModuleRecordFromServiceModule(serviceModule), index, defaultLinkFieldResolver)
+            withCanvasElementMethod(toPlainModule(serviceModule)).toServiceModuleCanvasElement(index, defaultLinkFieldResolver)
     };
 
     return serviceModule;
@@ -331,11 +399,22 @@ export interface ServiceModuleComment extends ServiceModule {
     nextModuleId: number;
 }
 
-export interface ServiceModuleContactLookup extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.ContactLookup;
-    internalLookup: boolean;
-    yellowPagesLookup: boolean;
-    nextModuleId: number;
+export class ServiceModuleContactLookup extends ServiceModuleBase {
+    override serviceModuleTypeId: CallModuleType.ContactLookup = CallModuleType.ContactLookup;
+    internalLookup = false;
+    yellowPagesLookup = false;
+    nextModuleId = 0;
+
+    constructor(input: Record<string, unknown>) {
+        super(input, CallModuleType.ContactLookup);
+        this.internalLookup = Boolean(input['internalLookup']);
+        this.yellowPagesLookup = Boolean(input['yellowPagesLookup']);
+        this.nextModuleId = toFiniteNumber(input['nextModuleId']);
+    }
+
+    override getExitFields(): string[] {
+        return ['nextModuleId'];
+    }
 }
 
 export interface ServiceModuleGroup extends ServiceModule {
@@ -366,43 +445,135 @@ export interface ServiceModuleRoutingApi extends ServiceModule {
     failureModuleId: number;
 }
 
-export interface ServiceModuleQueue extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.Queue;
-    queueId: number;
-    queuePriority: number;
-    queueTimeout: number;
-    queueOptions: string;
-    answer: boolean;
-    extraTime: number;
-    timeoutModuleId: number;
-    joinEmptyModuleId: number;
-    leaveEmptyModuleId: number;
-    joinUnavailModuleId: number;
-    leaveUnavailModuleId: number;
-    fullModuleId: number;
-    continueModuleId: number;
-    surveyModuleId: number;
+export class ServiceModuleQueue implements ServiceModule, ExitFieldProvider {
+    serviceModuleTypeId: CallModuleType.Queue = CallModuleType.Queue;
+    id = 0;
+    customerId = 0;
+    locationId = 0;
+    name = '';
+    order = 0;
+    serviceGroupId = 0;
+    callLogVisible = false;
+    propertyBase?: string;
+    queueId = 0;
+    queuePriority = 0;
+    queueTimeout = 0;
+    queueOptions = '';
+    answer = false;
+    extraTime = 0;
+    timeoutModuleId = 0;
+    joinEmptyModuleId = 0;
+    leaveEmptyModuleId = 0;
+    joinUnavailModuleId = 0;
+    leaveUnavailModuleId = 0;
+    fullModuleId = 0;
+    continueModuleId = 0;
+    surveyModuleId = 0;
+
+    constructor(input: Record<string, unknown>) {
+        this.id = toFiniteNumber(input['id']);
+        this.customerId = toFiniteNumber(input['customerId']);
+        this.locationId = toFiniteNumber(input['locationId']);
+        this.name = typeof input['name'] === 'string' ? input['name'] : String(input['name'] ?? '');
+        this.order = toFiniteNumber(input['order']);
+        this.serviceGroupId = toFiniteNumber(input['serviceGroupId']);
+        this.callLogVisible = Boolean(input['callLogVisible']);
+        this.propertyBase = typeof input['propertyBase'] === 'string' ? input['propertyBase'] : undefined;
+
+        this.queueId = toFiniteNumber(input['queueId']);
+        this.queuePriority = toFiniteNumber(input['queuePriority']);
+        this.queueTimeout = toFiniteNumber(input['queueTimeout']);
+        this.queueOptions = typeof input['queueOptions'] === 'string' ? input['queueOptions'] : '';
+        this.answer = Boolean(input['answer']);
+        this.extraTime = toFiniteNumber(input['extraTime']);
+        this.timeoutModuleId = toFiniteNumber(input['timeoutModuleId']);
+        this.joinEmptyModuleId = toFiniteNumber(input['joinEmptyModuleId']);
+        this.leaveEmptyModuleId = toFiniteNumber(input['leaveEmptyModuleId']);
+        this.joinUnavailModuleId = toFiniteNumber(input['joinUnavailModuleId']);
+        this.leaveUnavailModuleId = toFiniteNumber(input['leaveUnavailModuleId']);
+        this.fullModuleId = toFiniteNumber(input['fullModuleId']);
+        this.continueModuleId = toFiniteNumber(input['continueModuleId']);
+        this.surveyModuleId = toFiniteNumber(input['surveyModuleId']);
+    }
+
+    getExitFields(): string[] {
+        return [
+            'timeoutModuleId',
+            'joinEmptyModuleId',
+            'leaveEmptyModuleId',
+            'joinUnavailModuleId',
+            'leaveUnavailModuleId',
+            'fullModuleId',
+            'continueModuleId',
+            'surveyModuleId'
+        ];
+    }
+
+    toServiceModuleCanvasElement(
+        index: number,
+        defaultLinkFieldResolver?: (module: IvrModuleRecord) => string
+    ): ServiceModuleCanvasElement<IvrModuleRecord> {
+        const moduleRecord = toIvrModuleRecordFromServiceModule(this);
+        return toServiceModuleCanvasElement(
+            moduleRecord,
+            index,
+            defaultLinkFieldResolver ?? (() => 'continueModuleId')
+        );
+    }
 }
 
-export interface ServiceModuleSetVar extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.SetVar;
-    variable: string;
-    value: string;
-    permanent: boolean;
-    nextModuleId: number;
+export class ServiceModuleSetVar extends ServiceModuleBase {
+    override serviceModuleTypeId: CallModuleType.SetVar = CallModuleType.SetVar;
+    variable = '';
+    value = '';
+    permanent = false;
+    nextModuleId = 0;
+
+    constructor(input: Record<string, unknown>) {
+        super(input, CallModuleType.SetVar);
+        this.variable = typeof input['variable'] === 'string' ? input['variable'] : '';
+        this.value = typeof input['value'] === 'string' ? input['value'] : '';
+        this.permanent = Boolean(input['permanent']);
+        this.nextModuleId = toFiniteNumber(input['nextModuleId']);
+    }
+
+    override getExitFields(): string[] {
+        return ['nextModuleId'];
+    }
 }
 
-export interface ServiceModuleMacro extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.Macro;
-    macro: string;
-    macroArgs: string;
-    nextModuleId: number;
+export class ServiceModuleMacro extends ServiceModuleBase {
+    override serviceModuleTypeId: CallModuleType.Macro = CallModuleType.Macro;
+    macro = '';
+    macroArgs = '';
+    nextModuleId = 0;
+
+    constructor(input: Record<string, unknown>) {
+        super(input, CallModuleType.Macro);
+        this.macro = typeof input['macro'] === 'string' ? input['macro'] : '';
+        this.macroArgs = typeof input['macroArgs'] === 'string' ? input['macroArgs'] : '';
+        this.nextModuleId = toFiniteNumber(input['nextModuleId']);
+    }
+
+    override getExitFields(): string[] {
+        return ['nextModuleId'];
+    }
 }
 
-export interface ServiceModuleWait extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.Wait;
-    wait: number;
-    nextModuleId: number;
+export class ServiceModuleWait extends ServiceModuleBase {
+    override serviceModuleTypeId: CallModuleType.Wait = CallModuleType.Wait;
+    wait = 0;
+    nextModuleId = 0;
+
+    constructor(input: Record<string, unknown>) {
+        super(input, CallModuleType.Wait);
+        this.wait = toFiniteNumber(input['wait']);
+        this.nextModuleId = toFiniteNumber(input['nextModuleId']);
+    }
+
+    override getExitFields(): string[] {
+        return ['nextModuleId'];
+    }
 }
 
 export interface ServiceModuleContext extends ServiceModule {
@@ -417,18 +588,36 @@ export interface ServiceModuleVoicemail extends ServiceModule {
     readonly voicemailOptions: string;
 }
 
-export interface ServiceModuleReadDtmf extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.ReadDtmf;
-    soundFile: string;
-    variable: string;
-    maxDigits: number;
-    timeout: number;
-    acceptableDigits: string;
-    terminateDigits: string;
-    terminateStartDigits: string;
-    keepTerminateDigit: boolean;
-    nextModuleId: number;
-    timeoutModuleId: number;
+export class ServiceModuleReadDtmf extends ServiceModuleBase {
+    override serviceModuleTypeId: CallModuleType.ReadDtmf = CallModuleType.ReadDtmf;
+    soundFile = '';
+    variable = '';
+    maxDigits = 0;
+    timeout = 0;
+    acceptableDigits = '';
+    terminateDigits = '';
+    terminateStartDigits = '';
+    keepTerminateDigit = false;
+    nextModuleId = 0;
+    timeoutModuleId = 0;
+
+    constructor(input: Record<string, unknown>) {
+        super(input, CallModuleType.ReadDtmf);
+        this.soundFile = typeof input['soundFile'] === 'string' ? input['soundFile'] : '';
+        this.variable = typeof input['variable'] === 'string' ? input['variable'] : '';
+        this.maxDigits = toFiniteNumber(input['maxDigits']);
+        this.timeout = toFiniteNumber(input['timeout']);
+        this.acceptableDigits = typeof input['acceptableDigits'] === 'string' ? input['acceptableDigits'] : '';
+        this.terminateDigits = typeof input['terminateDigits'] === 'string' ? input['terminateDigits'] : '';
+        this.terminateStartDigits = typeof input['terminateStartDigits'] === 'string' ? input['terminateStartDigits'] : '';
+        this.keepTerminateDigit = Boolean(input['keepTerminateDigit']);
+        this.nextModuleId = toFiniteNumber(input['nextModuleId']);
+        this.timeoutModuleId = toFiniteNumber(input['timeoutModuleId']);
+    }
+
+    override getExitFields(): string[] {
+        return ['nextModuleId', 'timeoutModuleId'];
+    }
 }
 
 export interface ServiceModuleDial extends ServiceModule {
@@ -453,12 +642,24 @@ export interface ServiceModuleHangup extends ServiceModule {
     cause: string;
 }
 
-export interface ServiceModuleInfo extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.Info;
-    soundFile: string;
-    answer: boolean;
-    background: boolean;
-    nextModuleId: number;
+export class ServiceModuleInfo extends ServiceModuleBase {
+    override serviceModuleTypeId: CallModuleType.Info = CallModuleType.Info;
+    soundFile = '';
+    answer = false;
+    background = false;
+    nextModuleId = 0;
+
+    constructor(input: Record<string, unknown>) {
+        super(input, CallModuleType.Info);
+        this.soundFile = typeof input['soundFile'] === 'string' ? input['soundFile'] : '';
+        this.answer = Boolean(input['answer']);
+        this.background = Boolean(input['background']);
+        this.nextModuleId = toFiniteNumber(input['nextModuleId']);
+    }
+
+    override getExitFields(): string[] {
+        return ['nextModuleId'];
+    }
 }
 
 
@@ -482,25 +683,22 @@ export interface ServiceModuleLoop extends ServiceModule {
     outModuleId: number;
 }
 
-export interface ServiceModuleNumberListMatch extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.NumberListMatch;
-    numberListId: number;
-    matchModuleId: number;
-    noMatchModuleId: number;
-}
+export class ServiceModuleNumberListMatch extends ServiceModuleBase {
+    override serviceModuleTypeId: CallModuleType.NumberListMatch = CallModuleType.NumberListMatch;
+    numberListId = 0;
+    matchModuleId = 0;
+    noMatchModuleId = 0;
 
-export interface ServiceModuleReadDtmf extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.ReadDtmf;
-    soundFile: string;
-    variable: string;
-    maxDigits: number;
-    timeout: number;
-    acceptableDigits: string;
-    terminateDigits: string;
-    terminateStartDigits: string;
-    keepTerminateDigit: boolean;
-    nextModuleId: number;
-    timeoutModuleId: number;
+    constructor(input: Record<string, unknown>) {
+        super(input, CallModuleType.NumberListMatch);
+        this.numberListId = toFiniteNumber(input['numberListId']);
+        this.matchModuleId = toFiniteNumber(input['matchModuleId']);
+        this.noMatchModuleId = toFiniteNumber(input['noMatchModuleId']);
+    }
+
+    override getExitFields(): string[] {
+        return ['matchModuleId', 'noMatchModuleId'];
+    }
 }
 
 
@@ -508,11 +706,22 @@ export interface ServiceModuleRequest {
     moduleId: number;
 }
 
-export interface ServiceModuleSwitch extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.Switch;
-    variable: string;
-    onModuleId: number;
-    offModuleId: number;
+export class ServiceModuleSwitch extends ServiceModuleBase {
+    override serviceModuleTypeId: CallModuleType.Switch = CallModuleType.Switch;
+    variable = '';
+    onModuleId = 0;
+    offModuleId = 0;
+
+    constructor(input: Record<string, unknown>) {
+        super(input, CallModuleType.Switch);
+        this.variable = typeof input['variable'] === 'string' ? input['variable'] : '';
+        this.onModuleId = toFiniteNumber(input['onModuleId']);
+        this.offModuleId = toFiniteNumber(input['offModuleId']);
+    }
+
+    override getExitFields(): string[] {
+        return ['onModuleId', 'offModuleId'];
+    }
 }
 
 export interface ServiceModuleSurveyStart extends ServiceModule {
@@ -566,33 +775,84 @@ export interface ServiceModuleVarSwitch extends ServiceModule {
     falseModuleId: number;
 }
 
-export interface ServiceModuleMultiSwitch extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.MultiSwitch;
-    variable: string;
-    noMatchModuleId: number;
+export class ServiceModuleMultiSwitch extends ServiceModuleBase {
+    override serviceModuleTypeId: CallModuleType.MultiSwitch = CallModuleType.MultiSwitch;
+    variable = '';
+    noMatchModuleId = 0;
+
+    constructor(input: Record<string, unknown>) {
+        super(input, CallModuleType.MultiSwitch);
+        this.variable = typeof input['variable'] === 'string' ? input['variable'] : '';
+        this.noMatchModuleId = toFiniteNumber(input['noMatchModuleId']);
+    }
+
+    override getExitFields(): string[] {
+        return ['noMatchModuleId'];
+    }
 }
 
-export interface ServiceModuleAdvancedMenu extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.AdvancedMenu;
-    answer: boolean;
-    background: boolean;
-    soundFile: string;
-    interval: number;
-    count: number;
-    key0ModuleId: number;
-    key1ModuleId: number;
-    key2ModuleId: number;
-    key3ModuleId: number;
-    key4ModuleId: number;
-    key5ModuleId: number;
-    key6ModuleId: number;
-    key7ModuleId: number;
-    key8ModuleId: number;
-    key9ModuleId: number;
-    keyStarModuleId: number;
-    keyHashModuleId: number;
-    loopExhaustedModuleId: number;
-    surveyModule: boolean;
+export class ServiceModuleAdvancedMenu extends ServiceModuleBase {
+    override serviceModuleTypeId: CallModuleType.AdvancedMenu = CallModuleType.AdvancedMenu;
+    answer = false;
+    background = false;
+    soundFile = '';
+    interval = 0;
+    count = 0;
+    key0ModuleId = 0;
+    key1ModuleId = 0;
+    key2ModuleId = 0;
+    key3ModuleId = 0;
+    key4ModuleId = 0;
+    key5ModuleId = 0;
+    key6ModuleId = 0;
+    key7ModuleId = 0;
+    key8ModuleId = 0;
+    key9ModuleId = 0;
+    keyStarModuleId = 0;
+    keyHashModuleId = 0;
+    loopExhaustedModuleId = 0;
+    surveyModule = false;
+
+    constructor(input: Record<string, unknown>) {
+        super(input, CallModuleType.AdvancedMenu);
+        this.answer = Boolean(input['answer']);
+        this.background = Boolean(input['background']);
+        this.soundFile = typeof input['soundFile'] === 'string' ? input['soundFile'] : '';
+        this.interval = toFiniteNumber(input['interval']);
+        this.count = toFiniteNumber(input['count']);
+        this.key0ModuleId = toFiniteNumber(input['key0ModuleId']);
+        this.key1ModuleId = toFiniteNumber(input['key1ModuleId']);
+        this.key2ModuleId = toFiniteNumber(input['key2ModuleId']);
+        this.key3ModuleId = toFiniteNumber(input['key3ModuleId']);
+        this.key4ModuleId = toFiniteNumber(input['key4ModuleId']);
+        this.key5ModuleId = toFiniteNumber(input['key5ModuleId']);
+        this.key6ModuleId = toFiniteNumber(input['key6ModuleId']);
+        this.key7ModuleId = toFiniteNumber(input['key7ModuleId']);
+        this.key8ModuleId = toFiniteNumber(input['key8ModuleId']);
+        this.key9ModuleId = toFiniteNumber(input['key9ModuleId']);
+        this.keyStarModuleId = toFiniteNumber(input['keyStarModuleId']);
+        this.keyHashModuleId = toFiniteNumber(input['keyHashModuleId']);
+        this.loopExhaustedModuleId = toFiniteNumber(input['loopExhaustedModuleId']);
+        this.surveyModule = Boolean(input['surveyModule']);
+    }
+
+    override getExitFields(): string[] {
+        return [
+            'key0ModuleId',
+            'key1ModuleId',
+            'key2ModuleId',
+            'key3ModuleId',
+            'key4ModuleId',
+            'key5ModuleId',
+            'key6ModuleId',
+            'key7ModuleId',
+            'key8ModuleId',
+            'key9ModuleId',
+            'keyStarModuleId',
+            'keyHashModuleId',
+            'loopExhaustedModuleId'
+        ];
+    }
 }
 
 
@@ -669,9 +929,18 @@ export interface ServiceModuleAdvancedMenuPhrase {
     readonly nextModuleId: number;
 }
 
-export interface ServiceModuleSessionFields extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.SessionFields;
-    nextModuleId: number;
+export class ServiceModuleSessionFields extends ServiceModuleBase {
+    override serviceModuleTypeId: CallModuleType.SessionFields = CallModuleType.SessionFields;
+    nextModuleId = 0;
+
+    constructor(input: Record<string, unknown>) {
+        super(input, CallModuleType.SessionFields);
+        this.nextModuleId = toFiniteNumber(input['nextModuleId']);
+    }
+
+    override getExitFields(): string[] {
+        return ['nextModuleId'];
+    }
 }
 
 export interface ServiceModuleSessionVariablesData {
@@ -684,17 +953,71 @@ export interface ServiceModuleSessionVariablesData {
 }
 
 
-export interface ServiceModuleTime extends ServiceModule {
-    serviceModuleTypeId: CallModuleType.Time;
-    timeRule: string;
-    exitModuleId1: number;
-    exitModuleId2: number;
-    exitModuleId3: number;
-    exitModuleId4: number;
-    exitModuleId5: number;
-    exitModuleId6: number;
-    exitModuleId7: number;
-    exitModuleId8: number; 
-    exitModuleId9: number;
-    
+export class ServiceModuleTime extends ServiceModuleBase {
+    override serviceModuleTypeId: CallModuleType.Time = CallModuleType.Time;
+    timeRule = '';
+    exitModuleId1 = 0;
+    exitModuleId2 = 0;
+    exitModuleId3 = 0;
+    exitModuleId4 = 0;
+    exitModuleId5 = 0;
+    exitModuleId6 = 0;
+    exitModuleId7 = 0;
+    exitModuleId8 = 0;
+    exitModuleId9 = 0;
+    closedModuleId = 0;
+    exits1 = 0;
+    exits2 = 0;
+    exits3 = 0;
+    exits4 = 0;
+    exits5 = 0;
+    exits6 = 0;
+    exits7 = 0;
+    exits8 = 0;
+
+    constructor(input: Record<string, unknown>) {
+        super(input, CallModuleType.Time);
+        this.timeRule = typeof input['timeRule'] === 'string' ? input['timeRule'] : '';
+        this.exitModuleId1 = toFiniteNumber(input['exitModuleId1']);
+        this.exitModuleId2 = toFiniteNumber(input['exitModuleId2']);
+        this.exitModuleId3 = toFiniteNumber(input['exitModuleId3']);
+        this.exitModuleId4 = toFiniteNumber(input['exitModuleId4']);
+        this.exitModuleId5 = toFiniteNumber(input['exitModuleId5']);
+        this.exitModuleId6 = toFiniteNumber(input['exitModuleId6']);
+        this.exitModuleId7 = toFiniteNumber(input['exitModuleId7']);
+        this.exitModuleId8 = toFiniteNumber(input['exitModuleId8']);
+        this.exitModuleId9 = toFiniteNumber(input['exitModuleId9']);
+        this.closedModuleId = toFiniteNumber(input['closedModuleId']);
+        this.exits1 = toFiniteNumber(input['exits1']);
+        this.exits2 = toFiniteNumber(input['exits2']);
+        this.exits3 = toFiniteNumber(input['exits3']);
+        this.exits4 = toFiniteNumber(input['exits4']);
+        this.exits5 = toFiniteNumber(input['exits5']);
+        this.exits6 = toFiniteNumber(input['exits6']);
+        this.exits7 = toFiniteNumber(input['exits7']);
+        this.exits8 = toFiniteNumber(input['exits8']);
+    }
+
+    override getExitFields(): string[] {
+        return [
+            'closedModuleId',
+            'exits1',
+            'exits2',
+            'exits3',
+            'exits4',
+            'exits5',
+            'exits6',
+            'exits7',
+            'exits8',
+            'exitModuleId1',
+            'exitModuleId2',
+            'exitModuleId3',
+            'exitModuleId4',
+            'exitModuleId5',
+            'exitModuleId6',
+            'exitModuleId7',
+            'exitModuleId8',
+            'exitModuleId9'
+        ];
+    }
 }
