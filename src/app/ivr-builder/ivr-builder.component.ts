@@ -469,14 +469,16 @@ export class IvrBuilderComponent {
 
   updateFieldValue(moduleId: number, field: string, kind: FieldKind, rawValue: unknown): void {
     this.updateNodeModule(moduleId, (module) => {
+      let nextValue: unknown;
       if (kind === 'boolean') {
-        return { ...module, [field]: Boolean(rawValue) };
-      }
-      if (kind === 'number' || kind === 'link') {
+        nextValue = Boolean(rawValue);
+      } else if (kind === 'number' || kind === 'link') {
         const parsed = Number(rawValue);
-        return { ...module, [field]: Number.isFinite(parsed) ? parsed : 0 };
+        nextValue = Number.isFinite(parsed) ? parsed : 0;
+      } else {
+        nextValue = typeof rawValue === 'string' ? rawValue : rawValue ?? '';
       }
-      return { ...module, [field]: String(rawValue ?? '') };
+      return this.setModuleFieldByPath(module, field, nextValue);
     });
   }
 
@@ -494,7 +496,7 @@ export class IvrBuilderComponent {
   }
 
   linkFieldValue(node: BuilderNode, field: string): number {
-    const raw = node.module[field];
+    const raw = this.getModuleFieldByPath(node.module, field);
     if (typeof raw === 'number' && Number.isFinite(raw)) {
       if (raw === HANGUP_EXIT_VALUE) {
         return HANGUP_EXIT_VALUE;
@@ -511,6 +513,84 @@ export class IvrBuilderComponent {
       }
     }
     return 0;
+  }
+
+  private getModuleFieldByPath(module: IvrModuleRecord, path: string): unknown {
+    const segments = this.parseFieldPath(path);
+    let current: unknown = module;
+    for (const segment of segments) {
+      if (typeof segment === 'number') {
+        if (!Array.isArray(current) || segment < 0 || segment >= current.length) {
+          return undefined;
+        }
+        current = current[segment];
+      } else {
+        if (!current || typeof current !== 'object') {
+          return undefined;
+        }
+        current = (current as Record<string, unknown>)[segment];
+      }
+    }
+    return current;
+  }
+
+  private setModuleFieldByPath(
+    module: IvrModuleRecord,
+    path: string,
+    value: unknown
+  ): IvrModuleRecord {
+    const segments = this.parseFieldPath(path);
+    if (segments.length === 0) {
+      return module;
+    }
+    const updated = this.updateByPath(module as unknown, segments, value);
+    return updated && typeof updated === 'object' ? (updated as IvrModuleRecord) : module;
+  }
+
+  private parseFieldPath(path: string): Array<string | number> {
+    const segments: Array<string | number> = [];
+    const pattern = /([^[.\]]+)|\[(\d+)\]/g;
+    let match: RegExpExecArray | null = null;
+    while ((match = pattern.exec(path)) !== null) {
+      if (match[1]) {
+        segments.push(match[1]);
+      } else if (match[2]) {
+        segments.push(Number(match[2]));
+      }
+    }
+    return segments;
+  }
+
+  private updateByPath(
+    target: unknown,
+    segments: Array<string | number>,
+    value: unknown
+  ): unknown {
+    if (segments.length === 0) {
+      return value;
+    }
+
+    const [head, ...tail] = segments;
+    if (typeof head === 'number') {
+      if (Array.isArray(target)) {
+        const copy = [...target];
+        const current = copy[head];
+        const seed = current === undefined ? (typeof tail[0] === 'number' ? [] : {}) : current;
+        copy[head] = this.updateByPath(seed, tail, value);
+        return copy;
+      }
+      return target;
+    }
+
+    if (!target || typeof target !== 'object') {
+      return target;
+    }
+    const record = target as Record<string, unknown>;
+    const copy: Record<string, unknown> = { ...record };
+    const current = copy[head];
+    const seed = current === undefined ? (typeof tail[0] === 'number' ? [] : {}) : current;
+    copy[head] = this.updateByPath(seed, tail, value);
+    return copy;
   }
 
   outputPortLeft(node: BuilderNode, field: string): number {

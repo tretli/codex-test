@@ -1,4 +1,6 @@
 import { Component, Directive, EventEmitter, Input, Output } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { CallModuleType } from '../../models/models';
 import { BuilderNode } from '../canvas/ivr-canvas.types';
 import { FieldKind, FieldSchema, MODULE_TYPE_SCHEMAS } from './ivr-module-detail-schemas';
@@ -129,11 +131,104 @@ export class IvrModuleDetailsReadDtmfComponent extends BaseTypeDetailsComponent 
 @Component({
   selector: 'app-ivr-module-details-multi-switch',
   standalone: true,
-  imports: [IvrModuleDetailsFieldsComponent],
-  template: `<app-ivr-module-details-fields [node]="node" [fields]="fields" [moduleTargets]="moduleTargets" (fieldChange)="fieldChange.emit($event)"></app-ivr-module-details-fields>`
+  imports: [CommonModule, FormsModule, IvrModuleDetailsFieldsComponent],
+  template: `
+    <app-ivr-module-details-fields
+      [node]="node"
+      [fields]="fields"
+      [moduleTargets]="moduleTargets"
+      (fieldChange)="fieldChange.emit($event)"
+    ></app-ivr-module-details-fields>
+
+    <div class="field">
+      <span>Exits</span>
+      <div class="exit-row" *ngFor="let exit of exits(); let i = index">
+        <input
+          type="text"
+          [ngModel]="exit.rule"
+          (ngModelChange)="updateExitRule(i, $event)"
+          placeholder="Rule"
+        />
+        <select
+          [ngModel]="exit.nextModuleId"
+          (ngModelChange)="updateExitNextModuleId(i, $event)"
+        >
+          <option [ngValue]="0">No target</option>
+          <option *ngFor="let target of moduleTargets" [ngValue]="target.id">
+            {{ target.label }}
+          </option>
+        </select>
+        <button type="button" class="danger" (click)="removeExit(i)">Remove</button>
+      </div>
+      <button type="button" (click)="addExit()">Add exit</button>
+    </div>
+  `
 })
 export class IvrModuleDetailsMultiSwitchComponent extends BaseTypeDetailsComponent {
-  readonly fields = this.fieldsFor(CallModuleType.MultiSwitch);
+  readonly fields: ReadonlyArray<FieldSchema> = [
+    { key: 'guid', label: 'Guid', kind: 'string' },
+    { key: 'variable', label: 'Variable', kind: 'string' },
+    { key: 'noMatchModuleId', label: 'No match module', kind: 'link' }
+  ];
+
+  exits(): Array<{ id: number; rule: string; nextModuleId: number }> {
+    const raw = this.node.module['exits'];
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+    return raw
+      .map((item) => this.toExit(item))
+      .filter((item): item is { id: number; rule: string; nextModuleId: number } => item !== null);
+  }
+
+  addExit(): void {
+    const current = this.exits();
+    const nextId = current.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+    this.fieldChange.emit({
+      field: 'exits',
+      kind: 'string',
+      value: [...current, { id: nextId, rule: '', nextModuleId: 0 }]
+    });
+  }
+
+  removeExit(index: number): void {
+    const current = this.exits();
+    this.fieldChange.emit({
+      field: 'exits',
+      kind: 'string',
+      value: current.filter((_item, i) => i !== index)
+    });
+  }
+
+  updateExitRule(index: number, value: string): void {
+    this.fieldChange.emit({
+      field: `exits[${index}].rule`,
+      kind: 'string',
+      value
+    });
+  }
+
+  updateExitNextModuleId(index: number, value: unknown): void {
+    this.fieldChange.emit({
+      field: `exits[${index}].nextModuleId`,
+      kind: 'link',
+      value
+    });
+  }
+
+  private toExit(value: unknown): { id: number; rule: string; nextModuleId: number } | null {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+    const item = value as Record<string, unknown>;
+    const id = typeof item['id'] === 'number' && Number.isFinite(item['id']) ? item['id'] : 0;
+    const rule = typeof item['rule'] === 'string' ? item['rule'] : String(item['rule'] ?? '');
+    const nextModuleId =
+      typeof item['nextModuleId'] === 'number' && Number.isFinite(item['nextModuleId'])
+        ? item['nextModuleId']
+        : 0;
+    return { id, rule, nextModuleId };
+  }
 }
 
 @Component({

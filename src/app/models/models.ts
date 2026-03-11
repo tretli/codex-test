@@ -120,7 +120,8 @@ export type ServiceModuleLike = {
 
 export type IvrModuleRecord =
     ServiceModuleLike &
-    Pick<IvBuilderModule, 'toServiceModuleCanvasElement'>;
+    Pick<IvBuilderModule, 'toServiceModuleCanvasElement'> &
+    Partial<Pick<ExitFieldProvider, 'getExitFields'>>;
 
 export interface ServiceModuleCanvasElement<TModule extends ServiceModuleLike = ServiceModuleLike> {
     module: TModule;
@@ -288,10 +289,15 @@ abstract class ServiceModuleBase implements ServiceModule, ExitFieldProvider {
 export function toIvrModuleRecordFromServiceModule(serviceModule: ServiceModule | ServiceModuleLike): IvrModuleRecord {
     const plain = toPlainModule(serviceModule);
     const ivBuilderModule = serviceModule as Partial<IvBuilderModule>;
+    const exitFieldProvider = serviceModule as Partial<ExitFieldProvider>;
     if (typeof ivBuilderModule.toServiceModuleCanvasElement === 'function') {
         const customMethod = ivBuilderModule.toServiceModuleCanvasElement.bind(serviceModule);
+        const customExitFields = typeof exitFieldProvider.getExitFields === 'function'
+            ? exitFieldProvider.getExitFields.bind(serviceModule)
+            : undefined;
         return {
             ...plain,
+            ...(customExitFields ? { getExitFields: customExitFields } : {}),
             toServiceModuleCanvasElement: (index, defaultLinkFieldResolver) =>
                 customMethod(index, defaultLinkFieldResolver)
         };
@@ -777,17 +783,22 @@ export interface ServiceModuleVarSwitch extends ServiceModule {
 
 export class ServiceModuleMultiSwitch extends ServiceModuleBase {
     override serviceModuleTypeId: CallModuleType.MultiSwitch = CallModuleType.MultiSwitch;
+    guid = '';
     variable = '';
     noMatchModuleId = 0;
+    exits: ServiceModuleMultiSwitchExit[] = [];
 
     constructor(input: Record<string, unknown>) {
         super(input, CallModuleType.MultiSwitch);
+        this.guid = typeof input['guid'] === 'string' ? input['guid'] : '';
         this.variable = typeof input['variable'] === 'string' ? input['variable'] : '';
         this.noMatchModuleId = toFiniteNumber(input['noMatchModuleId']);
+        this.exits = parseMultiSwitchExits(input['exits']);
     }
 
     override getExitFields(): string[] {
-        return ['noMatchModuleId'];
+        const exitFields = this.exits.map((_exit, index) => `exits[${index}].nextModuleId`);
+        return ['noMatchModuleId', ...exitFields];
     }
 }
 
@@ -918,6 +929,12 @@ export interface ServiceModuleMultiSwitchEntry {
     readonly nextModuleId: number;
 }
 
+export interface ServiceModuleMultiSwitchExit {
+    id: number;
+    rule: string;
+    nextModuleId: number;
+}
+
 
 
 
@@ -941,6 +958,25 @@ export class ServiceModuleSessionFields extends ServiceModuleBase {
     override getExitFields(): string[] {
         return ['nextModuleId'];
     }
+}
+
+function parseMultiSwitchExits(value: unknown): ServiceModuleMultiSwitchExit[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value
+        .map((item): ServiceModuleMultiSwitchExit | null => {
+            if (!item || typeof item !== 'object') {
+                return null;
+            }
+            const entry = item as Record<string, unknown>;
+            return {
+                id: toFiniteNumber(entry['id']),
+                rule: typeof entry['rule'] === 'string' ? entry['rule'] : String(entry['rule'] ?? ''),
+                nextModuleId: toFiniteNumber(entry['nextModuleId'])
+            };
+        })
+        .filter((entry): entry is ServiceModuleMultiSwitchExit => entry !== null);
 }
 
 export interface ServiceModuleSessionVariablesData {
