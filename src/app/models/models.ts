@@ -192,6 +192,114 @@ export function getDefaultServiceModuleExitField(module: ServiceModuleLike): str
     return getServiceModuleExitFields(module)[0] ?? '';
 }
 
+export function getServiceModuleExitLabel(field: string, module?: ServiceModuleLike): string {
+    const multiSwitchExitMatch = /^exits\[(\d+)\]\.nextModuleId$/i.exec(field);
+    if (multiSwitchExitMatch) {
+        const index = Number(multiSwitchExitMatch[1]);
+        const exits = module?.['exits'];
+        if (Array.isArray(exits) && index >= 0 && index < exits.length) {
+            const exit = exits[index] as Record<string, unknown>;
+            const rule = typeof exit['rule'] === 'string' ? exit['rule'].trim() : '';
+            if (rule) {
+                return `Rule ${rule}`;
+            }
+        }
+        return `Exit ${index + 1}`;
+    }
+    const timeRuleExitMatch = /^exitModuleId(\d+)$/i.exec(field);
+    if (timeRuleExitMatch) {
+        return `Exit ${timeRuleExitMatch[1]}`;
+    }
+    const exitMatch = /^exits(\d+)$/i.exec(field);
+    if (exitMatch) {
+        return `Rule ${exitMatch[1]}`;
+    }
+    const keyModuleMatch = /^key(\d)ModuleId$/i.exec(field);
+    if (keyModuleMatch) {
+        return `Key ${keyModuleMatch[1]}`;
+    }
+    if (/^keyStarModuleId$/i.test(field)) {
+        return 'Key *';
+    }
+    if (/^keyHashModuleId$/i.test(field)) {
+        return 'Key #';
+    }
+    return field
+        .replace(/ModuleId$/, '')
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, (text) => text.toUpperCase())
+        .trim();
+}
+
+export function getServiceModuleExitCompactLabel(field: string, module?: ServiceModuleLike): string {
+    if (/^closedModuleId$/i.test(field)) {
+        return 'C';
+    }
+    const multiSwitchExitMatch = /^exits\[(\d+)\]\.nextModuleId$/i.exec(field);
+    if (multiSwitchExitMatch) {
+        const index = Number(multiSwitchExitMatch[1]);
+        const exits = module?.['exits'];
+        if (Array.isArray(exits) && index >= 0 && index < exits.length) {
+            const exit = exits[index] as Record<string, unknown>;
+            const rule = typeof exit['rule'] === 'string' ? exit['rule'].trim() : '';
+            if (rule) {
+                return rule.length <= 3 ? rule : `R${index + 1}`;
+            }
+        }
+        return `R${index + 1}`;
+    }
+    const timeRuleMatch = /^exits(\d+)$/i.exec(field);
+    if (timeRuleMatch) {
+        return `R${timeRuleMatch[1]}`;
+    }
+    const timeExitMatch = /^exitModuleId(\d+)$/i.exec(field);
+    if (timeExitMatch) {
+        return `E${timeExitMatch[1]}`;
+    }
+    const menuKeyMatch = /^key(\d)ModuleId$/i.exec(field);
+    if (menuKeyMatch) {
+        return menuKeyMatch[1];
+    }
+    if (/^keyStarModuleId$/i.test(field)) {
+        return '*';
+    }
+    if (/^keyHashModuleId$/i.test(field)) {
+        return '#';
+    }
+    if (/^noMatchModuleId$/i.test(field)) {
+        return 'NO';
+    }
+    if (/^matchModuleId$/i.test(field)) {
+        return 'M';
+    }
+    if (/^nextModuleId$/i.test(field)) {
+        return 'N';
+    }
+    if (/^onModuleId$/i.test(field)) {
+        return 'ON';
+    }
+    if (/^offModuleId$/i.test(field)) {
+        return 'OFF';
+    }
+    if (/^timeoutModuleId$/i.test(field)) {
+        return 'T';
+    }
+    if (/^continueModuleId$/i.test(field)) {
+        return 'GO';
+    }
+    if (/^loopExhaustedModuleId$/i.test(field)) {
+        return 'LX';
+    }
+
+    const normalized = field
+        .replace(/ModuleId$/i, '')
+        .replace(/[^A-Za-z0-9]/g, '');
+    if (!normalized) {
+        return '?';
+    }
+    return normalized.slice(0, 3).toUpperCase();
+}
+
 function asPositiveServiceModuleId(value: unknown): number | null {
     if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
         return value;
