@@ -142,7 +142,7 @@ export class IvrModuleDetailsReadDtmfComponent extends BaseTypeDetailsComponent 
 
     <div class="field">
       <span>Exits</span>
-      <div class="exit-row" *ngFor="let exit of exits(); let i = index">
+      <div class="exit-row" *ngFor="let exit of exits(); let i = index; trackBy: trackByExitId">
         <input
           type="text"
           [ngModel]="exit.rule"
@@ -176,9 +176,7 @@ export class IvrModuleDetailsMultiSwitchComponent extends BaseTypeDetailsCompone
     if (!Array.isArray(raw)) {
       return [];
     }
-    return raw
-      .map((item) => this.toExit(item))
-      .filter((item): item is { id: number; rule: string; nextModuleId: number } => item !== null);
+    return raw as Array<{ id: number; rule: string; nextModuleId: number }>;
   }
 
   addExit(): void {
@@ -216,18 +214,11 @@ export class IvrModuleDetailsMultiSwitchComponent extends BaseTypeDetailsCompone
     });
   }
 
-  private toExit(value: unknown): { id: number; rule: string; nextModuleId: number } | null {
-    if (!value || typeof value !== 'object') {
-      return null;
-    }
-    const item = value as Record<string, unknown>;
-    const id = typeof item['id'] === 'number' && Number.isFinite(item['id']) ? item['id'] : 0;
-    const rule = typeof item['rule'] === 'string' ? item['rule'] : String(item['rule'] ?? '');
-    const nextModuleId =
-      typeof item['nextModuleId'] === 'number' && Number.isFinite(item['nextModuleId'])
-        ? item['nextModuleId']
-        : 0;
-    return { id, rule, nextModuleId };
+  trackByExitId(
+    index: number,
+    exit: { id: number; rule: string; nextModuleId: number }
+  ): number | string {
+    return exit.id || index;
   }
 }
 
