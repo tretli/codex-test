@@ -32,7 +32,8 @@ export const MODULE_TYPE_SCHEMAS: Record<number, ReadonlyArray<FieldSchema>> = {
     { key: 'exits5', label: 'Exit 5', kind: 'link' },
     { key: 'exits6', label: 'Exit 6', kind: 'link' },
     { key: 'exits7', label: 'Exit 7', kind: 'link' },
-    { key: 'exits8', label: 'Exit 8', kind: 'link' }
+    { key: 'exits8', label: 'Exit 8', kind: 'link' },
+    { key: 'exits9', label: 'Exit 9', kind: 'link' }
   ],
   [CallModuleType.Queue]: [
     { key: 'queueId', label: 'Queue ID', kind: 'number' },

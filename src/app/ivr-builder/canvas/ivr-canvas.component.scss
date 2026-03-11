@@ -120,7 +120,7 @@
 
 .module-card {
   position: absolute;
-  width: 320px;
+  width: 460px;
   border: 1px solid #d0d7de;
   border-top: 4px solid var(--module-color, #475569);
   border-radius: 0.75rem;
@@ -141,6 +141,8 @@
   box-shadow:
     0 0 0 2px rgba(15, 118, 110, 0.25),
     0 12px 24px rgba(15, 23, 42, 0.14);
+  min-height: 152px;
+  padding-bottom: 1.4rem;
 }
 
 .module-card.collapsed {
@@ -164,23 +166,25 @@
 
 .port {
   position: absolute;
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
   border: none;
   padding: 0;
-  left: calc(50% - 7px);
+  left: calc(50% - 10px);
   z-index: 3;
 }
 
 .port.input {
   background: #0891b2;
-  top: -7px;
+  top: -10px;
 }
 
 .port.output {
   background: #2563eb;
-  bottom: -7px;
+  bottom: -10px;
+  display: grid;
+  place-items: center;
 }
 
 .port.output.hangup-exit {
@@ -198,5 +202,14 @@
 }
 
 .port.output.collapsed-output {
+  pointer-events: none;
+}
+
+.port-badge {
+  color: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
   pointer-events: none;
 }

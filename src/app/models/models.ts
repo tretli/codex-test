@@ -134,8 +134,11 @@ const EXIT_FIELD_PATTERN = /(moduleid$|^exits\d+$)/i;
 
 export function getServiceModuleExitFields(module: ServiceModuleLike): string[] {
     const custom = getCustomExitFields(module);
+    if (custom.length > 0) {
+        return [...new Set(custom)];
+    }
     const existing = Object.keys(module).filter((key) => EXIT_FIELD_PATTERN.test(key));
-    return [...new Set([...custom, ...existing])];
+    return [...new Set(existing)];
 }
 
 export function getServiceModuleExitLinks(module: ServiceModuleLike): Array<{ field: string; toId: number }> {
@@ -215,7 +218,7 @@ export function toServiceModuleCanvasElement<TModule extends ServiceModuleLike>(
 ): ServiceModuleCanvasElement<TModule> {
     return {
         module: { ...module },
-        x: 80 + (index % 3) * 360,
+        x: 80 + (index % 3) * 500,
         y: 120 + Math.floor(index / 3) * 250,
         linkField: defaultLinkFieldResolver ? defaultLinkFieldResolver(module) : getDefaultServiceModuleExitField(module)
     };
@@ -991,16 +994,7 @@ export interface ServiceModuleSessionVariablesData {
 
 export class ServiceModuleTime extends ServiceModuleBase {
     override serviceModuleTypeId: CallModuleType.Time = CallModuleType.Time;
-    timeRule = '';
-    exitModuleId1 = 0;
-    exitModuleId2 = 0;
-    exitModuleId3 = 0;
-    exitModuleId4 = 0;
-    exitModuleId5 = 0;
-    exitModuleId6 = 0;
-    exitModuleId7 = 0;
-    exitModuleId8 = 0;
-    exitModuleId9 = 0;
+    timeZone = '';
     closedModuleId = 0;
     exits1 = 0;
     exits2 = 0;
@@ -1010,19 +1004,16 @@ export class ServiceModuleTime extends ServiceModuleBase {
     exits6 = 0;
     exits7 = 0;
     exits8 = 0;
+    exits9 = 0;
 
     constructor(input: Record<string, unknown>) {
         super(input, CallModuleType.Time);
-        this.timeRule = typeof input['timeRule'] === 'string' ? input['timeRule'] : '';
-        this.exitModuleId1 = toFiniteNumber(input['exitModuleId1']);
-        this.exitModuleId2 = toFiniteNumber(input['exitModuleId2']);
-        this.exitModuleId3 = toFiniteNumber(input['exitModuleId3']);
-        this.exitModuleId4 = toFiniteNumber(input['exitModuleId4']);
-        this.exitModuleId5 = toFiniteNumber(input['exitModuleId5']);
-        this.exitModuleId6 = toFiniteNumber(input['exitModuleId6']);
-        this.exitModuleId7 = toFiniteNumber(input['exitModuleId7']);
-        this.exitModuleId8 = toFiniteNumber(input['exitModuleId8']);
-        this.exitModuleId9 = toFiniteNumber(input['exitModuleId9']);
+        this.timeZone =
+            typeof input['timeZone'] === 'string'
+                ? input['timeZone']
+                : typeof input['timeRule'] === 'string'
+                    ? input['timeRule']
+                    : '';
         this.closedModuleId = toFiniteNumber(input['closedModuleId']);
         this.exits1 = toFiniteNumber(input['exits1']);
         this.exits2 = toFiniteNumber(input['exits2']);
@@ -1032,6 +1023,7 @@ export class ServiceModuleTime extends ServiceModuleBase {
         this.exits6 = toFiniteNumber(input['exits6']);
         this.exits7 = toFiniteNumber(input['exits7']);
         this.exits8 = toFiniteNumber(input['exits8']);
+        this.exits9 = toFiniteNumber(input['exits9']);
     }
 
     override getExitFields(): string[] {
@@ -1045,15 +1037,7 @@ export class ServiceModuleTime extends ServiceModuleBase {
             'exits6',
             'exits7',
             'exits8',
-            'exitModuleId1',
-            'exitModuleId2',
-            'exitModuleId3',
-            'exitModuleId4',
-            'exitModuleId5',
-            'exitModuleId6',
-            'exitModuleId7',
-            'exitModuleId8',
-            'exitModuleId9'
+            'exits9'
         ];
     }
 }

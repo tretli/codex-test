@@ -28,7 +28,8 @@ export const DEFAULT_IVR_SAMPLE_MODULES = [
         "exits5": -1,
         "exits6": -1,
         "exits7": -1,
-        "exits8": -1
+        "exits8": -1,
+        "exits9": -1
     },
     {
         "answer": true,

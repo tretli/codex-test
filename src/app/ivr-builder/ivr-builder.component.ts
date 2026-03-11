@@ -98,8 +98,8 @@ const HANGUP_EXIT_VALUE = -1;
   styleUrl: './ivr-builder.component.scss'
 })
 export class IvrBuilderComponent {
-  readonly nodeWidth = 320;
-  readonly collapsedNodeHeight = 86;
+  readonly nodeWidth = 460;
+  readonly collapsedNodeHeight = 112;
   private readonly moduleCardBorderWidth = 1;
   private pointerCaptureTarget: Element | null = null;
   private pointerCaptureId: number | null = null;
@@ -327,6 +327,7 @@ export class IvrBuilderComponent {
   readonly collapsedOutputPortLeftFn = (node: BuilderNode): number => this.collapsedOutputPortLeft(node);
   readonly isHangupExitFn = (node: BuilderNode, field: string): boolean => this.isHangupExit(node, field);
   readonly outputPortTooltipFn = (node: BuilderNode, field: string): string => this.outputPortTooltip(node, field);
+  readonly outputPortLabelFn = (node: BuilderNode, field: string): string => this.outputPortLabel(node, field);
   readonly connectionAnchorXFn = (connection: RenderedConnection): number => this.connectionAnchorX(connection);
   readonly connectionAnchorYFn = (connection: RenderedConnection): number => this.connectionAnchorY(connection);
 
@@ -620,7 +621,7 @@ export class IvrBuilderComponent {
   outputPortTooltip(node: BuilderNode, field: string): string {
     const targetId = this.linkFieldValue(node, field);
     const target = this.nodes().find((item) => item.module.id === targetId);
-    const fieldLabel = this.toLabel(field);
+    const fieldLabel = this.toLabel(field, node.module);
     if (targetId === HANGUP_EXIT_VALUE) {
       return `${fieldLabel}: Hangup`;
     }
@@ -631,6 +632,10 @@ export class IvrBuilderComponent {
       return `${fieldLabel}: ID ${targetId}`;
     }
     return `${fieldLabel}: ${target.module.id} - ${target.module.name || 'Unnamed module'}`;
+  }
+
+  outputPortLabel(node: BuilderNode, field: string): string {
+    return this.toCompactLabel(field, node.module);
   }
 
   startModuleDrag(moduleId: number, event: PointerEvent): void {
@@ -1067,12 +1072,112 @@ export class IvrBuilderComponent {
     return null;
   }
 
-  private toLabel(key: string): string {
+  private toLabel(key: string, module?: IvrModuleRecord): string {
+    const multiSwitchExitMatch = /^exits\[(\d+)\]\.nextModuleId$/i.exec(key);
+    if (multiSwitchExitMatch) {
+      const index = Number(multiSwitchExitMatch[1]);
+      const exits = module?.['exits'];
+      if (Array.isArray(exits) && index >= 0 && index < exits.length) {
+        const exit = exits[index] as Record<string, unknown>;
+        const rule = typeof exit['rule'] === 'string' ? exit['rule'].trim() : '';
+        if (rule) {
+          return `Rule ${rule}`;
+        }
+      }
+      return `Exit ${index + 1}`;
+    }
+    const timeRuleExitMatch = /^exitModuleId(\d+)$/i.exec(key);
+    if (timeRuleExitMatch) {
+      return `Exit ${timeRuleExitMatch[1]}`;
+    }
     const exitMatch = /^exits(\d+)$/i.exec(key);
     if (exitMatch) {
-      return `Exit ${exitMatch[1]}`;
+      return `Rule ${exitMatch[1]}`;
     }
-    return key.replace(/ModuleId$/, ' module').replace(/([A-Z])/g, ' $1').replace(/^./, (text) => text.toUpperCase()).trim();
+    const keyModuleMatch = /^key(\d)ModuleId$/i.exec(key);
+    if (keyModuleMatch) {
+      return `Key ${keyModuleMatch[1]}`;
+    }
+    if (/^keyStarModuleId$/i.test(key)) {
+      return 'Key *';
+    }
+    if (/^keyHashModuleId$/i.test(key)) {
+      return 'Key #';
+    }
+    return key
+      .replace(/ModuleId$/, '')
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, (text) => text.toUpperCase())
+      .trim();
+  }
+
+  private toCompactLabel(key: string, module?: IvrModuleRecord): string {
+    if (/^closedModuleId$/i.test(key)) {
+      return 'C';
+    }
+    const multiSwitchExitMatch = /^exits\[(\d+)\]\.nextModuleId$/i.exec(key);
+    if (multiSwitchExitMatch) {
+      const index = Number(multiSwitchExitMatch[1]);
+      const exits = module?.['exits'];
+      if (Array.isArray(exits) && index >= 0 && index < exits.length) {
+        const exit = exits[index] as Record<string, unknown>;
+        const rule = typeof exit['rule'] === 'string' ? exit['rule'].trim() : '';
+        if (rule) {
+          return rule.length <= 3 ? rule : `R${index + 1}`;
+        }
+      }
+      return `R${index + 1}`;
+    }
+    const timeRuleMatch = /^exits(\d+)$/i.exec(key);
+    if (timeRuleMatch) {
+      return `R${timeRuleMatch[1]}`;
+    }
+    const timeExitMatch = /^exitModuleId(\d+)$/i.exec(key);
+    if (timeExitMatch) {
+      return `E${timeExitMatch[1]}`;
+    }
+    const menuKeyMatch = /^key(\d)ModuleId$/i.exec(key);
+    if (menuKeyMatch) {
+      return menuKeyMatch[1];
+    }
+    if (/^keyStarModuleId$/i.test(key)) {
+      return '*';
+    }
+    if (/^keyHashModuleId$/i.test(key)) {
+      return '#';
+    }
+    if (/^noMatchModuleId$/i.test(key)) {
+      return 'NO';
+    }
+    if (/^matchModuleId$/i.test(key)) {
+      return 'M';
+    }
+    if (/^nextModuleId$/i.test(key)) {
+      return 'N';
+    }
+    if (/^onModuleId$/i.test(key)) {
+      return 'ON';
+    }
+    if (/^offModuleId$/i.test(key)) {
+      return 'OFF';
+    }
+    if (/^timeoutModuleId$/i.test(key)) {
+      return 'T';
+    }
+    if (/^continueModuleId$/i.test(key)) {
+      return 'GO';
+    }
+    if (/^loopExhaustedModuleId$/i.test(key)) {
+      return 'LX';
+    }
+
+    const normalized = key
+      .replace(/ModuleId$/i, '')
+      .replace(/[^A-Za-z0-9]/g, '');
+    if (!normalized) {
+      return '?';
+    }
+    return normalized.slice(0, 3).toUpperCase();
   }
 
   private toCanvasPoint(event: PointerEvent): { x: number; y: number } | null {
@@ -1525,7 +1630,7 @@ export class IvrBuilderComponent {
     const canvas = this.canvasRef();
     if (!canvas) {
       return {
-        x: 80 + (count % 3) * 360,
+        x: 80 + (count % 3) * 500,
         y: 120 + Math.floor(count / 3) * 250
       };
     }

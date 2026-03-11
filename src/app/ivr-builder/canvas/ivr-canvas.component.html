@@ -162,6 +162,9 @@
           (pointerdown)="onOutputPortPointerDown(node, field, $event)"
           [title]="outputPortTooltip(node, field)"
         >
+          <span *ngIf="!isHangupExit(node, field)" class="port-badge">
+            {{ outputPortLabel(node, field) }}
+          </span>
           <span *ngIf="isHangupExit(node, field)" class="hangup-mark">X</span>
         </button>
       </ng-container>
