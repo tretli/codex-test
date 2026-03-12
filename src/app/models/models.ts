@@ -130,9 +130,37 @@ export interface ServiceModuleCanvasElement<TModule extends ServiceModuleLike = 
     linkField: string;
 }
 
+export type ServiceModuleAdapter = {
+    toServiceModule?: (input: Record<string, unknown>) => ServiceModule;
+    getExitFields?: (module: ServiceModuleLike) => string[];
+    getExitLinks?: (module: ServiceModuleLike) => Array<{ field: string; toId: number }>;
+};
+
+const serviceModuleAdapters = new Map<number, ServiceModuleAdapter>();
+
+export function registerServiceModuleAdapter(typeId: number, adapter: ServiceModuleAdapter): void {
+    if (!Number.isFinite(typeId)) {
+        return;
+    }
+    serviceModuleAdapters.set(typeId, adapter);
+}
+
+function getServiceModuleAdapter(typeId: unknown): ServiceModuleAdapter | undefined {
+    return typeof typeId === 'number' && Number.isFinite(typeId)
+        ? serviceModuleAdapters.get(typeId)
+        : undefined;
+}
+
 const EXIT_FIELD_PATTERN = /(moduleid$|^exits\d+$)/i;
 
 export function getServiceModuleExitFields(module: ServiceModuleLike): string[] {
+    const adapter = getServiceModuleAdapter(module.serviceModuleTypeId);
+    if (adapter?.getExitFields) {
+        const mapped = adapter.getExitFields(module);
+        if (mapped.length > 0) {
+            return [...new Set(mapped)];
+        }
+    }
     const custom = getCustomExitFields(module);
     if (custom.length > 0) {
         return [...new Set(custom)];
@@ -142,6 +170,28 @@ export function getServiceModuleExitFields(module: ServiceModuleLike): string[] 
 }
 
 export function getServiceModuleExitLinks(module: ServiceModuleLike): Array<{ field: string; toId: number }> {
+    const adapter = getServiceModuleAdapter(module.serviceModuleTypeId);
+    if (adapter?.getExitLinks) {
+        const mapped = adapter.getExitLinks(module);
+        const seenMapped = new Set<string>();
+        const sanitizedMapped: Array<{ field: string; toId: number }> = [];
+        mapped.forEach((link) => {
+            const toId = asPositiveServiceModuleId(link.toId);
+            if (toId === null || typeof link.field !== 'string') {
+                return;
+            }
+            const key = `${link.field}:${toId}`;
+            if (seenMapped.has(key)) {
+                return;
+            }
+            seenMapped.add(key);
+            sanitizedMapped.push({ field: link.field, toId });
+        });
+        if (sanitizedMapped.length > 0) {
+            return sanitizedMapped;
+        }
+    }
+
     const links: Array<{ field: string; toId: number }> = [];
     const seen = new Set<string>();
     const addLink = (field: string, rawValue: unknown): void => {
@@ -446,6 +496,11 @@ export function toServiceModule(input: unknown): ServiceModule | null {
                 : 0,
         callLogVisible: typeof candidate['callLogVisible'] === 'boolean' ? (candidate['callLogVisible'] as boolean) : false
     };
+
+    const adapter = getServiceModuleAdapter(serviceModuleTypeId);
+    if (adapter?.toServiceModule) {
+        return adapter.toServiceModule(normalizedBase);
+    }
 
     switch (serviceModuleTypeId as CallModuleType) {
         case CallModuleType.Queue:

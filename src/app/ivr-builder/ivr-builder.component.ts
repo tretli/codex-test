@@ -3,17 +3,13 @@ import { Component, HostListener, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
-  getDefaultServiceModuleExitField,
   getServiceModuleExitCompactLabel,
-  getServiceModuleExitFields,
   getServiceModuleExitLabel,
-  getServiceModuleExitLinks,
-  IvrModuleRecord,
-  ServiceModuleLike,
-  toIvrModuleRecord
+  IvrModuleRecord
 } from '../models/models';
 import { IvrCanvasComponent } from './canvas/ivr-canvas.component';
 import { IvrModuleDetailsHostComponent } from './module-details/ivr-module-details-host.component';
+import { IVR_MODULE_REGISTRY } from './module-definitions/ivr-module-registry';
 import {
   BuilderNode,
   CanvasAction,
@@ -27,14 +23,6 @@ import {
   UnlinkedZone
 } from './canvas/ivr-canvas.types';
 import { DEFAULT_IVR_SAMPLE_MODULES } from './ivr-sample-data';
-
-type ModuleTemplate = {
-  serviceModuleTypeId: number;
-  label: string;
-  defaultName: string;
-  defaults: Record<string, unknown>;
-  preferredLinkField: string;
-};
 
 type DragState = {
   moduleId: number;
@@ -102,83 +90,13 @@ const HANGUP_EXIT_VALUE = -1;
 export class IvrBuilderComponent {
   readonly nodeWidth = 460;
   readonly collapsedNodeHeight = 112;
+  readonly expandedNodeHeight = 152;
   private readonly moduleCardBorderWidth = 1;
+  private readonly modulePortRadius = 10;
+  private readonly moduleRegistry = IVR_MODULE_REGISTRY;
   private pointerCaptureTarget: Element | null = null;
   private pointerCaptureId: number | null = null;
-  private readonly moduleTypeColors: Record<number, string> = {
-    1: '#64748b',
-    2: '#ef4444',
-    5: '#22c55e',
-    7: '#eab308',
-    11: '#86efac',
-    13: '#facc15',
-    14: '#ca8a04',
-    17: '#d946ef',
-    19: '#06b6d4',
-    21: '#c084fc',
-    23: '#fb923c',
-    24: '#14b8a6',
-    30: '#0ea5e9',
-    34: '#a3e635',
-    39: '#4338ca'
-  };
-
-  readonly templates: ModuleTemplate[] = [
-    {
-      serviceModuleTypeId: 30,
-      label: 'Menu',
-      defaultName: 'Menu',
-      defaults: {
-        answer: true,
-        background: true,
-        interval: 3,
-        count: 3,
-        surveyModule: false,
-        key1ModuleId: 0,
-        key2ModuleId: 0,
-        keyStarModuleId: 0,
-        keyHashModuleId: 0,
-        loopExhaustedModuleId: 0
-      },
-      preferredLinkField: 'key1ModuleId'
-    },
-    {
-      serviceModuleTypeId: 2,
-      label: 'Playback',
-      defaultName: 'Playback',
-      defaults: { answer: true, background: false, soundFile: '', nextModuleId: 0 },
-      preferredLinkField: 'nextModuleId'
-    },
-    {
-      serviceModuleTypeId: 7,
-      label: 'Queue',
-      defaultName: 'Queue',
-      defaults: {
-        answer: true,
-        queueId: 0,
-        queuePriority: 0,
-        queueTimeout: 0,
-        timeoutModuleId: 0,
-        continueModuleId: 0,
-        fullModuleId: 0
-      },
-      preferredLinkField: 'continueModuleId'
-    },
-    {
-      serviceModuleTypeId: 17,
-      label: 'Wait',
-      defaultName: 'Wait',
-      defaults: { wait: 1000, nextModuleId: 0 },
-      preferredLinkField: 'nextModuleId'
-    },
-    {
-      serviceModuleTypeId: 1,
-      label: 'Hangup',
-      defaultName: 'Hangup',
-      defaults: { cause: 'normal' },
-      preferredLinkField: 'nextModuleId'
-    }
-  ];
+  readonly creatableModuleDefinitions = this.moduleRegistry.getCreatableDefinitions();
 
   readonly connectionRouteStyle = signal<ConnectionRouteStyle>('curved');
   readonly canvasZoom = signal<number>(1);
@@ -327,6 +245,7 @@ export class IvrBuilderComponent {
   readonly outputPortLeftFn = (node: BuilderNode, field: string): number => this.outputPortLeft(node, field);
   readonly inputPortLeftFn = (node: BuilderNode): number => this.inputPortLeft(node);
   readonly collapsedOutputPortLeftFn = (node: BuilderNode): number => this.collapsedOutputPortLeft(node);
+  readonly nodeVisibleHeightFn = (node: BuilderNode): number => this.visibleNodeHeight(node);
   readonly isHangupExitFn = (node: BuilderNode, field: string): boolean => this.isHangupExit(node, field);
   readonly outputPortTooltipFn = (node: BuilderNode, field: string): string => this.outputPortTooltip(node, field);
   readonly outputPortLabelFn = (node: BuilderNode, field: string): string => this.outputPortLabel(node, field);
@@ -410,7 +329,7 @@ export class IvrBuilderComponent {
       }
       const modules: IvrModuleRecord[] = [];
       for (const item of moduleSource) {
-        const mapped = toIvrModuleRecord(item);
+        const mapped = this.moduleRegistry.toIvrModuleRecord(item);
         if (!mapped) {
           this.parseError.set('Each item must contain numeric id and serviceModuleTypeId.');
           return;
@@ -427,8 +346,8 @@ export class IvrBuilderComponent {
   }
 
   addModule(serviceModuleTypeId: number): void {
-    const template = this.templates.find((item) => item.serviceModuleTypeId === serviceModuleTypeId);
-    if (!template) {
+    const definition = this.moduleRegistry.get(serviceModuleTypeId);
+    if (!definition || !definition.canvas.creatable) {
       return;
     }
     const modules = this.exportModules();
@@ -437,14 +356,7 @@ export class IvrBuilderComponent {
     const id = maxId + 1;
     const count = this.nodes().length;
     const spawn = this.getVisibleSpawnPoint(count);
-    const moduleCandidate: ServiceModuleLike = {
-      id,
-      name: `${template.defaultName} ${id}`,
-      serviceModuleTypeId: template.serviceModuleTypeId,
-      order: maxOrder + 1,
-      ...template.defaults
-    };
-    const module = toIvrModuleRecord(moduleCandidate);
+    const module = this.moduleRegistry.createModuleRecord(serviceModuleTypeId, id, maxOrder + 1);
     if (!module) {
       return;
     }
@@ -490,12 +402,11 @@ export class IvrBuilderComponent {
   }
 
   moduleTypeLabel(serviceModuleTypeId: number): string {
-    const template = this.templates.find((item) => item.serviceModuleTypeId === serviceModuleTypeId);
-    return template ? template.label : `Type ${serviceModuleTypeId}`;
+    return this.moduleRegistry.getCanvasMeta(serviceModuleTypeId).label;
   }
 
   moduleTypeColor(serviceModuleTypeId: number): string {
-    return this.moduleTypeColors[serviceModuleTypeId] ?? '#475569';
+    return this.moduleRegistry.getCanvasMeta(serviceModuleTypeId).color;
   }
 
   linkFieldValue(node: BuilderNode, field: string): number {
@@ -1034,15 +945,15 @@ export class IvrBuilderComponent {
   }
 
   private getLinkFields(module: IvrModuleRecord): string[] {
-    return getServiceModuleExitFields(module);
+    return this.moduleRegistry.getExitFields(module);
   }
 
   private getModuleLinks(module: IvrModuleRecord): ModuleLink[] {
-    return getServiceModuleExitLinks(module);
+    return this.moduleRegistry.getExitLinks(module);
   }
 
   private defaultLinkField(module: IvrModuleRecord): string {
-    return getDefaultServiceModuleExitField(module);
+    return this.moduleRegistry.getPreferredLinkField(module);
   }
 
   private clearLinksTo(node: BuilderNode, targetId: number): BuilderNode {
@@ -1137,7 +1048,7 @@ export class IvrBuilderComponent {
   }
 
   private toPortLeft(nodeX: number, worldX: number): number {
-    return worldX - nodeX - this.moduleCardBorderWidth - 7;
+    return worldX - nodeX - this.moduleCardBorderWidth - this.modulePortRadius;
   }
 
   private buildConnectionPath(
@@ -1786,10 +1697,12 @@ export class IvrBuilderComponent {
     if (measured && measured > 0) {
       return measured;
     }
-    return this.collapsedNodeHeight;
+    return this.visibleNodeHeight(node);
   }
 
-  private visibleNodeHeight(_node: BuilderNode): number {
-    return this.collapsedNodeHeight;
+  private visibleNodeHeight(node: BuilderNode): number {
+    return this.selectedModuleId() === node.module.id
+      ? this.expandedNodeHeight
+      : this.collapsedNodeHeight;
   }
 }

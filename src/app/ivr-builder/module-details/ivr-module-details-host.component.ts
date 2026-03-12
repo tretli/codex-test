@@ -1,26 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { CallModuleType } from '../../models/models';
+import { Component, EventEmitter, Input, Output, Type } from '@angular/core';
 import { BuilderNode } from '../canvas/ivr-canvas.types';
+import { IVR_MODULE_REGISTRY } from '../module-definitions/ivr-module-registry';
+import { IvrModuleDetailsDynamicHostComponent } from './dynamic/ivr-module-details-dynamic-host.component';
+import { IvrModuleDetailsFallbackComponent } from './fallback/ivr-module-details-fallback.component';
 import { FieldKind, FieldSchema, MODULE_TYPE_SCHEMAS } from './ivr-module-detail-schemas';
-import {
-  IvrModuleDetailsAdvancedMenuComponent,
-  IvrModuleDetailsContactLookupComponent,
-  IvrModuleDetailsGenericComponent,
-  IvrModuleDetailsGroupComponent,
-  IvrModuleDetailsHangupComponent,
-  IvrModuleDetailsInfoComponent,
-  IvrModuleDetailsMacroComponent,
-  IvrModuleDetailsMultiSwitchComponent,
-  IvrModuleDetailsNumberListMatchComponent,
-  IvrModuleDetailsQueueComponent,
-  IvrModuleDetailsReadDtmfComponent,
-  IvrModuleDetailsSessionFieldsComponent,
-  IvrModuleDetailsSetVarComponent,
-  IvrModuleDetailsSwitchComponent,
-  IvrModuleDetailsTimeComponent,
-  IvrModuleDetailsWaitComponent
-} from './ivr-module-type-details.component';
 
 const LINK_FIELD_PATTERN = /(moduleid$|^exits\d+$)/i;
 
@@ -29,22 +13,8 @@ const LINK_FIELD_PATTERN = /(moduleid$|^exits\d+$)/i;
   standalone: true,
   imports: [
     CommonModule,
-    IvrModuleDetailsHangupComponent,
-    IvrModuleDetailsInfoComponent,
-    IvrModuleDetailsTimeComponent,
-    IvrModuleDetailsQueueComponent,
-    IvrModuleDetailsNumberListMatchComponent,
-    IvrModuleDetailsMacroComponent,
-    IvrModuleDetailsSwitchComponent,
-    IvrModuleDetailsWaitComponent,
-    IvrModuleDetailsSetVarComponent,
-    IvrModuleDetailsGroupComponent,
-    IvrModuleDetailsReadDtmfComponent,
-    IvrModuleDetailsMultiSwitchComponent,
-    IvrModuleDetailsAdvancedMenuComponent,
-    IvrModuleDetailsSessionFieldsComponent,
-    IvrModuleDetailsContactLookupComponent,
-    IvrModuleDetailsGenericComponent
+    IvrModuleDetailsDynamicHostComponent,
+    IvrModuleDetailsFallbackComponent
   ],
   templateUrl: './ivr-module-details-host.component.html',
   styleUrl: './ivr-module-details-host.component.scss'
@@ -57,6 +27,25 @@ export class IvrModuleDetailsHostComponent {
   @Output() nameChange = new EventEmitter<{ moduleId: number; value: string }>();
   @Output() fieldChange = new EventEmitter<{ moduleId: number; field: string; kind: FieldKind; value: unknown }>();
   @Output() removeModule = new EventEmitter<number>();
+
+  selectedDetailsComponent(): Type<unknown> | null {
+    const typeId = this.selectedNode?.module.serviceModuleTypeId;
+    if (typeof typeId !== 'number') {
+      return null;
+    }
+    return this.registry.get(typeId)?.details.component ?? null;
+  }
+
+  fallbackWarning(): string {
+    const typeId = this.selectedNode?.module.serviceModuleTypeId;
+    if (typeof typeId !== 'number') {
+      return '';
+    }
+    if (this.registry.get(typeId)) {
+      return '';
+    }
+    return `Unknown module type ${typeId}. Showing fallback editor.`;
+  }
 
   moduleTargets(): Array<{ id: number; label: string }> {
     const selected = this.selectedNode;
@@ -111,5 +100,5 @@ export class IvrModuleDetailsHostComponent {
     return key.replace(/ModuleId$/, ' module').replace(/([A-Z])/g, ' $1').replace(/^./, (text) => text.toUpperCase()).trim();
   }
 
-  protected readonly CallModuleType = CallModuleType;
+  private readonly registry = IVR_MODULE_REGISTRY;
 }

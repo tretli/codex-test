@@ -43,6 +43,7 @@ export class IvrCanvasComponent implements AfterViewInit {
   @Input({ required: true }) outputPortLeft!: (node: BuilderNode, field: string) => number;
   @Input({ required: true }) inputPortLeft!: (node: BuilderNode) => number;
   @Input({ required: true }) collapsedOutputPortLeft!: (node: BuilderNode) => number;
+  @Input({ required: true }) nodeHeight!: (node: BuilderNode) => number;
   @Input({ required: true }) isHangupExit!: (node: BuilderNode, field: string) => boolean;
   @Input({ required: true }) outputPortTooltip!: (node: BuilderNode, field: string) => string;
   @Input({ required: true }) outputPortLabel!: (node: BuilderNode, field: string) => string;

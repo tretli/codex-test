@@ -13,13 +13,13 @@
     <h2>Add Module</h2>
     <div class="palette-controls">
       <button
-        *ngFor="let item of templates"
+        *ngFor="let item of creatableModuleDefinitions"
         type="button"
         class="palette-add-btn"
-        [style.--module-color]="moduleTypeColor(item.serviceModuleTypeId)"
-        (click)="addModule(item.serviceModuleTypeId)"
+        [style.--module-color]="moduleTypeColor(item.typeId)"
+        (click)="addModule(item.typeId)"
       >
-        Add {{ item.label }} ({{ item.serviceModuleTypeId }})
+        Add {{ item.canvas.label }} ({{ item.typeId }})
       </button>
     </div>
   </section>
@@ -69,6 +69,7 @@
         [outputPortLeft]="outputPortLeftFn"
         [inputPortLeft]="inputPortLeftFn"
         [collapsedOutputPortLeft]="collapsedOutputPortLeftFn"
+        [nodeHeight]="nodeVisibleHeightFn"
         [isHangupExit]="isHangupExitFn"
         [outputPortTooltip]="outputPortTooltipFn"
         [outputPortLabel]="outputPortLabelFn"
