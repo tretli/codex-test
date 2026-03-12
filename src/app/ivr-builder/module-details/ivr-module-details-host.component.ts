@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output, Type } from '@angular/core';
 import { BuilderNode } from '../canvas/ivr-canvas.types';
 import { IVR_MODULE_REGISTRY } from '../module-definitions/ivr-module-registry';
+import { ModuleFieldPatchEvent } from './common/detail-field-patch.model';
 import { IvrModuleDetailsDynamicHostComponent } from './dynamic/ivr-module-details-dynamic-host.component';
 import { IvrModuleDetailsFallbackComponent } from './fallback/ivr-module-details-fallback.component';
 import { FieldKind, FieldSchema, MODULE_TYPE_SCHEMAS } from './ivr-module-detail-schemas';
@@ -25,7 +26,7 @@ export class IvrModuleDetailsHostComponent {
   @Input({ required: true }) moduleTypeLabel!: (serviceModuleTypeId: number) => string;
 
   @Output() nameChange = new EventEmitter<{ moduleId: number; value: string }>();
-  @Output() fieldChange = new EventEmitter<{ moduleId: number; field: string; kind: FieldKind; value: unknown }>();
+  @Output() fieldChange = new EventEmitter<ModuleFieldPatchEvent>();
   @Output() removeModule = new EventEmitter<number>();
 
   selectedDetailsComponent(): Type<unknown> | null {
@@ -89,7 +90,7 @@ export class IvrModuleDetailsHostComponent {
     if (!selected) {
       return;
     }
-    this.fieldChange.emit({ moduleId: selected.module.id, field, kind, value });
+    this.fieldChange.emit({ moduleId: selected.module.id, field, kind, value, source: 'user' });
   }
 
   private toLabel(key: string): string {
