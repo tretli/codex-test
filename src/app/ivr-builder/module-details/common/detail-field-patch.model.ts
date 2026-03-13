@@ -1,4 +1,4 @@
-import { FieldKind } from '../ivr-module-detail-schemas';
+import { FieldKind } from './detail-field-schema.model';
 
 export type ModuleFieldPatchEvent = {
   moduleId: number;

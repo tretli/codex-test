@@ -1,0 +1,27 @@
+<div class="lookup-block">
+  <label class="field">
+    <span>Queue</span>
+    <select [ngModel]="selectedQueueId()" (ngModelChange)="updateQueueSelection($event)">
+      <option [ngValue]="0">No queue selected</option>
+      <option [ngValue]="''">Manual value</option>
+      <option *ngFor="let queue of state().data" [ngValue]="queue.id">
+        {{ queue.name }} ({{ queue.id }})
+      </option>
+    </select>
+  </label>
+
+  <label class="field">
+    <span>Queue ID</span>
+    <input type="number" [ngModel]="queueIdValue()" (ngModelChange)="updateQueueId($event)" />
+  </label>
+
+  <p class="lookup-status" *ngIf="state().status === 'loading'">Loading queues...</p>
+  <p class="lookup-error" *ngIf="state().status === 'error'">{{ state().error?.message }}</p>
+</div>
+
+<app-ivr-module-details-schema-editor
+  [node]="node"
+  [fields]="fields"
+  [moduleTargets]="moduleTargets"
+  (fieldChange)="fieldChange.emit($event)"
+></app-ivr-module-details-schema-editor>

@@ -2,6 +2,17 @@ import { CallModuleType } from '../../models/models';
 import { IVR_MODULE_REGISTRY } from './ivr-module-registry';
 
 describe('IvrModuleRegistry', () => {
+  it('has a definition for every known module type', () => {
+    const knownTypeIds = Object.keys(CallModuleType)
+      .filter((key) => Number.isNaN(Number(key)))
+      .map((key) => CallModuleType[key as keyof typeof CallModuleType])
+      .filter((value): value is number => typeof value === 'number' && value !== CallModuleType.Unknown);
+
+    const missing = [...new Set(knownTypeIds)].filter((typeId) => !IVR_MODULE_REGISTRY.get(typeId));
+
+    expect(missing).toEqual([]);
+  });
+
   it('exposes creatable definitions from the registry', () => {
     const creatable = IVR_MODULE_REGISTRY.getCreatableDefinitions();
     expect(creatable.length).toBeGreaterThan(0);

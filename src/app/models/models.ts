@@ -1158,6 +1158,7 @@ export interface ServiceModuleSessionVariablesData {
 export class ServiceModuleTime extends ServiceModuleBase {
     override serviceModuleTypeId: CallModuleType.Time = CallModuleType.Time;
     timeZone = '';
+    timeRule?: number;
     closedModuleId = 0;
     exits1 = 0;
     exits2 = 0;
@@ -1171,12 +1172,21 @@ export class ServiceModuleTime extends ServiceModuleBase {
 
     constructor(input: Record<string, unknown>) {
         super(input, CallModuleType.Time);
-        this.timeZone =
-            typeof input['timeZone'] === 'string'
-                ? input['timeZone']
-                : typeof input['timeRule'] === 'string'
-                    ? input['timeRule']
-                    : '';
+        this.timeZone = typeof input['timeZone'] === 'string' ? input['timeZone'] : '';
+        if (Object.prototype.hasOwnProperty.call(input, 'timeRule')) {
+            const rawTimeRule = input['timeRule'];
+            const parsedTimeRule =
+                typeof rawTimeRule === 'number'
+                    ? rawTimeRule
+                    : typeof rawTimeRule === 'string' && rawTimeRule.trim()
+                        ? Number(rawTimeRule.trim())
+                        : NaN;
+            if (Number.isFinite(parsedTimeRule)) {
+                this.timeRule = parsedTimeRule;
+            } else {
+                this.timeRule = 0;
+            }
+        }
         this.closedModuleId = toFiniteNumber(input['closedModuleId']);
         this.exits1 = toFiniteNumber(input['exits1']);
         this.exits2 = toFiniteNumber(input['exits2']);

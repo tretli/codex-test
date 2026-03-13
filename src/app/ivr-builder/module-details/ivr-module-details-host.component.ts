@@ -1,13 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output, Type } from '@angular/core';
 import { BuilderNode } from '../canvas/ivr-canvas.types';
+import { AdvancedMenuDetailsFacade } from '../data/facades/advanced-menu-details.facade';
+import { PlaySoundDetailsFacade } from '../data/facades/play-sound-details.facade';
+import { QueueDetailsFacade } from '../data/facades/queue-details.facade';
+import { TimeControlDetailsFacade } from '../data/facades/time-control-details.facade';
+import { IVR_DATA_PROVIDERS } from '../data/providers/ivr-data.providers';
 import { IVR_MODULE_REGISTRY } from '../module-definitions/ivr-module-registry';
 import { ModuleFieldPatchEvent } from './common/detail-field-patch.model';
+import { FieldKind, FieldSchema } from './common/detail-field-schema.model';
 import { IvrModuleDetailsDynamicHostComponent } from './dynamic/ivr-module-details-dynamic-host.component';
 import { IvrModuleDetailsFallbackComponent } from './fallback/ivr-module-details-fallback.component';
-import { FieldKind, FieldSchema, MODULE_TYPE_SCHEMAS } from './ivr-module-detail-schemas';
-
-const LINK_FIELD_PATTERN = /(moduleid$|^exits\d+$)/i;
 
 @Component({
   selector: 'app-ivr-module-details-host',
@@ -16,6 +19,13 @@ const LINK_FIELD_PATTERN = /(moduleid$|^exits\d+$)/i;
     CommonModule,
     IvrModuleDetailsDynamicHostComponent,
     IvrModuleDetailsFallbackComponent
+  ],
+  providers: [
+    ...IVR_DATA_PROVIDERS,
+    PlaySoundDetailsFacade,
+    QueueDetailsFacade,
+    TimeControlDetailsFacade,
+    AdvancedMenuDetailsFacade
   ],
   templateUrl: './ivr-module-details-host.component.html',
   styleUrl: './ivr-module-details-host.component.scss'
@@ -62,27 +72,7 @@ export class IvrModuleDetailsHostComponent {
   }
 
   fallbackFields(): FieldSchema[] {
-    const selected = this.selectedNode;
-    if (!selected) {
-      return [];
-    }
-    const schemas: FieldSchema[] = [...(MODULE_TYPE_SCHEMAS[selected.module.serviceModuleTypeId] ?? [])];
-    const existingKeys = new Set(schemas.map((schema) => schema.key));
-    Object.keys(selected.module).forEach((key) => {
-      if (existingKeys.has(key)) {
-        return;
-      }
-      if (LINK_FIELD_PATTERN.test(key)) {
-        schemas.push({ key, label: this.toLabel(key), kind: 'link' });
-      } else if (typeof selected.module[key] === 'boolean') {
-        schemas.push({ key, label: this.toLabel(key), kind: 'boolean' });
-      } else if (typeof selected.module[key] === 'number') {
-        schemas.push({ key, label: this.toLabel(key), kind: 'number' });
-      } else if (typeof selected.module[key] === 'string') {
-        schemas.push({ key, label: this.toLabel(key), kind: 'string' });
-      }
-    });
-    return schemas;
+    return [];
   }
 
   onFieldChange(field: string, kind: FieldKind, value: unknown): void {
@@ -92,14 +82,5 @@ export class IvrModuleDetailsHostComponent {
     }
     this.fieldChange.emit({ moduleId: selected.module.id, field, kind, value, source: 'user' });
   }
-
-  private toLabel(key: string): string {
-    const exitMatch = /^exits(\d+)$/i.exec(key);
-    if (exitMatch) {
-      return `Exit ${exitMatch[1]}`;
-    }
-    return key.replace(/ModuleId$/, ' module').replace(/([A-Z])/g, ' $1').replace(/^./, (text) => text.toUpperCase()).trim();
-  }
-
   private readonly registry = IVR_MODULE_REGISTRY;
 }

@@ -1,0 +1,26 @@
+<div class="lookup-block">
+  <label class="field">
+    <span>Prompt</span>
+    <select [ngModel]="selectedPromptKey()" (ngModelChange)="updatePromptSelection($event)">
+      <option [ngValue]="''">Manual value</option>
+      <option *ngFor="let prompt of prompts()" [ngValue]="prompt.key">
+        {{ prompt.displayName }} ({{ prompt.key }})
+      </option>
+    </select>
+  </label>
+
+  <label class="field">
+    <span>Sound file key</span>
+    <input type="text" [ngModel]="soundFileValue()" (ngModelChange)="updateSoundFile($event)" />
+  </label>
+
+  <p class="lookup-status" *ngIf="state().status === 'loading'">Loading prompts...</p>
+  <p class="lookup-error" *ngIf="state().status === 'error'">{{ state().error?.message }}</p>
+</div>
+
+<app-ivr-module-details-schema-editor
+  [node]="node"
+  [fields]="fields"
+  [moduleTargets]="moduleTargets"
+  (fieldChange)="fieldChange.emit($event)"
+></app-ivr-module-details-schema-editor>

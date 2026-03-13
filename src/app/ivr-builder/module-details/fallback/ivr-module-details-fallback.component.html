@@ -1,7 +1,8 @@
 <p class="fallback-warning" *ngIf="warning">{{ warning }}</p>
-<app-ivr-module-details-fields
+<app-ivr-module-details-schema-editor
   [node]="node"
   [fields]="fields"
   [moduleTargets]="moduleTargets"
+  [inferRemainingFields]="true"
   (fieldChange)="fieldChange.emit($event)"
-></app-ivr-module-details-fields>
+></app-ivr-module-details-schema-editor>

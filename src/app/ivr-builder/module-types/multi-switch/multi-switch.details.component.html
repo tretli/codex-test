@@ -1,0 +1,26 @@
+<app-ivr-module-details-schema-editor
+  [node]="node"
+  [fields]="fields"
+  [moduleTargets]="moduleTargets"
+  (fieldChange)="fieldChange.emit($event)"
+></app-ivr-module-details-schema-editor>
+
+<div class="field">
+  <span>Exits</span>
+  <div class="exit-row" *ngFor="let exit of exits(); let i = index; trackBy: trackByExitId">
+    <input
+      type="text"
+      [ngModel]="exit.rule"
+      (ngModelChange)="updateExitRule(i, $event)"
+      placeholder="Rule"
+    />
+    <select [ngModel]="exit.nextModuleId" (ngModelChange)="updateExitNextModuleId(i, $event)">
+      <option [ngValue]="0">No target</option>
+      <option *ngFor="let target of moduleTargets" [ngValue]="target.id">
+        {{ target.label }}
+      </option>
+    </select>
+    <button type="button" class="danger" (click)="removeExit(i)">Remove</button>
+  </div>
+  <button type="button" (click)="addExit()">Add exit</button>
+</div>

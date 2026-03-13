@@ -1,0 +1,36 @@
+<div class="lookup-block">
+  <label class="field">
+    <span>Time zone</span>
+    <select [ngModel]="selectedTimezoneId()" (ngModelChange)="updateTimezoneSelection($event)">
+      <option [ngValue]="''">Manual value</option>
+      <option *ngFor="let timezone of state().data.timezones" [ngValue]="timezone.id">
+        {{ timezone.label }} ({{ timezone.id }})
+      </option>
+    </select>
+  </label>
+
+  <label class="field">
+    <span>Time zone value</span>
+    <input type="text" [ngModel]="timeZoneValue()" (ngModelChange)="updateTimeZone($event)" />
+  </label>
+
+  <label class="field" *ngIf="hasTimeRule()">
+    <span>Time rule profile</span>
+    <select [ngModel]="selectedTimeRuleId()" (ngModelChange)="updateTimeRule($event)">
+      <option [ngValue]="''">No profile</option>
+      <option *ngFor="let profile of state().data.profiles" [ngValue]="profile.id">
+        {{ profile.name }} ({{ profile.id }})
+      </option>
+    </select>
+  </label>
+
+  <p class="lookup-status" *ngIf="state().status === 'loading'">Loading time-control lookups...</p>
+  <p class="lookup-error" *ngIf="state().status === 'error'">{{ state().error?.message }}</p>
+</div>
+
+<app-ivr-module-details-schema-editor
+  [node]="node"
+  [fields]="fields"
+  [moduleTargets]="moduleTargets"
+  (fieldChange)="fieldChange.emit($event)"
+></app-ivr-module-details-schema-editor>

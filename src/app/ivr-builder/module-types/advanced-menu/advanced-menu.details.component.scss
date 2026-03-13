@@ -1,0 +1,28 @@
+.lookup-block {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.lookup-status,
+.lookup-error {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.lookup-error {
+  color: #b91c1c;
+}
+
+input,
+select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  font: inherit;
+}

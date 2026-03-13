@@ -1,7 +1,7 @@
 import { Component, ComponentRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, Type, ViewChild, ViewContainerRef } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { BuilderNode } from '../../canvas/ivr-canvas.types';
-import { FieldKind } from '../ivr-module-detail-schemas';
+import { FieldKind } from '../common/detail-field-schema.model';
 
 type DynamicFieldChangeEvent = { field: string; kind: FieldKind; value: unknown };
 
