@@ -31,9 +31,21 @@ export class OpeningHoursService {
   }
 
   getDaySlots(day: Weekday): OpeningHoursSlot[] {
-    const matchingRules = this.scheduleV2Signal().rules.filter(
-      (rule) => rule.scope === 'weekly' && (rule.appliesOn.weekdays ?? []).includes(day)
-    );
+    const matchingRules = this.scheduleV2Signal().rules
+      .filter(
+        (rule) => rule.scope === 'weekly' && (rule.appliesOn.weekdays ?? []).includes(day)
+      )
+      .sort((a, b) => {
+        const priorityA = a.priority ?? 0;
+        const priorityB = b.priority ?? 0;
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        if (a.id && b.id) {
+          return a.id.localeCompare(b.id);
+        }
+        return 0;
+      });
     return matchingRules.flatMap((rule) => this.toOpeningHoursSlots(rule.slots));
   }
 
