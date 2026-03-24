@@ -1,2 +1,92 @@
-/node_modules/*
-/.angular/*
+# =========================
+# Angular
+# =========================
+
+# Compiled output
+/dist/
+/out-tsc/
+/tmp/
+/.cache/
+
+# Angular build files
+/.angular/cache
+
+# Environment files (optional - see note below)
+/src/environments/environment*.ts
+
+# =========================
+# Node
+# =========================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Dependency directories
+/.pnp
+.pnp.js
+
+# =========================
+# IDE / Editors
+# =========================
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+
+# JetBrains
+.idea/
+*.iml
+
+# Sublime
+*.sublime-workspace
+*.sublime-project
+
+# =========================
+# OS Files
+# =========================
+
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs
+# =========================
+
+logs
+*.log
+
+# =========================
+# Testing
+# =========================
+
+/coverage/
+
+# =========================
+# Build & Misc
+# =========================
+
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+
+# =========================
+# Firebase (if used)
+# =========================
+
+.firebase/
+.firebaserc
+
+# =========================
+# Environment variables
+# =========================
+
+.env
+.env.local
+.env.*.local
+/dist/opening-hours-admin-tool/browser/404.html
+/dist/opening-hours-admin-tool/browser/index.html
+/dist/opening-hours-admin-tool/browser/main-KSBV3UW2.js

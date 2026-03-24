@@ -12,10 +12,9 @@ import {
 } from '../opening-hours-admin/opening-hours.model';
 import { OpeningHoursService } from '../opening-hours-admin/opening-hours.service';
 import {
-  getEasterDate,
-  getSwedishMidsummerDayDate,
-  getSwedishMidsummerEveDate
+  getEasterDate
 } from '../opening-hours-admin/opening-hours-date.utils';
+import { getDateForSupportedRRule } from '../opening-hours-admin/opening-hours-rrule.utils';
 
 type DayView = {
   date: Date;
@@ -316,12 +315,8 @@ export class OpeningHoursWeekComponent {
       return this.addDays(easter, recurring.offsetDays ?? 0);
     }
 
-    if (recurring.kind === 'swedish-midsummer-day') {
-      return getSwedishMidsummerDayDate(year);
-    }
-
-    if (recurring.kind === 'swedish-midsummer-eve') {
-      return getSwedishMidsummerEveDate(year);
+    if (recurring.kind === 'rrule') {
+      return getDateForSupportedRRule(recurring.rrule, year);
     }
 
     return null;

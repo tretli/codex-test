@@ -1,0 +1,48 @@
+<section class="holiday-section">
+  <h2>Exit Outcomes</h2>
+  <p class="section-note">
+    Static outcomes with fixed ids 1-9. You can edit only name and color.
+  </p>
+
+  <article class="holiday-card" *ngFor="let outcome of outcomes.controls; let outcomeIndex = index" [formGroup]="outcome">
+    <div class="slot-row">
+      <label>
+        ID
+        <input type="text" formControlName="id" readonly />
+      </label>
+      <label>
+        Name
+        <input type="text" formControlName="name" placeholder="Outcome name" />
+      </label>
+      <label>
+        Color
+        <button
+          type="button"
+          class="color-button"
+          [style.--selected-color]="outcome.controls.color.value"
+          [attr.aria-label]="'Selected color ' + outcome.controls.color.value"
+          [attr.aria-expanded]="isPaletteOpen(outcomeIndex)"
+          aria-haspopup="dialog"
+          (click)="togglePalette(outcomeIndex)"
+        >
+          <span class="color-chip" aria-hidden="true"></span>
+        </button>
+        <div class="palette-popover" *ngIf="isPaletteOpen(outcomeIndex)">
+          <div class="palette-grid">
+            <button
+              type="button"
+              class="palette-swatch"
+              *ngFor="let preset of predefinedColors"
+              [style.background]="preset.value"
+              [title]="preset.name + ' ' + preset.value"
+              [attr.aria-label]="preset.name + ' ' + preset.value"
+              [class.selected]="isPresetSelected(outcome.controls.color.value, preset.value)"
+              (click)="onPresetColorSelected(outcomeIndex, preset.value)"
+            ></button>
+          </div>
+        </div>
+      </label>
+    </div>
+  </article>
+</section>
+

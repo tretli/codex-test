@@ -1,81 +1,107 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import {
   DEFAULT_EXIT_OUTCOMES,
   ExitOutcomeDefinition,
-  fromOpeningHoursScheduleV2,
-  OpeningHoursSchedule,
+  normalizeExitOutcomes,
+  normalizeScheduleV2,
   OpeningHoursScheduleV2,
   OpeningHoursSlot,
   ExitOutcome,
-  toOpeningHoursScheduleV2,
+  TimeSlotV2,
   Weekday
 } from './opening-hours.model';
 
 @Injectable({ providedIn: 'root' })
 export class OpeningHoursService {
   private readonly scheduleV2Signal = signal<OpeningHoursScheduleV2>(
-    toOpeningHoursScheduleV2(this.createDefaultSchedule(), [...DEFAULT_EXIT_OUTCOMES])
+    normalizeScheduleV2(this.createDefaultScheduleV2())
   );
 
   readonly scheduleV2 = this.scheduleV2Signal.asReadonly();
-  readonly schedule = computed(() => fromOpeningHoursScheduleV2(this.scheduleV2Signal()));
-
-  updateSchedule(schedule: OpeningHoursSchedule): void {
-    const currentOutcomes = this.scheduleV2Signal().exitOutcomes;
-    this.scheduleV2Signal.set(toOpeningHoursScheduleV2(schedule, currentOutcomes));
-  }
 
   updateScheduleV2(schedule: OpeningHoursScheduleV2): void {
-    this.scheduleV2Signal.set(schedule);
+    this.scheduleV2Signal.set(normalizeScheduleV2(schedule));
   }
 
   updateExitOutcomes(exitOutcomes: ExitOutcomeDefinition[]): void {
     this.scheduleV2Signal.update((current) => ({
       ...current,
-      exitOutcomes
+      exitOutcomes: normalizeExitOutcomes(exitOutcomes)
     }));
   }
 
   getDaySlots(day: Weekday): OpeningHoursSlot[] {
-    const matchingRecords = this.schedule().days.filter((record) =>
-      record.days.includes(day)
-    );
-    return matchingRecords.flatMap((record) => record.slots);
+    const matchingRules = this.scheduleV2Signal().rules
+      .filter(
+        (rule) => rule.scope === 'weekly' && (rule.appliesOn.weekdays ?? []).includes(day)
+      )
+      .sort((a, b) => {
+        const priorityA = a.priority ?? 0;
+        const priorityB = b.priority ?? 0;
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+        if (a.id && b.id) {
+          return a.id.localeCompare(b.id);
+        }
+        return 0;
+      });
+    return matchingRules.flatMap((rule) => this.toOpeningHoursSlots(rule.slots));
   }
 
-  private createDefaultSchedule(): OpeningHoursSchedule {
+  private createDefaultScheduleV2(): OpeningHoursScheduleV2 {
     return {
       timezone: 'Europe/London',
-      days: [
+      exitOutcomes: [...DEFAULT_EXIT_OUTCOMES],
+      rules: [
         {
+          id: 'weekly-1',
           name: 'Weekdays',
-          days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+          scope: 'weekly',
+          priority: 1,
+          appliesOn: {
+            weekdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+          },
           slots: [
             {
-              opensAt: '09:00',
-              closesAt: '17:00',
-              openExitType: ExitOutcome.Allow
+              start: '09:00',
+              end: '17:00',
+              action: ExitOutcome.Allow
             }
           ],
-          closedExitType: ExitOutcome.Deny
+          defaultClosed: {
+            action: ExitOutcome.Deny
+          }
         },
         {
+          id: 'weekly-2',
           name: 'Saturday',
-          days: ['saturday'],
+          scope: 'weekly',
+          priority: 2,
+          appliesOn: {
+            weekdays: ['saturday']
+          },
           slots: [
             {
-              opensAt: '10:00',
-              closesAt: '14:00',
-              openExitType: ExitOutcome.Allow
+              start: '10:00',
+              end: '14:00',
+              action: ExitOutcome.Allow
             }
           ],
-          closedExitType: ExitOutcome.Deny
+          defaultClosed: {
+            action: ExitOutcome.Deny
+          }
         }
       ],
-      recurringHolidays: [],
-      dateRanges: [],
-      singleDates: []
     };
+  }
+
+  private toOpeningHoursSlots(slots: TimeSlotV2[]): OpeningHoursSlot[] {
+    return slots.map((slot) => ({
+      opensAt: slot.start,
+      closesAt: slot.end,
+      openExitType: slot.action
+    }));
   }
 }
 

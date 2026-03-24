@@ -16,25 +16,3 @@ export function getEasterDate(year: number): Date {
   return new Date(year, month - 1, day);
 }
 
-export function getSwedishMidsummerDayDate(year: number): Date {
-  for (let day = 20; day <= 26; day += 1) {
-    const candidate = new Date(year, 5, day);
-    if (candidate.getDay() === 6) {
-      return candidate;
-    }
-  }
-  return new Date(year, 5, 20);
-}
-
-export function getSwedishMidsummerEveDate(year: number): Date {
-  for (let day = 19; day <= 25; day += 1) {
-    const candidate = new Date(year, 5, day);
-    if (candidate.getDay() === 5) {
-      return candidate;
-    }
-  }
-  const fallback = getSwedishMidsummerDayDate(year);
-  fallback.setDate(fallback.getDate() - 1);
-  return fallback;
-}
-
